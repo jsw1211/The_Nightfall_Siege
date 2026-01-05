@@ -8,7 +8,7 @@ void ABaseController::SetupInputComponent()
 {
     Super::SetupInputComponent();
 
-	InputComponent->BindAction("RightClick", IE_Pressed, this, &ABaseController::OnRightClick);
+	InputComponent->BindAction("RightClick", IE_Pressed, this, &ABaseController::MoveToMouse);
 }
 
 void ABaseController::OnRightClick()
@@ -19,5 +19,16 @@ void ABaseController::OnRightClick()
     if (Hit.bBlockingHit)
     {
 		UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, Hit.ImpactPoint);
+    }
+}
+
+void ABaseController::MoveToMouse()
+{
+    FHitResult Hit;
+    GetHitResultUnderCursor(ECC_Visibility, false, Hit);
+
+    if (Hit.bBlockingHit)
+    {
+        UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, Hit.Location);
     }
 }

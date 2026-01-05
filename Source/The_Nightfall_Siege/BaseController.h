@@ -18,4 +18,6 @@ protected:
 	virtual void SetupInputComponent() override;
 
 	void OnRightClick();
+
+	void MoveToMouse();
 };
