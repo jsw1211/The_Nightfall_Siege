@@ -14,7 +14,7 @@ ABaseCharacter::ABaseCharacter()
 
 	bUseControllerRotationYaw = false;
 
-	GetCharacterMovement()->bOrientRotationToMovement = true;
+	GetCharacterMovement()->bOrientRotationToMovement = false;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f);
 
 	// SpringArm

@@ -14,11 +14,11 @@ void ABaseController::SetupInputComponent()
 void ABaseController::OnRightClick()
 {
     FHitResult Hit;
-    GetHitResultUnderCursor(ECC_Visibility, false, Hit);
-
-    if (Hit.bBlockingHit)
+    if (GetHitResultUnderCursor(ECC_Visibility, false, Hit))
     {
-		UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, Hit.ImpactPoint);
+        RotateCharacterToCursor();
+
+        UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, Hit.Location);
     }
 }
 
@@ -31,4 +31,21 @@ void ABaseController::MoveToMouse()
     {
         UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, Hit.Location);
     }
+}
+
+void ABaseController::RotateCharacterToCursor()
+{
+    FHitResult Hit;
+    if (!GetHitResultUnderCursor(ECC_Visibility, false, Hit))
+        return;
+
+    APawn* Pawn = GetPawn();
+    if (!Pawn) return;
+
+    FVector Direction = Hit.Location - Pawn->GetActorLocation();
+    Direction.Z = 0.f;
+
+    FRotator TargetRotation = Direction.Rotation();
+
+    Pawn->SetActorRotation(TargetRotation);
 }

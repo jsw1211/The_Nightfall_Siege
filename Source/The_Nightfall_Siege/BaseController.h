@@ -20,4 +20,6 @@ protected:
 	void OnRightClick();
 
 	void MoveToMouse();
+
+	void RotateCharacterToCursor();
 };
