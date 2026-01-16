@@ -22,4 +22,6 @@ protected:
 	void MoveToMouse();
 
 	void RotateCharacterToCursor();
+
+	virtual void BeginPlay() override;
 };

@@ -13,21 +13,25 @@ ABaseCharacter::ABaseCharacter()
 	PrimaryActorTick.bCanEverTick = true;
 
 	bUseControllerRotationYaw = false;
+	bUseControllerRotationPitch = false;
+	bUseControllerRotationRoll = false;
 
-	GetCharacterMovement()->bOrientRotationToMovement = false;
+	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f);
 
-	// SpringArm
-	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
-	SpringArm->SetupAttachment(RootComponent);
+    SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
+    SpringArm->SetupAttachment(RootComponent);
 
-	SpringArm->TargetArmLength = 800.f;
-	SpringArm->SetRelativeRotation(FRotator(-60.f, 0.f, 0.f));
-	SpringArm->bDoCollisionTest = false;
-	SpringArm->bUsePawnControlRotation = false;
+    SpringArm->TargetArmLength = 800.f;
+    SpringArm->SetRelativeRotation(FRotator(-60.f, 0.f, 0.f));
 
-	// Camera
-	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("TopDownCamera"));
+    // ?? 이게 제일 중요
+    SpringArm->bUsePawnControlRotation = false;
+    SpringArm->bInheritPitch = false;
+    SpringArm->bInheritYaw = false;
+    SpringArm->bInheritRoll = false;
+
+    Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
     Camera->SetupAttachment(SpringArm);
     Camera->bUsePawnControlRotation = false;
 }

@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "BaseController.h"
@@ -39,13 +39,23 @@ void ABaseController::RotateCharacterToCursor()
     if (!GetHitResultUnderCursor(ECC_Visibility, false, Hit))
         return;
 
-    APawn* Pawn = GetPawn();
-    if (!Pawn) return;
+    APawn* BasePawn = GetPawn();
+    if (!BasePawn) return;
 
-    FVector Direction = Hit.Location - Pawn->GetActorLocation();
+    FVector Direction = Hit.Location - BasePawn->GetActorLocation();
     Direction.Z = 0.f;
 
     FRotator TargetRotation = Direction.Rotation();
 
-    Pawn->SetActorRotation(TargetRotation);
+    BasePawn->SetActorRotation(TargetRotation);
+}
+
+void ABaseController::BeginPlay()
+{
+    Super::BeginPlay();
+
+    bShowMouseCursor = true;
+    DefaultMouseCursor = EMouseCursor::Default;
+
+    SetIgnoreLookInput(true); // 🔥 마우스 회전 입력 차단
 }
