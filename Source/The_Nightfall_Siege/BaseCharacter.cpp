@@ -5,6 +5,8 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
 
 // Sets default values
 ABaseCharacter::ABaseCharacter()
@@ -41,6 +43,17 @@ void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
+        {
+            if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
+                LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+            {
+                Subsystem->AddMappingContext(IMC_BaseCharacter, 0);
+            }
+        }
+    }
 }
 
 // Called every frame
@@ -55,5 +68,28 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
+    if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent))
+    {
+        EnhancedInput->BindAction(IA_LeftPunch, ETriggerEvent::Started, this, &ABaseCharacter::LeftPunch);
+        EnhancedInput->BindAction(IA_RightPunch, ETriggerEvent::Started, this, &ABaseCharacter::RightPunch);
+    }
+
 }
 
+void ABaseCharacter::LeftPunch(const FInputActionValue& Value)
+{
+    UE_LOG(LogTemp, Warning, TEXT("Left Punch Input"));
+    if (LeftPunchMontage)
+    {
+        PlayAnimMontage(LeftPunchMontage);
+    }
+}
+
+void ABaseCharacter::RightPunch(const FInputActionValue& Value)
+{
+    UE_LOG(LogTemp, Warning, TEXT("Right Punch Input"));
+    if (RightPunchMontage)
+    {
+        PlayAnimMontage(RightPunchMontage);
+    }
+}
