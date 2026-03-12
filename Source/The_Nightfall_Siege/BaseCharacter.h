@@ -54,4 +54,24 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_RightPunch;
+	
+
+	// 쿨타임 상태
+	bool bCanUseLeftPunch = true;
+	bool bCanUseRightPunch = true;
+
+	// 쿨타임 시간
+	UPROPERTY(EditAnywhere, Category = "Cooldown")
+	float LeftPunchCooldown = 3.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Cooldown")
+	float RightPunchCooldown = 5.0f;
+
+	// 타이머 핸들
+	FTimerHandle LeftPunchCooldownTimer;
+	FTimerHandle RightPunchCooldownTimer;
+
+	// 쿨타임 리셋 함수
+	void ResetLeftPunchCooldown();
+	void ResetRightPunchCooldown();
 };

@@ -78,18 +78,59 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
 void ABaseCharacter::LeftPunch(const FInputActionValue& Value)
 {
+    if (!bCanUseLeftPunch)
+        return;
+
     UE_LOG(LogTemp, Warning, TEXT("Left Punch Input"));
+
     if (LeftPunchMontage)
     {
         PlayAnimMontage(LeftPunchMontage);
+
+        // 쿨타임 시작
+        bCanUseLeftPunch = false;
+
+        GetWorldTimerManager().SetTimer(
+            LeftPunchCooldownTimer,
+            this,
+            &ABaseCharacter::ResetLeftPunchCooldown,
+            LeftPunchCooldown,
+            false
+        );
     }
 }
 
 void ABaseCharacter::RightPunch(const FInputActionValue& Value)
 {
+    if (!bCanUseRightPunch)
+        return;
+
     UE_LOG(LogTemp, Warning, TEXT("Right Punch Input"));
+
     if (RightPunchMontage)
     {
         PlayAnimMontage(RightPunchMontage);
+
+        // 쿨타임 시작
+        bCanUseRightPunch = false;
+
+        GetWorldTimerManager().SetTimer(
+            RightPunchCooldownTimer,
+            this,
+            &ABaseCharacter::ResetRightPunchCooldown,
+            RightPunchCooldown,
+            false
+        );
     }
 }
+
+void ABaseCharacter::ResetLeftPunchCooldown()
+{
+    bCanUseLeftPunch = true;
+}
+
+void ABaseCharacter::ResetRightPunchCooldown()
+{
+    bCanUseRightPunch = true;
+}
+
