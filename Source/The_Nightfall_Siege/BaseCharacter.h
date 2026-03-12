@@ -32,6 +32,7 @@ public:
 
 	void LeftPunch(const FInputActionValue& Value);
 	void RightPunch(const FInputActionValue& Value);
+	void ToggleInventory();
 
 protected:
 	UPROPERTY(VisibleAnywhere)
@@ -54,7 +55,10 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_RightPunch;
-	
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* IA_Inventory;
+
 
 	// 쿨타임 상태
 	bool bCanUseLeftPunch = true;
@@ -74,4 +78,9 @@ protected:
 	// 쿨타임 리셋 함수
 	void ResetLeftPunchCooldown();
 	void ResetRightPunchCooldown();
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<class UUserWidget> InventoryWidgetClass;
+	UUserWidget* InventoryWidget;
+	bool bInventoryOpen = false;
 };

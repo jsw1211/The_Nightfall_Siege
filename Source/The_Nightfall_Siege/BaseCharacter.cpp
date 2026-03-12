@@ -5,6 +5,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Blueprint/UserWidget.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 
@@ -72,6 +73,8 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     {
         EnhancedInput->BindAction(IA_LeftPunch, ETriggerEvent::Started, this, &ABaseCharacter::LeftPunch);
         EnhancedInput->BindAction(IA_RightPunch, ETriggerEvent::Started, this, &ABaseCharacter::RightPunch);
+        EnhancedInput->BindAction(IA_Inventory, ETriggerEvent::Started,this, &ABaseCharacter::ToggleInventory
+        );
     }
 
 }
@@ -134,3 +137,30 @@ void ABaseCharacter::ResetRightPunchCooldown()
     bCanUseRightPunch = true;
 }
 
+void ABaseCharacter::ToggleInventory()
+{
+    UE_LOG(LogTemp, Warning, TEXT("Inventory Toggle"));
+
+    if (!InventoryWidgetClass) return;
+
+    if (!bInventoryOpen)
+    {
+        InventoryWidget = CreateWidget<UUserWidget>(GetWorld(), InventoryWidgetClass);
+
+        if (InventoryWidget)
+        {
+            InventoryWidget->AddToViewport();
+        }
+
+        bInventoryOpen = true;
+    }
+    else
+    {
+        if (InventoryWidget)
+        {
+            InventoryWidget->RemoveFromParent();
+        }
+
+        bInventoryOpen = false;
+    }
+}
