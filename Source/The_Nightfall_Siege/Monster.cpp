@@ -1,16 +1,20 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Monster.h"
 #include "Kismet/GameplayStatics.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "BaseCharacter.h"
 
 // Sets default values
 AMonster::AMonster()
 {
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+
+    MaxHP = 100.f;
+    CurrentHP = 100.f;
 
 	bIsAttacking = false;
 	bCanAttack = true;
@@ -44,6 +48,12 @@ void AMonster::Tick(float DeltaTime)
             bIsAttacking = true;
             bCanAttack = false;
 
+            ABaseCharacter* PlayerChar = Cast<ABaseCharacter>(Player);
+            if (PlayerChar)
+            {
+                PlayerChar->TakePlayerDamage(10.f); // 몬스터 공격력
+            }
+
             GetWorldTimerManager().SetTimer(
                 AttackTimerHandle,
                 this,
@@ -68,9 +78,21 @@ void AMonster::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 }
 
-
 void AMonster::ResetAttack()
 {
     bIsAttacking = false;
     bCanAttack = true;
+}
+
+void AMonster::TakeMonsterDamage(float Damage)
+{
+    CurrentHP -= Damage;
+
+    UE_LOG(LogTemp, Warning, TEXT("Monster HP: %f"), CurrentHP);
+
+    if (CurrentHP <= 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Monster Dead"));
+        Destroy();
+    }
 }

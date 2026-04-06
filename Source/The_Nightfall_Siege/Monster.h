@@ -40,4 +40,13 @@ public:
 
 	void ResetAttack();
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxHP;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float CurrentHP;
+
+	// 데미지 받는 함수
+	UFUNCTION()
+	void TakeMonsterDamage(float Damage);
 };

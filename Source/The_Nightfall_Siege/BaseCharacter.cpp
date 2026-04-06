@@ -8,6 +8,11 @@
 #include "Blueprint/UserWidget.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Monster.h"
+#include "Engine/World.h"
+#include "CollisionShape.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/OverlapResult.h"
 
 // Sets default values
 ABaseCharacter::ABaseCharacter()
@@ -37,6 +42,9 @@ ABaseCharacter::ABaseCharacter()
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
     Camera->SetupAttachment(SpringArm);
     Camera->bUsePawnControlRotation = false;
+
+    MaxHP = 100.f;
+    CurrentHP = 100.f;
 }
 
 // Called when the game starts or when spawned
@@ -81,49 +89,80 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
 void ABaseCharacter::LeftPunch(const FInputActionValue& Value)
 {
-    if (!bCanUseLeftPunch)
-        return;
-
-    UE_LOG(LogTemp, Warning, TEXT("Left Punch Input"));
+    UE_LOG(LogTemp, Warning, TEXT("Left Punch"));
 
     if (LeftPunchMontage)
     {
         PlayAnimMontage(LeftPunchMontage);
+    }
 
-        // 쿨타임 시작
-        bCanUseLeftPunch = false;
+    // 주변 몬스터 찾기
+    FVector Start = GetActorLocation();
+    float Radius = 150.f;
 
-        GetWorldTimerManager().SetTimer(
-            LeftPunchCooldownTimer,
-            this,
-            &ABaseCharacter::ResetLeftPunchCooldown,
-            LeftPunchCooldown,
-            false
-        );
+    TArray<FOverlapResult> Overlaps;
+
+    FCollisionQueryParams Params;
+    Params.AddIgnoredActor(this);
+
+    bool bHit = GetWorld()->OverlapMultiByChannel(
+        Overlaps,
+        GetActorLocation(),
+        FQuat::Identity,
+        ECC_Pawn,
+        FCollisionShape::MakeSphere(100.f),
+        Params
+    );
+
+    if (bHit)
+    {
+        for (auto& Result : Overlaps)
+        {
+            AMonster* Monster = Cast<AMonster>(Result.GetActor());
+
+            if (Monster)
+            {
+                Monster->TakeMonsterDamage(10.f);
+            }
+        }
     }
 }
 
 void ABaseCharacter::RightPunch(const FInputActionValue& Value)
 {
-    if (!bCanUseRightPunch)
-        return;
-
-    UE_LOG(LogTemp, Warning, TEXT("Right Punch Input"));
+    UE_LOG(LogTemp, Warning, TEXT("Right Punch"));
 
     if (RightPunchMontage)
     {
         PlayAnimMontage(RightPunchMontage);
+    }
 
-        // 쿨타임 시작
-        bCanUseRightPunch = false;
+    FVector Start = GetActorLocation();
+    float Radius = 150.f;
 
-        GetWorldTimerManager().SetTimer(
-            RightPunchCooldownTimer,
-            this,
-            &ABaseCharacter::ResetRightPunchCooldown,
-            RightPunchCooldown,
-            false
-        );
+    TArray<FOverlapResult> Overlaps;
+
+    FCollisionShape Sphere = FCollisionShape::MakeSphere(Radius);
+
+    bool bHit = GetWorld()->OverlapMultiByChannel(
+        Overlaps,
+        Start,
+        FQuat::Identity,
+        ECC_Pawn,
+        Sphere
+    );
+
+    if (bHit)
+    {
+        for (auto& Result : Overlaps)
+        {
+            AMonster* Monster = Cast<AMonster>(Result.GetActor());
+
+            if (Monster)
+            {
+                Monster->TakeMonsterDamage(20.f); // 오른손 데미지
+            }
+        }
     }
 }
 
@@ -162,5 +201,17 @@ void ABaseCharacter::ToggleInventory()
         }
 
         bInventoryOpen = false;
+    }
+}
+
+void ABaseCharacter::TakePlayerDamage(float Damage)
+{
+    CurrentHP -= Damage;
+
+    UE_LOG(LogTemp, Warning, TEXT("Player HP: %f"), CurrentHP);
+
+    if (CurrentHP <= 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Player Dead"));
     }
 }

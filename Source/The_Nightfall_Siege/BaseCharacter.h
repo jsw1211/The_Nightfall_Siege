@@ -33,6 +33,8 @@ public:
 	void LeftPunch(const FInputActionValue& Value);
 	void RightPunch(const FInputActionValue& Value);
 	void ToggleInventory();
+	UFUNCTION()
+	void TakePlayerDamage(float Damage);
 
 protected:
 	UPROPERTY(VisibleAnywhere)
@@ -83,4 +85,11 @@ protected:
 	TSubclassOf<class UUserWidget> InventoryWidgetClass;
 	UUserWidget* InventoryWidget;
 	bool bInventoryOpen = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxHP;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float CurrentHP;
+
 };
