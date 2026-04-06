@@ -89,12 +89,25 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
 void ABaseCharacter::LeftPunch(const FInputActionValue& Value)
 {
+    if (!bCanUseLeftPunch)
+        return;
+
     UE_LOG(LogTemp, Warning, TEXT("Left Punch"));
 
     if (LeftPunchMontage)
     {
         PlayAnimMontage(LeftPunchMontage);
     }
+
+    bCanUseLeftPunch = false;
+
+    GetWorldTimerManager().SetTimer(
+        LeftPunchCooldownTimer,
+        this,
+        &ABaseCharacter::ResetLeftPunchCooldown,
+        LeftPunchCooldown,
+        false
+    );
 
     // 주변 몬스터 찾기
     FVector Start = GetActorLocation();
@@ -130,12 +143,25 @@ void ABaseCharacter::LeftPunch(const FInputActionValue& Value)
 
 void ABaseCharacter::RightPunch(const FInputActionValue& Value)
 {
+    if (!bCanUseRightPunch)
+        return;
+
     UE_LOG(LogTemp, Warning, TEXT("Right Punch"));
 
     if (RightPunchMontage)
     {
         PlayAnimMontage(RightPunchMontage);
     }
+
+    bCanUseRightPunch = false;
+
+    GetWorldTimerManager().SetTimer(
+        RightPunchCooldownTimer,
+        this,
+        &ABaseCharacter::ResetRightPunchCooldown,
+        RightPunchCooldown,
+        false
+    );
 
     FVector Start = GetActorLocation();
     float Radius = 150.f;
