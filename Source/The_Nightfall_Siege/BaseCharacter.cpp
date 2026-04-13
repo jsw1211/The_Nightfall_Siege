@@ -13,6 +13,7 @@
 #include "CollisionShape.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/OverlapResult.h"
+#include "Components/CapsuleComponent.h"
 
 // Sets default values
 ABaseCharacter::ABaseCharacter()
@@ -43,14 +44,14 @@ ABaseCharacter::ABaseCharacter()
     Camera->SetupAttachment(SpringArm);
     Camera->bUsePawnControlRotation = false;
 
-    MaxHP = 100.f;
-    CurrentHP = 100.f;
 }
 
 // Called when the game starts or when spawned
 void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+    CurrentHP = MaxHP;
 	
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
@@ -63,6 +64,36 @@ void ABaseCharacter::BeginPlay()
             }
         }
     }
+}
+
+void ABaseCharacter::Die()
+{
+    bIsDead = true;
+
+    // 이동 멈춤
+    GetCharacterMovement()->DisableMovement();
+
+    // 입력 완전 차단
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (PC)
+    {
+        DisableInput(PC);
+    }
+
+    // 충돌 비활성화
+    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+}
+
+void ABaseCharacter::PlayHit()
+{
+    bIsHit = true;
+
+    // 0.3초 후 자동 해제
+    GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
+        {
+            bIsHit = false;
+        });
 }
 
 // Called every frame
@@ -85,6 +116,7 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         );
     }
 
+    if (bIsDead) return; // 죽으면 입력 등록 안함
 }
 
 void ABaseCharacter::LeftPunch(const FInputActionValue& Value)
@@ -232,12 +264,16 @@ void ABaseCharacter::ToggleInventory()
 
 void ABaseCharacter::TakePlayerDamage(float Damage)
 {
+    if (bIsDead) return;
+
     CurrentHP -= Damage;
 
-    UE_LOG(LogTemp, Warning, TEXT("Player HP: %f"), CurrentHP);
-
-    if (CurrentHP <= 0)
+    if (CurrentHP <= 0.f)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Player Dead"));
+        Die();
+    }
+    else
+    {
+        PlayHit();
     }
 }

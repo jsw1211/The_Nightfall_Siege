@@ -23,6 +23,9 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	void Die();
+	void PlayHit();
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -86,10 +89,19 @@ protected:
 	UUserWidget* InventoryWidget;
 	bool bInventoryOpen = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MaxHP;
+	// 체력
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	float MaxHP = 100.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
 	float CurrentHP;
+
+	// 상태
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
+	bool bIsDead = false;
+
+	// 애니메이션 상태 전달용
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
+	bool bIsHit = false;
 
 };
