@@ -113,6 +113,8 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         UE_LOG(LogTemp, Warning, TEXT("asdf"));
         EnhancedInput->BindAction(IA_Q, ETriggerEvent::Started, this, &ABaseCharacter::Q);
         EnhancedInput->BindAction(IA_W, ETriggerEvent::Started, this, &ABaseCharacter::W);
+        EnhancedInput->BindAction(IA_E, ETriggerEvent::Started, this, &ABaseCharacter::E);
+        EnhancedInput->BindAction(IA_R, ETriggerEvent::Started, this, &ABaseCharacter::R);
         EnhancedInput->BindAction(IA_Inventory, ETriggerEvent::Started,this, &ABaseCharacter::ToggleInventory
         );
     }
@@ -125,7 +127,7 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
     if (!bCanUseQ)
         return;
 
-    UE_LOG(LogTemp, Warning, TEXT("Left Punch"));
+    UE_LOG(LogTemp, Warning, TEXT("Q"));
 
     if (QMontage)
     {
@@ -168,7 +170,7 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(10.f);
+                Monster->TakeMonsterDamage(10.f); // Q 데미지
             }
         }
     }
@@ -179,7 +181,7 @@ void ABaseCharacter::W(const FInputActionValue& Value)
     if (!bCanUseW)
         return;
 
-    UE_LOG(LogTemp, Warning, TEXT("Right Punch"));
+    UE_LOG(LogTemp, Warning, TEXT("W"));
 
     if (WMontage)
     {
@@ -219,7 +221,109 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(20.f); // 오른손 데미지
+                Monster->TakeMonsterDamage(20.f); // W 데미지
+            }
+        }
+    }
+}
+
+void ABaseCharacter::E(const FInputActionValue& Value)
+{
+    if (!bCanUseE)
+        return;
+
+    UE_LOG(LogTemp, Warning, TEXT("E"));
+
+    if (EMontage)
+    {
+        PlayAnimMontage(EMontage);
+    }
+
+    bCanUseE = false;
+
+    GetWorldTimerManager().SetTimer(
+        ECooldownTimer,
+        this,
+        &ABaseCharacter::ResetECooldown,
+        ECooldown,
+        false
+    );
+
+    FVector Start = GetActorLocation();
+    float Radius = 150.f;
+
+    TArray<FOverlapResult> Overlaps;
+
+    FCollisionShape Sphere = FCollisionShape::MakeSphere(Radius);
+
+    bool bHit = GetWorld()->OverlapMultiByChannel(
+        Overlaps,
+        Start,
+        FQuat::Identity,
+        ECC_Pawn,
+        Sphere
+    );
+
+    if (bHit)
+    {
+        for (auto& Result : Overlaps)
+        {
+            AMonster* Monster = Cast<AMonster>(Result.GetActor());
+
+            if (Monster)
+            {
+                Monster->TakeMonsterDamage(30.f); // E 데미지
+            }
+        }
+    }
+}
+
+void ABaseCharacter::R(const FInputActionValue& Value)
+{
+    if (!bCanUseR)
+        return;
+
+    UE_LOG(LogTemp, Warning, TEXT("R"));
+
+    if (RMontage)
+    {
+        PlayAnimMontage(RMontage);
+    }
+
+    bCanUseR = false;
+
+    GetWorldTimerManager().SetTimer(
+        RCooldownTimer,
+        this,
+        &ABaseCharacter::ResetRCooldown,
+        RCooldown,
+        false
+    );
+
+    FVector Start = GetActorLocation();
+    float Radius = 150.f;
+
+    TArray<FOverlapResult> Overlaps;
+
+    FCollisionShape Sphere = FCollisionShape::MakeSphere(Radius);
+
+    bool bHit = GetWorld()->OverlapMultiByChannel(
+        Overlaps,
+        Start,
+        FQuat::Identity,
+        ECC_Pawn,
+        Sphere
+    );
+
+    if (bHit)
+    {
+        for (auto& Result : Overlaps)
+        {
+            AMonster* Monster = Cast<AMonster>(Result.GetActor());
+
+            if (Monster)
+            {
+                Monster->TakeMonsterDamage(50.f); // R 데미지
             }
         }
     }
@@ -233,6 +337,16 @@ void ABaseCharacter::ResetQCooldown()
 void ABaseCharacter::ResetWCooldown()
 {
     bCanUseW = true;
+}
+
+void ABaseCharacter::ResetECooldown()
+{
+    bCanUseE = true;
+}
+
+void ABaseCharacter::ResetRCooldown()
+{
+    bCanUseR = true;
 }
 
 void ABaseCharacter::ToggleInventory()

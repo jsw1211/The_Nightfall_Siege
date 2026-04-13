@@ -35,6 +35,8 @@ public:
 
 	void Q(const FInputActionValue& Value);
 	void W(const FInputActionValue& Value);
+	void E(const FInputActionValue& Value);
+	void R(const FInputActionValue& Value);
 	void ToggleInventory();
 	UFUNCTION()
 	void TakePlayerDamage(float Damage);
@@ -51,6 +53,10 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
 	UAnimMontage* WMontage;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+	UAnimMontage* EMontage;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+	UAnimMontage* RMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputMappingContext* IMC_BaseCharacter;
@@ -60,6 +66,10 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_W;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* IA_E;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* IA_R;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_Inventory;
@@ -68,21 +78,33 @@ protected:
 	// 쿨타임 상태
 	bool bCanUseQ = true;
 	bool bCanUseW = true;
+	bool bCanUseE = true;
+	bool bCanUseR = true;
 
 	// 쿨타임 시간
 	UPROPERTY(EditAnywhere, Category = "Cooldown")
-	float QCooldown = 3.0f;
+	float QCooldown = 1.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Cooldown")
-	float WCooldown = 5.0f;
+	float WCooldown = 3.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Cooldown")
+	float ECooldown = 5.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Cooldown")
+	float RCooldown = 7.0f;
 
 	// 타이머 핸들
 	FTimerHandle QCooldownTimer;
 	FTimerHandle WCooldownTimer;
+	FTimerHandle ECooldownTimer;
+	FTimerHandle RCooldownTimer;
 
 	// 쿨타임 리셋 함수
 	void ResetQCooldown();
 	void ResetWCooldown();
+	void ResetECooldown();
+	void ResetRCooldown();
 
 	UPROPERTY(EditAnywhere, Category = "UI")
 	TSubclassOf<class UUserWidget> InventoryWidgetClass;
