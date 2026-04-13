@@ -51,7 +51,7 @@ void AMonster::Tick(float DeltaTime)
             ABaseCharacter* PlayerChar = Cast<ABaseCharacter>(Player);
             if (PlayerChar)
             {
-                PlayerChar->TakePlayerDamage(10000.f); // 몬스터 공격력
+                PlayerChar->TakePlayerDamage(10.f); // 몬스터 공격력
             }
 
             GetWorldTimerManager().SetTimer(

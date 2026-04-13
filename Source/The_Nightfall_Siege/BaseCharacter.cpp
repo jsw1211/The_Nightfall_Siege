@@ -264,16 +264,14 @@ void ABaseCharacter::ToggleInventory()
 
 void ABaseCharacter::TakePlayerDamage(float Damage)
 {
-    if (bIsDead) return;
-
     CurrentHP -= Damage;
 
-    if (CurrentHP <= 0.f)
+    if (CurrentHP <= 0)
     {
-        Die();
+        PlayAnimMontage(DeathMontage);
     }
     else
     {
-        PlayHit();
+        PlayAnimMontage(HitMontage);
     }
 }
