@@ -14,6 +14,7 @@
 #include "Engine/EngineTypes.h"
 #include "Engine/OverlapResult.h"
 #include "Components/CapsuleComponent.h"
+#include "BaseController.h"
 
 // Sets default values
 ABaseCharacter::ABaseCharacter()
@@ -70,18 +71,18 @@ void ABaseCharacter::Die()
 {
     bIsDead = true;
 
-    // 이동 멈춤
     GetCharacterMovement()->DisableMovement();
 
-    // 입력 완전 차단
-    APlayerController* PC = Cast<APlayerController>(GetController());
+    ABaseController* PC = Cast<ABaseController>(GetController());
     if (PC)
     {
         DisableInput(PC);
     }
 
-    // 충돌 비활성화
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+    // 이거 추가해야 함
+    PlayAnimMontage(DeathMontage);
 
 }
 
@@ -124,6 +125,8 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
 void ABaseCharacter::Q(const FInputActionValue& Value)
 {
+    if (bIsDead) return;
+
     if (!bCanUseQ)
         return;
 
@@ -178,6 +181,8 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
 void ABaseCharacter::W(const FInputActionValue& Value)
 {
+    if (bIsDead) return;
+
     if (!bCanUseW)
         return;
 
@@ -229,6 +234,8 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
 void ABaseCharacter::E(const FInputActionValue& Value)
 {
+    if (bIsDead) return;
+
     if (!bCanUseE)
         return;
 
@@ -280,6 +287,8 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
 void ABaseCharacter::R(const FInputActionValue& Value)
 {
+    if (bIsDead) return;
+
     if (!bCanUseR)
         return;
 
@@ -379,14 +388,18 @@ void ABaseCharacter::ToggleInventory()
 
 void ABaseCharacter::TakePlayerDamage(float Damage)
 {
+    if (bIsDead) return;
+
     CurrentHP -= Damage;
 
-    if (CurrentHP <= 0)
+    if (CurrentHP > 0)
     {
-        PlayAnimMontage(DeathMontage);
+        // 살아있을 때만 Hit
+        PlayAnimMontage(HitMontage);
     }
     else
     {
-        PlayAnimMontage(HitMontage);
+        // 죽을 때만 Death
+        Die();
     }
 }
