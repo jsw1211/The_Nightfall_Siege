@@ -33,8 +33,8 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	void LeftPunch(const FInputActionValue& Value);
-	void RightPunch(const FInputActionValue& Value);
+	void Q(const FInputActionValue& Value);
+	void W(const FInputActionValue& Value);
 	void ToggleInventory();
 	UFUNCTION()
 	void TakePlayerDamage(float Damage);
@@ -47,42 +47,42 @@ protected:
 	class UCameraComponent* Camera;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-	UAnimMontage* LeftPunchMontage;
+	UAnimMontage* QMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-	UAnimMontage* RightPunchMontage;
+	UAnimMontage* WMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputMappingContext* IMC_BaseCharacter;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* IA_LeftPunch;
+	UInputAction* IA_Q;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* IA_RightPunch;
+	UInputAction* IA_W;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_Inventory;
 
 
 	// 쿨타임 상태
-	bool bCanUseLeftPunch = true;
-	bool bCanUseRightPunch = true;
+	bool bCanUseQ = true;
+	bool bCanUseW = true;
 
 	// 쿨타임 시간
 	UPROPERTY(EditAnywhere, Category = "Cooldown")
-	float LeftPunchCooldown = 3.0f;
+	float QCooldown = 3.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Cooldown")
-	float RightPunchCooldown = 5.0f;
+	float WCooldown = 5.0f;
 
 	// 타이머 핸들
-	FTimerHandle LeftPunchCooldownTimer;
-	FTimerHandle RightPunchCooldownTimer;
+	FTimerHandle QCooldownTimer;
+	FTimerHandle WCooldownTimer;
 
 	// 쿨타임 리셋 함수
-	void ResetLeftPunchCooldown();
-	void ResetRightPunchCooldown();
+	void ResetQCooldown();
+	void ResetWCooldown();
 
 	UPROPERTY(EditAnywhere, Category = "UI")
 	TSubclassOf<class UUserWidget> InventoryWidgetClass;

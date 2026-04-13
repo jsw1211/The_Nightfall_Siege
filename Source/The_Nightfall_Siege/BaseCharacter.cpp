@@ -110,8 +110,9 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
     if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent))
     {
-        EnhancedInput->BindAction(IA_LeftPunch, ETriggerEvent::Started, this, &ABaseCharacter::LeftPunch);
-        EnhancedInput->BindAction(IA_RightPunch, ETriggerEvent::Started, this, &ABaseCharacter::RightPunch);
+        UE_LOG(LogTemp, Warning, TEXT("asdf"));
+        EnhancedInput->BindAction(IA_Q, ETriggerEvent::Started, this, &ABaseCharacter::Q);
+        EnhancedInput->BindAction(IA_W, ETriggerEvent::Started, this, &ABaseCharacter::W);
         EnhancedInput->BindAction(IA_Inventory, ETriggerEvent::Started,this, &ABaseCharacter::ToggleInventory
         );
     }
@@ -119,25 +120,25 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     if (bIsDead) return; // 죽으면 입력 등록 안함
 }
 
-void ABaseCharacter::LeftPunch(const FInputActionValue& Value)
+void ABaseCharacter::Q(const FInputActionValue& Value)
 {
-    if (!bCanUseLeftPunch)
+    if (!bCanUseQ)
         return;
 
     UE_LOG(LogTemp, Warning, TEXT("Left Punch"));
 
-    if (LeftPunchMontage)
+    if (QMontage)
     {
-        PlayAnimMontage(LeftPunchMontage);
+        PlayAnimMontage(QMontage);
     }
 
-    bCanUseLeftPunch = false;
+    bCanUseQ = false;
 
     GetWorldTimerManager().SetTimer(
-        LeftPunchCooldownTimer,
+        QCooldownTimer,
         this,
-        &ABaseCharacter::ResetLeftPunchCooldown,
-        LeftPunchCooldown,
+        &ABaseCharacter::ResetQCooldown,
+        QCooldown,
         false
     );
 
@@ -173,25 +174,25 @@ void ABaseCharacter::LeftPunch(const FInputActionValue& Value)
     }
 }
 
-void ABaseCharacter::RightPunch(const FInputActionValue& Value)
+void ABaseCharacter::W(const FInputActionValue& Value)
 {
-    if (!bCanUseRightPunch)
+    if (!bCanUseW)
         return;
 
     UE_LOG(LogTemp, Warning, TEXT("Right Punch"));
 
-    if (RightPunchMontage)
+    if (WMontage)
     {
-        PlayAnimMontage(RightPunchMontage);
+        PlayAnimMontage(WMontage);
     }
 
-    bCanUseRightPunch = false;
+    bCanUseW = false;
 
     GetWorldTimerManager().SetTimer(
-        RightPunchCooldownTimer,
+        WCooldownTimer,
         this,
-        &ABaseCharacter::ResetRightPunchCooldown,
-        RightPunchCooldown,
+        &ABaseCharacter::ResetWCooldown,
+        WCooldown,
         false
     );
 
@@ -224,14 +225,14 @@ void ABaseCharacter::RightPunch(const FInputActionValue& Value)
     }
 }
 
-void ABaseCharacter::ResetLeftPunchCooldown()
+void ABaseCharacter::ResetQCooldown()
 {
-    bCanUseLeftPunch = true;
+    bCanUseQ = true;
 }
 
-void ABaseCharacter::ResetRightPunchCooldown()
+void ABaseCharacter::ResetWCooldown()
 {
-    bCanUseRightPunch = true;
+    bCanUseW = true;
 }
 
 void ABaseCharacter::ToggleInventory()
