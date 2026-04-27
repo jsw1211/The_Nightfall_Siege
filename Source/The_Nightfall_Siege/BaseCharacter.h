@@ -8,6 +8,8 @@
 #include "InputActionValue.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
+#include "NiagaraSystem.h"
+#include "NiagaraFunctionLibrary.h"
 #include "BaseCharacter.generated.h"
 
 UCLASS()
@@ -131,4 +133,8 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	UAnimMontage* HitMontage;
+	
+	//VFX
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	UNiagaraSystem* QSkillEffect;
 };

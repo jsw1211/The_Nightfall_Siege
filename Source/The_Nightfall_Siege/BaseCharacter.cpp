@@ -16,6 +16,7 @@
 #include "Components/CapsuleComponent.h"
 #include "BaseController.h"
 
+
 // Sets default values
 ABaseCharacter::ABaseCharacter()
 {
@@ -136,6 +137,19 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
     {
         PlayAnimMontage(QMontage);
     }
+
+    if (QSkillEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            QSkillEffect,
+            GetMesh(),
+            TEXT("LeftHandSocket"), // ¹æÆÐ ÂÊ
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::SnapToTarget,
+            true
+        );
+    } // VFX
 
     bCanUseQ = false;
 
