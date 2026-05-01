@@ -28,7 +28,7 @@ void ABaseController::MoveToMouse()
     ABaseCharacter* MyCharacter = Cast<ABaseCharacter>(GetPawn());
     if (MyCharacter && MyCharacter->bIsUsingSkill)
     {
-        return; // ⭐ 스킬 중이면 이동 막기
+        return; // 스킬 중이면 이동 막기
     }
 
     FHitResult Hit;

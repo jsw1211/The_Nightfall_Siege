@@ -15,6 +15,8 @@
 #include "Engine/OverlapResult.h"
 #include "Components/CapsuleComponent.h"
 #include "BaseController.h"
+#include "Kismet/GameplayStatics.h"
+#include "AIController.h"
 
 
 // Sets default values
@@ -138,6 +140,13 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
     bIsUsingSkill = true;
 
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AAIController* AICon = Cast<AAIController>(GetController()))
+    {
+        AICon->StopMovement();
+    }
+
     UE_LOG(LogTemp, Warning, TEXT("Q"));
 
     if (QMontage)
@@ -209,6 +218,13 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
     bIsUsingSkill = true;
 
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AAIController* AICon = Cast<AAIController>(GetController()))
+    {
+        AICon->StopMovement();
+    }
+
     UE_LOG(LogTemp, Warning, TEXT("W"));
 
     if (WMontage)
@@ -264,6 +280,13 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
     bIsUsingSkill = true;
 
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AAIController* AICon = Cast<AAIController>(GetController()))
+    {
+        AICon->StopMovement();
+    }
+
     UE_LOG(LogTemp, Warning, TEXT("E"));
 
     if (EMontage)
@@ -318,6 +341,13 @@ void ABaseCharacter::R(const FInputActionValue& Value)
         return;
 
     bIsUsingSkill = true;
+
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AAIController* AICon = Cast<AAIController>(GetController()))
+    {
+        AICon->StopMovement();
+    }
 
     UE_LOG(LogTemp, Warning, TEXT("R"));
 
