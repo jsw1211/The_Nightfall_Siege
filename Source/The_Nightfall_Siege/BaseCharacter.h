@@ -43,6 +43,9 @@ public:
 	UFUNCTION()
 	void TakePlayerDamage(float Damage);
 
+	// 스킬 사용 중인지
+	bool bIsUsingSkill = false;
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;
@@ -107,6 +110,9 @@ protected:
 	void ResetWCooldown();
 	void ResetECooldown();
 	void ResetRCooldown();
+
+	UFUNCTION()
+	void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 	UPROPERTY(EditAnywhere, Category = "UI")
 	TSubclassOf<class UUserWidget> InventoryWidgetClass;

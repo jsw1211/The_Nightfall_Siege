@@ -2,6 +2,7 @@
 
 
 #include "BaseController.h"
+#include "BaseCharacter.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 
 void ABaseController::SetupInputComponent()
@@ -24,6 +25,12 @@ void ABaseController::OnRightClick()
 
 void ABaseController::MoveToMouse()
 {
+    ABaseCharacter* MyCharacter = Cast<ABaseCharacter>(GetPawn());
+    if (MyCharacter && MyCharacter->bIsUsingSkill)
+    {
+        return; // ⭐ 스킬 중이면 이동 막기
+    }
+
     FHitResult Hit;
     GetHitResultUnderCursor(ECC_Visibility, false, Hit);
 

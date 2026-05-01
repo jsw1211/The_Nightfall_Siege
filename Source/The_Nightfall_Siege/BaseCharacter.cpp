@@ -66,6 +66,11 @@ void ABaseCharacter::BeginPlay()
             }
         }
     }
+
+    if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+    {
+        AnimInstance->OnMontageEnded.AddDynamic(this, &ABaseCharacter::OnMontageEnded);
+    }
 }
 
 void ABaseCharacter::Die()
@@ -128,8 +133,10 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 {
     if (bIsDead) return;
 
-    if (!bCanUseQ)
+    if (!bCanUseQ || bIsUsingSkill)
         return;
+
+    bIsUsingSkill = true;
 
     UE_LOG(LogTemp, Warning, TEXT("Q"));
 
@@ -197,8 +204,10 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 {
     if (bIsDead) return;
 
-    if (!bCanUseW)
+    if (!bCanUseW || bIsUsingSkill)
         return;
+
+    bIsUsingSkill = true;
 
     UE_LOG(LogTemp, Warning, TEXT("W"));
 
@@ -250,8 +259,10 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 {
     if (bIsDead) return;
 
-    if (!bCanUseE)
+    if (!bCanUseE || bIsUsingSkill)
         return;
+
+    bIsUsingSkill = true;
 
     UE_LOG(LogTemp, Warning, TEXT("E"));
 
@@ -303,8 +314,10 @@ void ABaseCharacter::R(const FInputActionValue& Value)
 {
     if (bIsDead) return;
 
-    if (!bCanUseR)
+    if (!bCanUseR || bIsUsingSkill)
         return;
+
+    bIsUsingSkill = true;
 
     UE_LOG(LogTemp, Warning, TEXT("R"));
 
@@ -416,4 +429,9 @@ void ABaseCharacter::TakePlayerDamage(float Damage)
         // Á×À» ¶§¸¸ Death
         Die();
     }
+}
+
+void ABaseCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+    bIsUsingSkill = false;
 }
