@@ -73,6 +73,9 @@ void ABaseCharacter::BeginPlay()
     {
         AnimInstance->OnMontageEnded.AddDynamic(this, &ABaseCharacter::OnMontageEnded);
     }
+
+    EquipWeapon(RightHandWeaponClass, RightHandSocketName, RightHandWeapon);
+    EquipWeapon(LeftHandWeaponClass, LeftHandSocketName, LeftHandWeapon);
 }
 
 void ABaseCharacter::Die()
@@ -464,4 +467,20 @@ void ABaseCharacter::TakePlayerDamage(float Damage)
 void ABaseCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
     bIsUsingSkill = false;
+}
+
+void ABaseCharacter::EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketName, AActor*& OutWeapon)
+{
+    if (!WeaponClass) return;
+
+    OutWeapon = GetWorld()->SpawnActor<AActor>(WeaponClass);
+
+    if (OutWeapon)
+    {
+        OutWeapon->AttachToComponent(
+            GetMesh(),
+            FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+            SocketName
+        );
+    }
 }
