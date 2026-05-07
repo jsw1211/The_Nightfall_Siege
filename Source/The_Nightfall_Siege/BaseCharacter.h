@@ -145,6 +145,12 @@ protected:
 	//VFX
 	UPROPERTY(EditAnywhere, Category = "VFX")
 	UNiagaraSystem* QSkillEffect;
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	UNiagaraSystem* WSkillEffect;
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	UNiagaraSystem* ESkillEffect;
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	UNiagaraSystem* RSkillEffect;
 
 
 	// Weapon & Socket

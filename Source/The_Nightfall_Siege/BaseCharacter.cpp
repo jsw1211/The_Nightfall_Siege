@@ -235,6 +235,19 @@ void ABaseCharacter::W(const FInputActionValue& Value)
         PlayAnimMontage(WMontage);
     }
 
+    if (WSkillEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            WSkillEffect,
+            GetMesh(),
+            TEXT("RightHandSocket"), //검 쪽
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::SnapToTarget,
+            true
+        );
+    } // VFX
+
     bCanUseW = false;
 
     GetWorldTimerManager().SetTimer(
@@ -297,6 +310,19 @@ void ABaseCharacter::E(const FInputActionValue& Value)
         PlayAnimMontage(EMontage);
     }
 
+    if (ESkillEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            ESkillEffect,
+            GetMesh(),
+            TEXT("RightHandSocket"), //검 쪽
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::SnapToTarget,
+            true
+        );
+    } // VFX
+
     bCanUseE = false;
 
     GetWorldTimerManager().SetTimer(
@@ -358,6 +384,19 @@ void ABaseCharacter::R(const FInputActionValue& Value)
     {
         PlayAnimMontage(RMontage);
     }
+
+    if (RSkillEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            RSkillEffect,
+            GetMesh(),
+            TEXT("RightHandSocket"), //검 쪽
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::SnapToTarget,
+            true
+        );
+    } // VFX
 
     bCanUseR = false;
 
