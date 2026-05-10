@@ -18,7 +18,12 @@ enum PACKET_TYPE {
 	S2C_MOVE_PLAYER
 };
 
-enum DIRECTION { UP, DOWN, LEFT, RIGHT };
+enum DIRECTION {
+	DIR_UP,
+	DIR_DOWN,
+	DIR_LEFT,
+	DIR_RIGHT
+};
 
 #pragma pack(push, 1)
 struct C2S_Login {
