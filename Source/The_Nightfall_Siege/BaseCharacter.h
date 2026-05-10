@@ -28,6 +28,8 @@ protected:
 	void Die();
 	void PlayHit();
 
+	void EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketName, AActor*& OutWeapon);
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -143,4 +145,30 @@ protected:
 	//VFX
 	UPROPERTY(EditAnywhere, Category = "VFX")
 	UNiagaraSystem* QSkillEffect;
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	UNiagaraSystem* WSkillEffect;
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	UNiagaraSystem* ESkillEffect;
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	UNiagaraSystem* RSkillEffect;
+
+
+	// Weapon & Socket
+	UPROPERTY(EditDefaultsOnly, Category = "Socket")
+	FName RightHandSocketName;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Socket")
+	FName LeftHandSocketName;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
+	TSubclassOf<AActor> RightHandWeaponClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
+	TSubclassOf<AActor> LeftHandWeaponClass;
+
+	UPROPERTY()
+	AActor* RightHandWeapon;
+
+	UPROPERTY()
+	AActor* LeftHandWeapon;
 };

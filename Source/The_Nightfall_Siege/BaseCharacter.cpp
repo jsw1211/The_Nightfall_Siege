@@ -73,6 +73,9 @@ void ABaseCharacter::BeginPlay()
     {
         AnimInstance->OnMontageEnded.AddDynamic(this, &ABaseCharacter::OnMontageEnded);
     }
+
+    EquipWeapon(RightHandWeaponClass, RightHandSocketName, RightHandWeapon);
+    EquipWeapon(LeftHandWeaponClass, LeftHandSocketName, LeftHandWeapon);
 }
 
 void ABaseCharacter::Die()
@@ -232,6 +235,19 @@ void ABaseCharacter::W(const FInputActionValue& Value)
         PlayAnimMontage(WMontage);
     }
 
+    if (WSkillEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            WSkillEffect,
+            GetMesh(),
+            TEXT("RightHandSocket"), //검 쪽
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::SnapToTarget,
+            true
+        );
+    } // VFX
+
     bCanUseW = false;
 
     GetWorldTimerManager().SetTimer(
@@ -294,6 +310,19 @@ void ABaseCharacter::E(const FInputActionValue& Value)
         PlayAnimMontage(EMontage);
     }
 
+    if (ESkillEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            ESkillEffect,
+            GetMesh(),
+            TEXT("RightHandSocket"), //검 쪽
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::SnapToTarget,
+            true
+        );
+    } // VFX
+
     bCanUseE = false;
 
     GetWorldTimerManager().SetTimer(
@@ -355,6 +384,19 @@ void ABaseCharacter::R(const FInputActionValue& Value)
     {
         PlayAnimMontage(RMontage);
     }
+
+    if (RSkillEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            RSkillEffect,
+            GetMesh(),
+            TEXT("RightHandSocket"), //검 쪽
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::SnapToTarget,
+            true
+        );
+    } // VFX
 
     bCanUseR = false;
 
@@ -464,4 +506,20 @@ void ABaseCharacter::TakePlayerDamage(float Damage)
 void ABaseCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
     bIsUsingSkill = false;
+}
+
+void ABaseCharacter::EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketName, AActor*& OutWeapon)
+{
+    if (!WeaponClass) return;
+
+    OutWeapon = GetWorld()->SpawnActor<AActor>(WeaponClass);
+
+    if (OutWeapon)
+    {
+        OutWeapon->AttachToComponent(
+            GetMesh(),
+            FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+            SocketName
+        );
+    }
 }
