@@ -27,6 +27,13 @@ void ANetworkManager::BeginPlay()
         // 스레드 생성 및 실행
         WorkerInstance = new FNetworkWorker(ClientSocket, &AddPlayerQueue);
         Thread = FRunnableThread::Create(WorkerInstance, TEXT("NetworkReceiverThread"));
+
+        C2S_Login LoginPacket;
+        LoginPacket.size = sizeof(LoginPacket);
+        LoginPacket.type = C2S_LOGIN;
+        strncpy_s(LoginPacket.m_username, "UE_Client", MAX_NAME_LEN);
+
+        send((SOCKET)ClientSocket, (char*)&LoginPacket, LoginPacket.size, 0);
     }
 	
 }
