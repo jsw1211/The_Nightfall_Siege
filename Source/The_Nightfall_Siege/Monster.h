@@ -6,6 +6,8 @@
 #include "GameFramework/Character.h"
 #include "Monster.generated.h"
 
+class ADungeonManager;
+
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API AMonster : public ACharacter
 {
@@ -49,4 +51,9 @@ public:
 	// 데미지 받는 함수
 	UFUNCTION()
 	void TakeMonsterDamage(float Damage);
+
+	UPROPERTY()
+	ADungeonManager* DungeonManager;
+
+	bool bIsDead;
 };
