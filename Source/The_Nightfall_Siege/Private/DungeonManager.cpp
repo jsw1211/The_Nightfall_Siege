@@ -30,17 +30,23 @@ void ADungeonManager::Tick(float DeltaTime)
 void ADungeonManager::RegisterMonster()
 {
 	AliveMonsterCount++;
+
+	UE_LOG(LogTemp, Warning, TEXT("Monster Registered: %d"), AliveMonsterCount);
 }
 
 void ADungeonManager::OnMonsterDead()
 {
 	AliveMonsterCount--;
 
+	UE_LOG(LogTemp, Warning, TEXT("Monster Dead Left: %d"), AliveMonsterCount);
+
 	// 몬스터 전멸
 	if (AliveMonsterCount <= 0)
 	{
 		if (DungeonPrism)
 		{
+			UE_LOG(LogTemp, Warning, TEXT("Activate Prism"));
+
 			DungeonPrism->ActivatePrism();
 		}
 	}
