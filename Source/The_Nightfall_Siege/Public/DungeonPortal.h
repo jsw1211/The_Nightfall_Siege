@@ -6,6 +6,9 @@
 #include "GameFramework/Actor.h"
 #include "DungeonPortal.generated.h"
 
+class UBoxComponent;
+class UStaticMeshComponent;
+
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ADungeonPortal : public AActor
 {

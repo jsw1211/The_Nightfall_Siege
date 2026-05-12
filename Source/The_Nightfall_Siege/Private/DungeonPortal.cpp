@@ -4,9 +4,7 @@
 #include "DungeonPortal.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
-
 #include "Kismet/GameplayStatics.h"
-
 #include "RaidGameInstance.h"
 
 // Sets default values

@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "DungeonManager.generated.h"
 
+class ADungeonPrism;
+
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ADungeonManager : public AActor
 {
