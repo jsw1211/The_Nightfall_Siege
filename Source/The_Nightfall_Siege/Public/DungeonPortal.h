@@ -8,6 +8,7 @@
 
 class UBoxComponent;
 class UStaticMeshComponent;
+class USceneComponent;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ADungeonPortal : public AActor
@@ -27,6 +28,9 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 protected:
+	UPROPERTY(VisibleAnywhere)
+	USceneComponent* SceneRoot;
+
 	UPROPERTY(VisibleAnywhere)
 	UStaticMeshComponent* PortalMesh;
 

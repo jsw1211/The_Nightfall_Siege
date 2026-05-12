@@ -13,15 +13,20 @@ ADungeonPortal::ADungeonPortal()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	SceneRoot =
+		CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
+
+	RootComponent = SceneRoot;
+
 	PortalMesh =
 		CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PortalMesh"));
 
-	RootComponent = PortalMesh;
+	PortalMesh->SetupAttachment(SceneRoot);
 
 	CollisionBox =
 		CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionBox"));
 
-	CollisionBox->SetupAttachment(RootComponent);
+	CollisionBox->SetupAttachment(SceneRoot);
 
 	CollisionBox->SetBoxExtent(FVector(150.f));
 
