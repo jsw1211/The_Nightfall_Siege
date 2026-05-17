@@ -6,6 +6,7 @@
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "BaseCharacter.h"
+#include "DungeonManager.h"
 
 // Sets default values
 AMonster::AMonster()
@@ -16,9 +17,11 @@ AMonster::AMonster()
     MaxHP = 100.f;
     CurrentHP = 100.f;
 
-	bIsAttacking = false;
-	bCanAttack = true;
-	AttackCooldown = 2.0f;
+    bIsAttacking = false;
+    bCanAttack = true;
+    AttackCooldown = 2.0f;
+
+    bIsDead = false;
 }
 
 // Called when the game starts or when spawned
@@ -26,6 +29,16 @@ void AMonster::BeginPlay()
 {
 	Super::BeginPlay();
 	
+    DungeonManager =
+        Cast<ADungeonManager>(
+            UGameplayStatics::GetActorOfClass(
+                GetWorld(),
+                ADungeonManager::StaticClass()));
+
+    if (DungeonManager)
+    {
+        DungeonManager->RegisterMonster();
+    }
 }
 
 // Called every frame
@@ -86,13 +99,28 @@ void AMonster::ResetAttack()
 
 void AMonster::TakeMonsterDamage(float Damage)
 {
+    // 이미 죽었으면 무시
+    if (bIsDead)
+    {
+        return;
+    }
+
     CurrentHP -= Damage;
 
     UE_LOG(LogTemp, Warning, TEXT("Monster HP: %f"), CurrentHP);
 
     if (CurrentHP <= 0)
     {
+        bIsDead = true;
+
         UE_LOG(LogTemp, Warning, TEXT("Monster Dead"));
+
+        // DungeonManager에 몬스터 사망 알림
+        if (DungeonManager)
+        {
+            DungeonManager->OnMonsterDead();
+        }
+
         Destroy();
     }
 }
