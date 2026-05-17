@@ -15,8 +15,6 @@ void URaidGameInstance::StartRaid()
 	RemainingDungeons.Empty();
 
 	RemainingDungeons.Add("DragonLevelSample");
-	RemainingDungeons.Add("DragonLevelSample");
-	RemainingDungeons.Add("DragonLevelSample");
 
 	ClearedDungeonCount = 0;
 }

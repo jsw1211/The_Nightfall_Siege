@@ -58,8 +58,10 @@ void ADungeonPortal::Tick(float DeltaTime)
 		APlayerController* PC =
 			GetWorld()->GetFirstPlayerController();
 
-		if (PC && PC->WasInputKeyJustPressed(EKeys::E))
+		if (PC && PC->WasInputKeyJustPressed(EKeys::F))
 		{
+			UE_LOG(LogTemp, Warning, TEXT("F Pressed"));
+
 			EnterDungeon();
 		}
 	}
@@ -79,7 +81,7 @@ void ADungeonPortal::OnOverlapBegin(
 		-1,
 		2.f,
 		FColor::Green,
-		TEXT("Press E to Enter Dungeon"));
+		TEXT("Press F to Enter Dungeon"));
 }
 
 void ADungeonPortal::OnOverlapEnd(
@@ -100,6 +102,10 @@ void ADungeonPortal::EnterDungeon()
 	{
 		return;
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Open Dungeon: %s"),
+		*GI->CurrentDungeon.ToString()); // 디버그용
+
 
 	UGameplayStatics::OpenLevel(
 		this,
