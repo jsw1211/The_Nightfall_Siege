@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Animation/AnimMontage.h"
 #include "DragonBoss.generated.h"
 
 UENUM(BlueprintType)
@@ -112,5 +113,17 @@ public:
 	void FlyToTarget();
 
 	void FlyToCenter();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UAnimMontage* BiteMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UAnimMontage* BreathMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UAnimMontage* CloseBreathMontage;
+
+	UPROPERTY(BlueprintReadOnly)
+	float Speed;
 
 };

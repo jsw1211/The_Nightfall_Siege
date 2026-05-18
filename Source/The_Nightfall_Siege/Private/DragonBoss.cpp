@@ -3,6 +3,12 @@
 
 #include "DragonBoss.h"
 
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Animation/AnimInstance.h"
+#include "TimerManager.h"
+#include "AIController.h"
+
 // Sets default values
 ADragonBoss::ADragonBoss()
 {
@@ -130,9 +136,12 @@ void ADragonBoss::BiteAttack()
 
 	float Damage = AttackPower * 1.0f;
 
-	// TODO:
-	// 단일 대상에게 데미지 적용
-	// bite 애니메이션 재생
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
+	if (AnimInstance && BiteMontage)
+	{
+		AnimInstance->Montage_Play(BiteMontage);
+	}
 }
 
 void ADragonBoss::CloseBreathAttack()
@@ -143,9 +152,12 @@ void ADragonBoss::CloseBreathAttack()
 
 	float Damage = AttackPower * 2.0f;
 
-	// TODO:
-	// 근거리 범위 데미지
-	// closerangebreath 애니메이션 재생
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
+	if (AnimInstance && CloseBreathMontage)
+	{
+		AnimInstance->Montage_Play(CloseBreathMontage);
+	}
 }
 
 void ADragonBoss::BreathAttack()
@@ -154,13 +166,14 @@ void ADragonBoss::BreathAttack()
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Breath"));
 
-	// 중앙 이동
 	FlyToCenter();
 
-	// TODO:
-	// breath 애니메이션
-	// 직선 범위 공격
-	// 플레이어 최대 체력의 80% 피해
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
+	if (AnimInstance && BreathMontage)
+	{
+		AnimInstance->Montage_Play(BreathMontage);
+	}
 }
 
 void ADragonBoss::DebuffAttack()
@@ -187,9 +200,12 @@ void ADragonBoss::WalkToTarget()
 		UE_LOG(LogTemp, Warning, TEXT("Dragon Walking"));
 	}
 
-	// TODO:
-	// AI Move To Target
-	// walking 애니메이션
+	AAIController* AIController = Cast<AAIController>(GetController());
+
+	if (AIController && TargetPlayer)
+	{
+		AIController->MoveToActor(TargetPlayer, 150.f);
+	}
 }
 
 void ADragonBoss::FlyToTarget()
@@ -205,9 +221,12 @@ void ADragonBoss::FlyToTarget()
 		UE_LOG(LogTemp, Warning, TEXT("Dragon Flying"));
 	}
 
-	// TODO:
-	// AI Move To Target
-	// flying 애니메이션
+	AAIController* AIController = Cast<AAIController>(GetController());
+
+	if (AIController && TargetPlayer)
+	{
+		AIController->MoveToActor(TargetPlayer, 300.f);
+	}
 }
 
 void ADragonBoss::FlyToCenter()
