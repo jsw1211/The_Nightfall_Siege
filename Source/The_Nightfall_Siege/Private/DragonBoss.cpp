@@ -35,19 +35,17 @@ void ADragonBoss::Tick(float DeltaTime)
 		TargetPlayer = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
 	}
 
-	if (TargetPlayer)
+	if (TargetPlayer && !bIsAttacking)
 	{
 		float Distance = FVector::Dist(
 			GetActorLocation(),
 			TargetPlayer->GetActorLocation()
 		);
 
-		// 가까우면 걷기
 		if (Distance < 1200.f)
 		{
 			WalkToTarget();
 		}
-		// 멀면 비행
 		else
 		{
 			FlyToTarget();
@@ -130,6 +128,15 @@ void ADragonBoss::ExecuteRandomAttack()
 
 void ADragonBoss::BiteAttack()
 {
+	bIsAttacking = true;
+
+	AAIController* AIController = Cast<AAIController>(GetController());
+
+	if (AIController)
+	{
+		AIController->StopMovement();
+	}
+
 	CurrentState = EDragonState::Attacking;
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Bite"));
@@ -142,10 +149,31 @@ void ADragonBoss::BiteAttack()
 	{
 		AnimInstance->Montage_Play(BiteMontage);
 	}
+
+	FTimerHandle AttackEndHandle;
+
+	GetWorldTimerManager().SetTimer(
+		AttackEndHandle,
+		[this]()
+		{
+			bIsAttacking = false;
+		},
+		2.0f,
+		false
+	);
 }
 
 void ADragonBoss::CloseBreathAttack()
 {
+	bIsAttacking = true;
+
+	AAIController* AIController = Cast<AAIController>(GetController());
+
+	if (AIController)
+	{
+		AIController->StopMovement();
+	}
+
 	CurrentState = EDragonState::Attacking;
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Close Breath"));
@@ -158,15 +186,34 @@ void ADragonBoss::CloseBreathAttack()
 	{
 		AnimInstance->Montage_Play(CloseBreathMontage);
 	}
+
+	FTimerHandle AttackEndHandle;
+
+	GetWorldTimerManager().SetTimer(
+		AttackEndHandle,
+		[this]()
+		{
+			bIsAttacking = false;
+		},
+		3.0f,
+		false
+	);
 }
 
 void ADragonBoss::BreathAttack()
 {
+	bIsAttacking = true;
+
+	AAIController* AIController = Cast<AAIController>(GetController());
+
+	if (AIController)
+	{
+		AIController->StopMovement();
+	}
+
 	CurrentState = EDragonState::Flying;
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Breath"));
-
-	FlyToCenter();
 
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 
@@ -174,17 +221,50 @@ void ADragonBoss::BreathAttack()
 	{
 		AnimInstance->Montage_Play(BreathMontage);
 	}
+
+	FTimerHandle AttackEndHandle;
+
+	GetWorldTimerManager().SetTimer(
+		AttackEndHandle,
+		[this]()
+		{
+			bIsAttacking = false;
+		},
+		4.0f,
+		false
+	);
 }
 
 void ADragonBoss::DebuffAttack()
 {
+	bIsAttacking = true;
+
+	AAIController* AIController = Cast<AAIController>(GetController());
+
+	if (AIController)
+	{
+		AIController->StopMovement();
+	}
+
 	CurrentState = EDragonState::Attacking;
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Debuff"));
 
 	// TODO:
-	// 모든 플레이어 시야 제한
-	// 초당 최대 체력 2% 감소
+	// 시야 제한
+	// HP 감소 디버프
+
+	FTimerHandle AttackEndHandle;
+
+	GetWorldTimerManager().SetTimer(
+		AttackEndHandle,
+		[this]()
+		{
+			bIsAttacking = false;
+		},
+		2.5f,
+		false
+	);
 }
 
 void ADragonBoss::WalkToTarget()

@@ -126,4 +126,6 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	float Speed;
 
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsAttacking = false;
 };
