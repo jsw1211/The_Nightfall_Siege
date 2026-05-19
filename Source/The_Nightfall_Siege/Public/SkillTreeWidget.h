@@ -13,5 +13,16 @@ UCLASS()
 class THE_NIGHTFALL_SIEGE_API USkillTreeWidget : public UUserWidget
 {
 	GENERATED_BODY()
-	
+
+protected:
+
+	virtual void NativeConstruct() override;
+
+public:
+
+	UPROPERTY(meta = (BindWidget))
+	class UButton* Btn_Q_Damage;
+
+	UFUNCTION()
+	void OnClick_Q_Damage();
 };
