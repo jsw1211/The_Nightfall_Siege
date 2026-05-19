@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Components/TextBlock.h"
 #include "SkillTreeWidget.generated.h"
 
 /**
@@ -23,6 +24,11 @@ public:
 	UPROPERTY(meta = (BindWidget))
 	class UButton* Btn_Q_Damage;
 
+	UPROPERTY(meta = (BindWidget))
+	class UTextBlock* Txt_SkillPoint;
+
 	UFUNCTION()
 	void OnClick_Q_Damage();
+
+	void UpdateSkillPointText();
 };

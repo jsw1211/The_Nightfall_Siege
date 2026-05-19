@@ -62,6 +62,8 @@ void ABaseCharacter::BeginPlay()
 	Super::BeginPlay();
 
     CurrentHP = MaxHP;
+
+    SkillPoints = 5;
 	
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {

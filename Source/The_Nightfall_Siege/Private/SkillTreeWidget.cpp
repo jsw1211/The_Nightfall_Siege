@@ -10,6 +10,8 @@ void USkillTreeWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	UpdateSkillPointText();
+
 	if (Btn_Q_Damage)
 	{
 		Btn_Q_Damage->OnClicked.AddDynamic(
@@ -37,6 +39,31 @@ void USkillTreeWidget::OnClick_Q_Damage()
 
 	Player->UpgradeSkill(Upgrade);
 
+	UpdateSkillPointText();
+
 	UE_LOG(LogTemp, Warning, TEXT("Q Damage Upgrade"));
+}
+
+void USkillTreeWidget::UpdateSkillPointText()
+{
+	ABaseCharacter* Player =
+		Cast<ABaseCharacter>(
+			UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)
+		);
+
+	if (!Player)
+		return;
+
+	if (Txt_SkillPoint)
+	{
+		Txt_SkillPoint->SetText(
+			FText::FromString(
+				FString::Printf(
+					TEXT("Skill Point : %d"),
+					Player->SkillPoints
+				)
+			)
+		);
+	}
 }
 
