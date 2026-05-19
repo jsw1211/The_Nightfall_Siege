@@ -10,6 +10,7 @@
 #include "InputMappingContext.h"
 #include "NiagaraSystem.h"
 #include "NiagaraFunctionLibrary.h"
+#include "SkillUpgradeData.h"
 #include "BaseCharacter.generated.h"
 
 UCLASS()
@@ -47,6 +48,22 @@ public:
 
 	// 스킬 사용 중인지
 	bool bIsUsingSkill = false;
+
+	// 현재 보유 스킬 포인트
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	int32 SkillPoints = 0;
+
+	// 스킬 레벨 저장
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	TMap<ESkillType, int32> SkillLevels;
+
+	// 스킬 업그레이드
+	UFUNCTION(BlueprintCallable)
+	bool UpgradeSkill(FSkillUpgradeData UpgradeData);
+
+	// 실제 능력치 적용
+	UFUNCTION(BlueprintCallable)
+	void ApplySkillUpgrade(FSkillUpgradeData UpgradeData);
 
 protected:
 	UPROPERTY(VisibleAnywhere)
@@ -90,16 +107,42 @@ protected:
 
 	// 쿨타임 시간
 	UPROPERTY(EditAnywhere, Category = "Cooldown")
-	float QCooldown = 1.0f;
+	float QCooldown = 5.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Cooldown")
-	float WCooldown = 3.0f;
+	float WCooldown = 20.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Cooldown")
-	float ECooldown = 5.0f;
+	float ECooldown = 10.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Cooldown")
-	float RCooldown = 7.0f;
+	float RCooldown = 20.0f;
+
+	// 데미지
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	float QDamage = 10.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	float WDamage = 20.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	float EDamage = 30.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	float RDamage = 50.f;
+
+	// 범위
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	float QRadius = 100.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	float WRadius = 150.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	float ERadius = 150.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	float RRadius = 200.f;
 
 	// 타이머 핸들
 	FTimerHandle QCooldownTimer;
@@ -127,6 +170,18 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
 	float CurrentHP;
+
+	// 공격력
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	float AttackPower = 100.f;
+
+	// 방어율
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	float DefenseRate = 0.f;
+
+	// 공격속도
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	float AttackSpeed = 1.f;
 
 	// 상태
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")

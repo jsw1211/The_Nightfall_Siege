@@ -48,6 +48,11 @@ ABaseCharacter::ABaseCharacter()
     Camera->SetupAttachment(SpringArm);
     Camera->bUsePawnControlRotation = false;
 
+    SkillLevels.Add(ESkillType::Q, 0);
+    SkillLevels.Add(ESkillType::W, 0);
+    SkillLevels.Add(ESkillType::E, 0);
+    SkillLevels.Add(ESkillType::R, 0);
+
 }
 
 // Called when the game starts or when spawned
@@ -180,22 +185,19 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
         false
     );
 
-    // 주변 몬스터 찾기
     FVector Start = GetActorLocation();
     float Radius = 150.f;
 
     TArray<FOverlapResult> Overlaps;
 
-    FCollisionQueryParams Params;
-    Params.AddIgnoredActor(this);
+    FCollisionShape Sphere = FCollisionShape::MakeSphere(QRadius);
 
     bool bHit = GetWorld()->OverlapMultiByChannel(
         Overlaps,
-        GetActorLocation(),
+        Start,
         FQuat::Identity,
         ECC_Pawn,
-        FCollisionShape::MakeSphere(100.f),
-        Params
+        Sphere
     );
 
     if (bHit)
@@ -206,7 +208,7 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(10.f); // Q 데미지
+                Monster->TakeMonsterDamage(QDamage); // Q 데미지
             }
         }
     }
@@ -263,7 +265,7 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
     TArray<FOverlapResult> Overlaps;
 
-    FCollisionShape Sphere = FCollisionShape::MakeSphere(Radius);
+    FCollisionShape Sphere = FCollisionShape::MakeSphere(WRadius);
 
     bool bHit = GetWorld()->OverlapMultiByChannel(
         Overlaps,
@@ -281,7 +283,7 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(20.f); // W 데미지
+                Monster->TakeMonsterDamage(WDamage); // W 데미지
             }
         }
     }
@@ -338,7 +340,7 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
     TArray<FOverlapResult> Overlaps;
 
-    FCollisionShape Sphere = FCollisionShape::MakeSphere(Radius);
+    FCollisionShape Sphere = FCollisionShape::MakeSphere(ERadius);
 
     bool bHit = GetWorld()->OverlapMultiByChannel(
         Overlaps,
@@ -356,7 +358,7 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(30.f); // E 데미지
+                Monster->TakeMonsterDamage(EDamage); // E 데미지
             }
         }
     }
@@ -413,7 +415,7 @@ void ABaseCharacter::R(const FInputActionValue& Value)
 
     TArray<FOverlapResult> Overlaps;
 
-    FCollisionShape Sphere = FCollisionShape::MakeSphere(Radius);
+    FCollisionShape Sphere = FCollisionShape::MakeSphere(RRadius);
 
     bool bHit = GetWorld()->OverlapMultiByChannel(
         Overlaps,
@@ -431,7 +433,7 @@ void ABaseCharacter::R(const FInputActionValue& Value)
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(50.f); // R 데미지
+                Monster->TakeMonsterDamage(RDamage); // R 데미지
             }
         }
     }
@@ -521,5 +523,128 @@ void ABaseCharacter::EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketNa
             FAttachmentTransformRules::SnapToTargetNotIncludingScale,
             SocketName
         );
+    }
+}
+
+bool ABaseCharacter::UpgradeSkill(FSkillUpgradeData UpgradeData)
+{
+    if (SkillPoints <= 0)
+    {
+        GEngine->AddOnScreenDebugMessage(
+            -1,
+            2.f,
+            FColor::Red,
+            TEXT("Not Enough Skill Points")
+        );
+
+        return false;
+    }
+
+    SkillPoints--;
+
+    SkillLevels[UpgradeData.SkillType]++;
+
+    ApplySkillUpgrade(UpgradeData);
+
+    GEngine->AddOnScreenDebugMessage(
+        -1,
+        2.f,
+        FColor::Green,
+        TEXT("Skill Upgraded")
+    );
+
+    return true;
+}
+
+void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
+{
+    switch (UpgradeData.UpgradeType)
+    {
+    case EUpgradeType::Damage:
+
+        switch (UpgradeData.SkillType)
+        {
+        case ESkillType::Q:
+            QDamage += UpgradeData.Value;
+            break;
+
+        case ESkillType::W:
+            WDamage += UpgradeData.Value;
+            break;
+
+        case ESkillType::E:
+            EDamage += UpgradeData.Value;
+            break;
+
+        case ESkillType::R:
+            RDamage += UpgradeData.Value;
+            break;
+        }
+
+        break;
+
+    case EUpgradeType::Cooldown:
+
+        switch (UpgradeData.SkillType)
+        {
+        case ESkillType::Q:
+            QCooldown -= UpgradeData.Value;
+            break;
+
+        case ESkillType::W:
+            WCooldown -= UpgradeData.Value;
+            break;
+
+        case ESkillType::E:
+            ECooldown -= UpgradeData.Value;
+            break;
+
+        case ESkillType::R:
+            RCooldown -= UpgradeData.Value;
+            break;
+        }
+
+        break;
+
+    case EUpgradeType::Range:
+
+        switch (UpgradeData.SkillType)
+        {
+        case ESkillType::Q:
+            QRadius += UpgradeData.Value;
+            break;
+
+        case ESkillType::W:
+            WRadius += UpgradeData.Value;
+            break;
+
+        case ESkillType::E:
+            ERadius += UpgradeData.Value;
+            break;
+
+        case ESkillType::R:
+            RRadius += UpgradeData.Value;
+            break;
+        }
+
+        break;
+
+    case EUpgradeType::Defense:
+
+        DefenseRate += UpgradeData.Value;
+
+        break;
+
+    case EUpgradeType::Heal:
+
+        MaxHP += UpgradeData.Value;
+
+        break;
+
+    case EUpgradeType::AttackSpeed:
+
+        AttackSpeed += UpgradeData.Value;
+
+        break;
     }
 }
