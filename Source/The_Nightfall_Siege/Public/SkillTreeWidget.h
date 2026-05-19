@@ -27,8 +27,13 @@ public:
 	UPROPERTY(meta = (BindWidget))
 	class UTextBlock* Txt_SkillPoint;
 
+	UPROPERTY(meta = (BindWidget))
+	class UTextBlock* Txt_Q_Level;
+
 	UFUNCTION()
 	void OnClick_Q_Damage();
 
 	void UpdateSkillPointText();
+
+	void UpdateSkillLevelText();
 };

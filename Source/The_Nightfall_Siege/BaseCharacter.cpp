@@ -49,10 +49,10 @@ ABaseCharacter::ABaseCharacter()
     Camera->SetupAttachment(SpringArm);
     Camera->bUsePawnControlRotation = false;
 
-    SkillLevels.Add(ESkillType::Q, 0);
-    SkillLevels.Add(ESkillType::W, 0);
-    SkillLevels.Add(ESkillType::E, 0);
-    SkillLevels.Add(ESkillType::R, 0);
+    SkillLevels.Add(ESkillType::Q, 1);
+    SkillLevels.Add(ESkillType::W, 1);
+    SkillLevels.Add(ESkillType::E, 1);
+    SkillLevels.Add(ESkillType::R, 1);
 
 }
 
