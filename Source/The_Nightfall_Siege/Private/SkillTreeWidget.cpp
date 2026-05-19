@@ -21,6 +21,27 @@ void USkillTreeWidget::NativeConstruct()
 			&USkillTreeWidget::OnClick_Q_Damage
 		);
 	}
+	if (Btn_W_Damage)
+	{
+		Btn_W_Damage->OnClicked.AddDynamic(
+			this,
+			&USkillTreeWidget::OnClick_W_Damage
+		);
+	}
+	if (Btn_E_Damage)
+	{
+		Btn_E_Damage->OnClicked.AddDynamic(
+			this,
+			&USkillTreeWidget::OnClick_E_Damage
+		);
+	}
+	if (Btn_R_Damage)
+	{
+		Btn_R_Damage->OnClicked.AddDynamic(
+			this,
+			&USkillTreeWidget::OnClick_R_Damage
+		);
+	}
 }
 
 void USkillTreeWidget::OnClick_Q_Damage()
@@ -45,6 +66,78 @@ void USkillTreeWidget::OnClick_Q_Damage()
 	UpdateSkillLevelText();
 
 	UE_LOG(LogTemp, Warning, TEXT("Q Damage Upgrade"));
+}
+
+void USkillTreeWidget::OnClick_W_Damage()
+{
+	ABaseCharacter* Player =
+		Cast<ABaseCharacter>(
+			UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)
+		);
+
+	if (!Player)
+		return;
+
+	FSkillUpgradeData Upgrade;
+
+	Upgrade.SkillType = ESkillType::W;
+	Upgrade.UpgradeType = EUpgradeType::Damage;
+	Upgrade.Value = 10.f;
+
+	Player->UpgradeSkill(Upgrade);
+
+	UpdateSkillPointText();
+	UpdateSkillLevelText();
+
+	UE_LOG(LogTemp, Warning, TEXT("W Damage Upgrade"));
+}
+
+void USkillTreeWidget::OnClick_E_Damage()
+{
+	ABaseCharacter* Player =
+		Cast<ABaseCharacter>(
+			UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)
+		);
+
+	if (!Player)
+		return;
+
+	FSkillUpgradeData Upgrade;
+
+	Upgrade.SkillType = ESkillType::E;
+	Upgrade.UpgradeType = EUpgradeType::Damage;
+	Upgrade.Value = 10.f;
+
+	Player->UpgradeSkill(Upgrade);
+
+	UpdateSkillPointText();
+	UpdateSkillLevelText();
+
+	UE_LOG(LogTemp, Warning, TEXT("E Damage Upgrade"));
+}
+
+void USkillTreeWidget::OnClick_R_Damage()
+{
+	ABaseCharacter* Player =
+		Cast<ABaseCharacter>(
+			UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)
+		);
+
+	if (!Player)
+		return;
+
+	FSkillUpgradeData Upgrade;
+
+	Upgrade.SkillType = ESkillType::R;
+	Upgrade.UpgradeType = EUpgradeType::Damage;
+	Upgrade.Value = 10.f;
+
+	Player->UpgradeSkill(Upgrade);
+
+	UpdateSkillPointText();
+	UpdateSkillLevelText();
+
+	UE_LOG(LogTemp, Warning, TEXT("R Damage Upgrade"));
 }
 
 void USkillTreeWidget::UpdateSkillPointText()
@@ -101,6 +194,78 @@ void USkillTreeWidget::UpdateSkillLevelText()
 		else
 		{
 			Btn_Q_Damage->SetIsEnabled(true);
+		}
+	}
+
+	if (Txt_W_Level)
+	{
+		int32 WLevel =
+			Player->SkillLevels[ESkillType::W];
+
+		Txt_W_Level->SetText(
+			FText::FromString(
+				FString::Printf(
+					TEXT("W Level : %d"),
+					WLevel
+				)
+			)
+		);
+
+		if (WLevel >= 4)
+		{
+			Btn_W_Damage->SetIsEnabled(false);
+		}
+		else
+		{
+			Btn_W_Damage->SetIsEnabled(true);
+		}
+	}
+
+	if (Txt_E_Level)
+	{
+		int32 ELevel =
+			Player->SkillLevels[ESkillType::E];
+
+		Txt_E_Level->SetText(
+			FText::FromString(
+				FString::Printf(
+					TEXT("E Level : %d"),
+					ELevel
+				)
+			)
+		);
+
+		if (ELevel >= 4)
+		{
+			Btn_E_Damage->SetIsEnabled(false);
+		}
+		else
+		{
+			Btn_E_Damage->SetIsEnabled(true);
+		}
+	}
+
+	if (Txt_R_Level)
+	{
+		int32 RLevel =
+			Player->SkillLevels[ESkillType::R];
+
+		Txt_R_Level->SetText(
+			FText::FromString(
+				FString::Printf(
+					TEXT("R Level : %d"),
+					RLevel
+				)
+			)
+		);
+
+		if (RLevel >= 4)
+		{
+			Btn_R_Damage->SetIsEnabled(false);
+		}
+		else
+		{
+			Btn_R_Damage->SetIsEnabled(true);
 		}
 	}
 }
