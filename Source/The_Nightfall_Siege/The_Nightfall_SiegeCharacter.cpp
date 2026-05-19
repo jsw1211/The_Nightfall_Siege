@@ -10,7 +10,8 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Materials/Material.h"
 #include "Engine/World.h"
-
+#include "EngineUtils.h"
+#include "NetworkManager.h"
 AThe_Nightfall_SiegeCharacter::AThe_Nightfall_SiegeCharacter()
 {
 	// Set size for player capsule
@@ -56,7 +57,5 @@ void AThe_Nightfall_SiegeCharacter::BeginPlay()
 
 void AThe_Nightfall_SiegeCharacter::Tick(float DeltaSeconds)
 {
-    Super::Tick(DeltaSeconds);
-
-	// stub
+	Super::Tick(DeltaSeconds);
 }

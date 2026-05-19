@@ -35,7 +35,8 @@ struct C2S_Login {
 struct C2S_Move {
 	unsigned char	size;
 	PACKET_TYPE		type;
-	DIRECTION 		dir;
+	short			x;
+	short			y;	
 	int 			move_time;
 };
 

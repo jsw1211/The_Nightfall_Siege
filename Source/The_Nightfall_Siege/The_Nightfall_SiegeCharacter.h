@@ -40,6 +40,5 @@ public:
 
 	/** Returns the Camera Boom component **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
-
 };
 

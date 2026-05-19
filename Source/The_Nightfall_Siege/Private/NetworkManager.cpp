@@ -25,17 +25,17 @@ void ANetworkManager::BeginPlay()
     if (ConnectToServer(TEXT("127.0.0.1"), 3500)) // 서버 접속 성공 시
     {
         // 스레드 생성 및 실행
-        WorkerInstance = new FNetworkWorker(ClientSocket, &AddPlayerQueue);
+        WorkerInstance = new FNetworkWorker(ClientSocket, &AddPlayerQueue, &MovePlayerQueue);
         Thread = FRunnableThread::Create(WorkerInstance, TEXT("NetworkReceiverThread"));
 
         C2S_Login LoginPacket;
         LoginPacket.size = sizeof(LoginPacket);
         LoginPacket.type = C2S_LOGIN;
         strncpy_s(LoginPacket.m_username, "UE_Client", MAX_NAME_LEN);
-
+#include "Windows/AllowWindowsPlatformTypes.h"
         send((SOCKET)ClientSocket, (char*)&LoginPacket, LoginPacket.size, 0);
+#include "Windows/HideWindowsPlatformTypes.h"
     }
-	
 }
 
 bool ANetworkManager::ConnectToServer(FString IPAddress, int32 Port)
@@ -56,48 +56,91 @@ bool ANetworkManager::ConnectToServer(FString IPAddress, int32 Port)
     return true;
 }
 
+void ANetworkManager::SendMovePacket(short X, short Y, int32 MoveTime)
+{
+#include "Windows/AllowWindowsPlatformTypes.h"
+    C2S_Move Packet;
+    Packet.size = sizeof(C2S_Move);
+    Packet.type = C2S_MOVE;
+    Packet.x = X;                 
+    Packet.y = Y;                 
+    Packet.move_time = MoveTime;  
+
+    if (ClientSocket != INVALID_SOCKET)
+    {
+        int32 SentBytes = send((SOCKET)ClientSocket, reinterpret_cast<const char*>(&Packet), Packet.size, 0);
+        if (SentBytes == SOCKET_ERROR)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Failed to send move packet."));
+        }
+    }
+#include "Windows/HideWindowsPlatformTypes.h"
+}
+
 void ANetworkManager::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    S2C_AddPlayer Info;
-    while (AddPlayerQueue.Dequeue(Info))
-    {
-        if (RemotePlayers.Contains(Info.playerId)) continue;
+    S2C_AddPlayer AddInfo;
+    while (AddPlayerQueue.Dequeue(AddInfo)) {
+        if (RemotePlayers.Contains(AddInfo.playerId)) continue;
 
-        if (GetWorld() && RemotePlayerClass)
-        {
+        if (GetWorld() && RemotePlayerClass) {
             FActorSpawnParameters Params;
-            // 서버 좌표가 (10, 10)이면 언리얼에서는 (1000, 1000) 정도로 보정하는 경우가 많습니다.
-            FVector Loc(Info.x * 100.f, Info.y * 100.f, 100.f);
-
+            FVector Loc(AddInfo.x * 100.f, AddInfo.y * 100.f, 100.f);
             AActor* NewActor = GetWorld()->SpawnActor<AActor>(RemotePlayerClass, Loc, FRotator::ZeroRotator, Params);
-            if (NewActor)
-            {
-                RemotePlayers.Add(Info.playerId, NewActor);
-            }
+            if (NewActor) RemotePlayers.Add(AddInfo.playerId, NewActor);
         }
     }
+
+	S2C_MovePlayer MoveInfo;
+    while (MovePlayerQueue.Dequeue(MoveInfo)) {
+        if (RemotePlayers.Contains(MoveInfo.playerId)) {
+            AActor* TargetActor = RemotePlayers[MoveInfo.playerId];
+            if (TargetActor) {
+                FVector NewLoc(MoveInfo.x * 100.f, MoveInfo.y * 100.f, TargetActor->GetActorLocation().Z);
+                TargetActor->SetActorLocation(NewLoc);
+            }
+        }
+	}
 }
 
 void ANetworkManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    if (Thread) { WorkerInstance->Stop(); Thread->WaitForCompletion(); delete Thread; }
-    delete WorkerInstance;
-
+    // 1. 소켓을 먼저 파괴하여 recv 블로킹을 강제로 깨부숩니다.
 #include "Windows/AllowWindowsPlatformTypes.h"
     if (ClientSocket != INVALID_SOCKET)
+    {
         closesocket((SOCKET)ClientSocket);
-    WSACleanup();
+        ClientSocket = INVALID_SOCKET; // 중복 해제 방지
+    }
+    //WSACleanup();
 #include "Windows/HideWindowsPlatformTypes.h"
+
+    // 2. 이제 recv에서 빠져나온 스레드를 안전하게 정리합니다.
+    if (Thread)
+    {
+        WorkerInstance->Stop();
+        Thread->WaitForCompletion(); // 이제 수신 스레드가 풀려났으므로 대기 없이 즉시 통과합니다!
+        delete Thread;
+        Thread = nullptr;
+    }
+
+    if (WorkerInstance)
+    {
+        delete WorkerInstance;
+        WorkerInstance = nullptr;
+    }
 
     Super::EndPlay(EndPlayReason);
 }
 
 
 
-FNetworkWorker::FNetworkWorker(uintptr_t InSocket, TQueue<S2C_AddPlayer, EQueueMode::Spsc>* InQueue)
-    : ClientSocket(InSocket), AddPlayerQueue(InQueue)
+FNetworkWorker::FNetworkWorker(uintptr_t InSocket,
+    TQueue<S2C_AddPlayer, EQueueMode::Spsc>* InAddQueue,
+    TQueue<S2C_MovePlayer, EQueueMode::Spsc>* InMoveQueue)
+    : ClientSocket(InSocket), AddPlayerQueue(InAddQueue), MovePlayerQueue(InMoveQueue)
 {
     bRunThread = true;
 }
@@ -107,36 +150,70 @@ FNetworkWorker::~FNetworkWorker()
     Stop();
 }
 
-bool FNetworkWorker::Init() { return true; }
+bool FNetworkWorker::Init()
+{
+    return true; 
+}
 
 uint32 FNetworkWorker::Run()
 {
+    unsigned char RecvBuffer[1024];
+    int32 TotalBytesBuffer = 0;
+
     while (bRunThread)
     {
-        unsigned char RecvBuffer[512];
-        int32 BytesReceived = recv((SOCKET)ClientSocket, (char*)RecvBuffer, sizeof(RecvBuffer), 0);
+#include "Windows/AllowWindowsPlatformTypes.h"
+        int32 BytesReceived = recv((SOCKET)ClientSocket, (char*)(RecvBuffer + TotalBytesBuffer), sizeof(RecvBuffer) - TotalBytesBuffer, 0);
+#include "Windows/HideWindowsPlatformTypes.h"
 
         if (BytesReceived > 0)
         {
-            // 패킷 가공 로직 (가장 간단한 형태)
+            TotalBytesBuffer += BytesReceived;
             int Processed = 0;
-            while (Processed < BytesReceived)
+
+            // 최소 헤더 크기(2바이트: size, type) 이상이 남았을 때만 파싱
+            while (Processed + 2 <= TotalBytesBuffer)
             {
                 uint8 PacketSize = RecvBuffer[Processed];
+
+                // 패킷이 완전히 다 도착하지 않았다면 루프 탈출 후 다음 recv를 대기
+                if (Processed + PacketSize > TotalBytesBuffer)
+                {
+                    break;
+                }
+
                 uint8 PacketType = RecvBuffer[Processed + 1];
 
-                if (PacketType == S2C_ADD_PLAYER) // protocol.h에 정의된 타입
+                // 1. 플레이어 추가 패킷 처리
+                if (PacketType == S2C_ADD_PLAYER)
                 {
                     S2C_AddPlayer* AddPacket = (S2C_AddPlayer*)&RecvBuffer[Processed];
-                    // 큐에 복사해서 담기
                     AddPlayerQueue->Enqueue(*AddPacket);
                 }
+                // 2. 플레이어 이동 패킷 처리
+                else if (PacketType == S2C_MOVE_PLAYER)
+                {
+                    S2C_MovePlayer* MovePacket = (S2C_MovePlayer*)&RecvBuffer[Processed];
+                    MovePlayerQueue->Enqueue(*MovePacket);
+                }
+
                 Processed += PacketSize;
+            }
+
+            // 처리하고 남은 자투리 데이터가 있다면 버퍼의 맨 앞으로 당겨줌 (TCP 패킷 밀림/잘림 방지)
+            if (Processed > 0)
+            {
+                int32 RemainingBytes = TotalBytesBuffer - Processed;
+                if (RemainingBytes > 0)
+                {
+                    FMemory::Memmove(RecvBuffer, &RecvBuffer[Processed], RemainingBytes);
+                }
+                TotalBytesBuffer = RemainingBytes;
             }
         }
         else if (BytesReceived == 0 || BytesReceived == SOCKET_ERROR)
         {
-            bRunThread = false; // 접속 종료 시 스레드 중단
+            bRunThread = false;
         }
     }
     return 0;

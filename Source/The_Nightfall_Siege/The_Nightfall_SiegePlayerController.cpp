@@ -12,6 +12,8 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "The_Nightfall_Siege.h"
+#include "EngineUtils.h"
+#include "NetworkManager.h"
 
 AThe_Nightfall_SiegePlayerController::AThe_Nightfall_SiegePlayerController()
 {
@@ -100,12 +102,21 @@ void AThe_Nightfall_SiegePlayerController::OnSetDestinationTriggered()
 
 void AThe_Nightfall_SiegePlayerController::OnSetDestinationReleased()
 {
+	GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, TEXT("OnSetDestinationReleased Called!"));
 	// If it was a short press
 	if (FollowTime <= ShortPressThreshold)
 	{
 		// We move there and spawn some particles
 		UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, CachedDestination);
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, FXCursor, CachedDestination, FRotator::ZeroRotator, FVector(1.f, 1.f, 1.f), true, true, ENCPoolMethod::None, true);
+		short ServerX = static_cast<short>(CachedDestination.X / 100.0f);
+		short ServerY = static_cast<short>(CachedDestination.Y / 100.0f);
+
+		for (TActorIterator<ANetworkManager> It(GetWorld()); It; ++It)
+		{
+			It->SendMovePacket(ServerX, ServerY, FPlatformTime::Cycles());
+			break;
+		}
 	}
 
 	FollowTime = 0.f;

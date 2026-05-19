@@ -17,7 +17,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
  *  Player controller for a top-down perspective game.
  *  Implements point and click based controls
  */
-UCLASS(abstract)
+UCLASS()
 class AThe_Nightfall_SiegePlayerController : public APlayerController
 {
 	GENERATED_BODY()
@@ -29,7 +29,7 @@ protected:
 	float ShortPressThreshold;
 
 	/** FX Class that we will spawn when clicking */
-	UPROPERTY(EditAnywhere, Category="Input")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input")
 	UNiagaraSystem* FXCursor;
 
 	/** MappingContext */
@@ -74,5 +74,3 @@ protected:
 	void OnTouchReleased();
 
 };
-
-
