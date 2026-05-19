@@ -13,6 +13,8 @@
 #include "SkillUpgradeData.h"
 #include "BaseCharacter.generated.h"
 
+class USkillTreeWidget;
+
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABaseCharacter : public ACharacter
 {
@@ -65,6 +67,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void ApplySkillUpgrade(FSkillUpgradeData UpgradeData);
 
+	void ToggleSkillTree();
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;
@@ -98,6 +102,16 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_Inventory;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* IA_SkillTree;
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<USkillTreeWidget> SkillTreeWidgetClass;
+
+	UPROPERTY()
+	USkillTreeWidget* SkillTreeWidget;
+
+	bool bSkillTreeOpen = false;
 
 	// 쿨타임 상태
 	bool bCanUseQ = true;

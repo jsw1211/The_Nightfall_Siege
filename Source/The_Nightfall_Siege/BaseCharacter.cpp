@@ -17,6 +17,7 @@
 #include "BaseController.h"
 #include "Kismet/GameplayStatics.h"
 #include "AIController.h"
+#include "SkillTreeWidget.h"
 
 
 // Sets default values
@@ -132,8 +133,8 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         EnhancedInput->BindAction(IA_W, ETriggerEvent::Started, this, &ABaseCharacter::W);
         EnhancedInput->BindAction(IA_E, ETriggerEvent::Started, this, &ABaseCharacter::E);
         EnhancedInput->BindAction(IA_R, ETriggerEvent::Started, this, &ABaseCharacter::R);
-        EnhancedInput->BindAction(IA_Inventory, ETriggerEvent::Started,this, &ABaseCharacter::ToggleInventory
-        );
+        EnhancedInput->BindAction(IA_Inventory, ETriggerEvent::Started, this, &ABaseCharacter::ToggleInventory);
+        EnhancedInput->BindAction(IA_SkillTree, ETriggerEvent::Started, this, &ABaseCharacter::ToggleSkillTree);
     }
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
@@ -484,6 +485,37 @@ void ABaseCharacter::ToggleInventory()
         }
 
         bInventoryOpen = false;
+    }
+}
+
+void ABaseCharacter::ToggleSkillTree()
+{
+    if (!SkillTreeWidgetClass)
+        return;
+
+    if (!bSkillTreeOpen)
+    {
+        SkillTreeWidget =
+            CreateWidget<USkillTreeWidget>(
+                GetWorld(),
+                SkillTreeWidgetClass
+            );
+
+        if (SkillTreeWidget)
+        {
+            SkillTreeWidget->AddToViewport();
+        }
+
+        bSkillTreeOpen = true;
+    }
+    else
+    {
+        if (SkillTreeWidget)
+        {
+            SkillTreeWidget->RemoveFromParent();
+        }
+
+        bSkillTreeOpen = false;
     }
 }
 
