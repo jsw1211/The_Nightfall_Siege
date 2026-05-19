@@ -574,6 +574,20 @@ bool ABaseCharacter::UpgradeSkill(FSkillUpgradeData UpgradeData)
         return false;
     }
 
+    // 최대 레벨 제한
+    if (SkillLevels[UpgradeData.SkillType] >= 4)
+    {
+        GEngine->AddOnScreenDebugMessage(
+            -1,
+            2.f,
+            FColor::Red,
+            TEXT("Max Level")
+        );
+
+        return false;
+    }
+
+
     SkillPoints--;
 
     SkillLevels[UpgradeData.SkillType]++;

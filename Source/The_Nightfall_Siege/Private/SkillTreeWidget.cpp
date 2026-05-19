@@ -93,6 +93,15 @@ void USkillTreeWidget::UpdateSkillLevelText()
 				)
 			)
 		);
+
+		if (QLevel >= 4)
+		{
+			Btn_Q_Damage->SetIsEnabled(false);
+		}
+		else
+		{
+			Btn_Q_Damage->SetIsEnabled(true);
+		}
 	}
 }
 
