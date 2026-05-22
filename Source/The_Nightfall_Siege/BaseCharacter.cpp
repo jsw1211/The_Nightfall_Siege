@@ -61,6 +61,42 @@ void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+    switch (CharacterType)
+    {
+    case ECharacterType::Paladin:
+
+        MaxHP = 600.f;
+
+        QDamage = 120.f;
+        WDamage = 0.f;
+        EDamage = 50.f;
+        RDamage = 0.f;
+
+        break;
+
+    case ECharacterType::Archer:
+
+        MaxHP = 300.f;
+
+        QDamage = 200.f;
+        WDamage = 150.f;
+        EDamage = 250.f;
+        RDamage = 400.f;
+
+        break;
+
+    case ECharacterType::Warrior:
+
+        MaxHP = 450.f;
+
+        QDamage = 180.f;
+        WDamage = 120.f;
+        EDamage = 150.f;
+        RDamage = 250.f;
+
+        break;
+    }
+
     CurrentHP = MaxHP;
 
     SkillPoints = 5;

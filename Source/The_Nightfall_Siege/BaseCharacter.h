@@ -11,6 +11,7 @@
 #include "NiagaraSystem.h"
 #include "NiagaraFunctionLibrary.h"
 #include "SkillUpgradeData.h"
+#include "CharacterType.h"
 #include "BaseCharacter.generated.h"
 
 class USkillTreeWidget;
@@ -50,6 +51,9 @@ public:
 
 	// 스킬 사용 중인지
 	bool bIsUsingSkill = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character")
+	ECharacterType CharacterType;
 
 	// 현재 보유 스킬 포인트
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
