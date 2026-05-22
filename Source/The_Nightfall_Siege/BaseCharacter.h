@@ -55,6 +55,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character")
 	ECharacterType CharacterType;
 
+	// 배율
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	float QMultiplier = 1.2f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	float WMultiplier = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	float EMultiplier = 1.2f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	float RMultiplier = 3.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	float HealAmount = 0.1f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	float RHealAmount = 0.2f;	
+
 	// 현재 보유 스킬 포인트
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	int32 SkillPoints = 0;

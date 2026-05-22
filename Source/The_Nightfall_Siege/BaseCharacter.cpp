@@ -65,34 +65,45 @@ void ABaseCharacter::BeginPlay()
     {
     case ECharacterType::Paladin:
 
-        MaxHP = 600.f;
+        MaxHP = 500.f;
+        AttackPower = 100.f;
 
-        QDamage = 120.f;
-        WDamage = 0.f;
-        EDamage = 50.f;
-        RDamage = 0.f;
+        // Q
+        QMultiplier = 1.2f;
+        QCooldown = 5.f;
+        QRadius = 200.f;
+
+        // W
+        DefenseRate = 0.2f;
+
+        // E
+        HealAmount = 0.1f;
+
+        // R
+        RHealAmount = 0.2f;
 
         break;
 
     case ECharacterType::Archer:
 
         MaxHP = 300.f;
+        AttackPower = 200.f;
 
-        QDamage = 200.f;
-        WDamage = 150.f;
-        EDamage = 250.f;
-        RDamage = 400.f;
+        QMultiplier = 1.5f;
+        EMultiplier = 1.5f;
+        RMultiplier = 3.0f;
+
+        AttackSpeed = 1.5f;
 
         break;
 
     case ECharacterType::Warrior:
 
-        MaxHP = 450.f;
+        MaxHP = 400.f;
+        AttackPower = 300.f;
 
-        QDamage = 180.f;
-        WDamage = 120.f;
-        EDamage = 150.f;
-        RDamage = 250.f;
+        QMultiplier = 1.2f;
+        EMultiplier = 1.2f;
 
         break;
     }
@@ -251,7 +262,8 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(QDamage); // Q 데미지
+                Monster->TakeMonsterDamage(AttackPower * QMultiplier); // Q 데미지
+                GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, FString::Printf(TEXT("Q Damage : %f"), AttackPower * QMultiplier));
             }
         }
     }
@@ -330,7 +342,8 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(WDamage); // W 데미지
+                Monster->TakeMonsterDamage(AttackPower * WMultiplier); // W 데미지
+                GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, FString::Printf(TEXT("W Damage : %f"), AttackPower * WMultiplier));
             }
         }
     }
@@ -409,7 +422,8 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(EDamage); // E 데미지
+                Monster->TakeMonsterDamage(AttackPower * EMultiplier); // E 데미지
+                GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, FString::Printf(TEXT("E Damage : %f"), AttackPower * EMultiplier));
             }
         }
     }
@@ -488,7 +502,8 @@ void ABaseCharacter::R(const FInputActionValue& Value)
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(RDamage); // R 데미지
+                Monster->TakeMonsterDamage(AttackPower * RMultiplier); // R 데미지
+                GEngine->AddOnScreenDebugMessage( -1, 3.f, FColor::Green, FString::Printf( TEXT("R Damage : %f"), AttackPower * RMultiplier));
             }
         }
     }
@@ -658,92 +673,242 @@ bool ABaseCharacter::UpgradeSkill(FSkillUpgradeData UpgradeData)
 
 void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
 {
-    switch (UpgradeData.UpgradeType)
+    int32 SkillLevel =
+        SkillLevels[UpgradeData.SkillType];
+
+    switch (CharacterType)
     {
-    case EUpgradeType::Damage:
+    case ECharacterType::Paladin:
 
         switch (UpgradeData.SkillType)
         {
         case ESkillType::Q:
-            QDamage += UpgradeData.Value;
+
+            if (SkillLevel == 2)
+            {
+                QMultiplier = 1.2f;
+            }
+            else if (SkillLevel == 3)
+            {
+                QMultiplier = 1.5f;
+            }
+            else if (SkillLevel == 4)
+            {
+                QMultiplier = 1.8f;
+                QCooldown -= 3.f;
+            }
+
             break;
 
         case ESkillType::W:
-            WDamage += UpgradeData.Value;
+
+            if (SkillLevel == 2)
+            {
+                DefenseRate = 0.2f;
+            }
+            else if (SkillLevel == 3)
+            {
+                DefenseRate = 0.4f;
+            }
+            else if (SkillLevel == 4)
+            {
+                DefenseRate = 0.6f;
+            }
+
             break;
 
         case ESkillType::E:
-            EDamage += UpgradeData.Value;
+
+            if (SkillLevel == 2)
+            {
+                HealAmount = 0.01f;
+            }
+            else if (SkillLevel == 3)
+            {
+                HealAmount = 0.15f;
+            }
+            else if (SkillLevel == 4)
+            {
+                HealAmount = 0.2f;
+            }
+
             break;
 
         case ESkillType::R:
-            RDamage += UpgradeData.Value;
+
+            if (SkillLevel == 2)
+            {
+                RHealAmount = 0.2f;
+            }
+            else if (SkillLevel == 3)
+            {
+                RHealAmount = 0.3f;
+            }
+            else if (SkillLevel == 4)
+            {
+                RHealAmount = 0.5f;
+            }
+
             break;
         }
 
         break;
 
-    case EUpgradeType::Cooldown:
+    case ECharacterType::Archer:
 
         switch (UpgradeData.SkillType)
         {
         case ESkillType::Q:
-            QCooldown -= UpgradeData.Value;
+
+            if (SkillLevel == 2)
+            {
+                QMultiplier = 1.5f;
+            }
+            else if (SkillLevel == 3)
+            {
+                QMultiplier = 1.8f;
+            }
+            else if (SkillLevel == 4)
+            {
+                QMultiplier = 2.0f;
+                QCooldown -= 3.f;
+            }
+
             break;
 
         case ESkillType::W:
-            WCooldown -= UpgradeData.Value;
+
+            if (SkillLevel == 2)
+            {
+                AttackSpeed = 1.5f;
+            }
+            else if (SkillLevel == 3)
+            {
+                AttackSpeed = 2.0f;
+            }
+            else if (SkillLevel == 4)
+            {
+                AttackSpeed = 2.5f;
+            }
+
             break;
 
         case ESkillType::E:
-            ECooldown -= UpgradeData.Value;
+
+            if (SkillLevel == 2)
+            {
+                EMultiplier = 1.5f;
+            }
+            else if (SkillLevel == 3)
+            {
+                EMultiplier = 1.8f;
+            }
+            else if (SkillLevel == 4)
+            {
+                EMultiplier = 2.0f;
+                ERadius += 100.f;
+            }
+
             break;
 
         case ESkillType::R:
-            RCooldown -= UpgradeData.Value;
+
+            if (SkillLevel == 2)
+            {
+                RMultiplier = 3.0f;
+            }
+            else if (SkillLevel == 3)
+            {
+                RMultiplier = 3.0f;
+            }
+            else if (SkillLevel == 4)
+            {
+                RMultiplier = 4.0f;
+            }
+
             break;
         }
 
         break;
 
-    case EUpgradeType::Range:
+    case ECharacterType::Warrior:
 
         switch (UpgradeData.SkillType)
         {
         case ESkillType::Q:
-            QRadius += UpgradeData.Value;
+
+            if (SkillLevel == 2)
+            {
+                QMultiplier = 1.2f;
+            }
+            else if (SkillLevel == 3)
+            {
+                QMultiplier = 1.5f;
+            }
+            else if (SkillLevel == 4)
+            {
+                QMultiplier = 1.8f;
+            }
+
             break;
 
         case ESkillType::W:
-            WRadius += UpgradeData.Value;
+
+            if (SkillLevel == 2)
+            {
+                QCooldown -= 2.f;
+                ECooldown -= 2.f;
+                RCooldown -= 2.f;
+            }
+            else if (SkillLevel == 3)
+            {
+                QCooldown -= 3.f;
+                ECooldown -= 3.f;
+                RCooldown -= 3.f;
+            }
+            else if (SkillLevel == 4)
+            {
+                QCooldown -= 4.f;
+                ECooldown -= 4.f;
+                RCooldown -= 4.f;
+            }
+
             break;
 
         case ESkillType::E:
-            ERadius += UpgradeData.Value;
+
+            if (SkillLevel == 2)
+            {
+                EMultiplier = 1.2f;
+            }
+            else if (SkillLevel == 3)
+            {
+                EMultiplier = 1.5f;
+            }
+            else if (SkillLevel == 4)
+            {
+                EMultiplier = 1.8f;
+            }
+
             break;
 
         case ESkillType::R:
-            RRadius += UpgradeData.Value;
+
+            if (SkillLevel == 2)
+            {
+                AttackPower *= 1.5f;
+            }
+            else if (SkillLevel == 3)
+            {
+                AttackPower *= 1.8f;
+            }
+            else if (SkillLevel == 4)
+            {
+                AttackPower *= 2.0f;
+            }
+
             break;
         }
-
-        break;
-
-    case EUpgradeType::Defense:
-
-        DefenseRate += UpgradeData.Value;
-
-        break;
-
-    case EUpgradeType::Heal:
-
-        MaxHP += UpgradeData.Value;
-
-        break;
-
-    case EUpgradeType::AttackSpeed:
-
-        AttackSpeed += UpgradeData.Value;
 
         break;
     }
