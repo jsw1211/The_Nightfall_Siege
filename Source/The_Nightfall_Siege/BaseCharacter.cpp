@@ -164,6 +164,10 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
     {
         PlayAnimMontage(QMontage);
     }
+    else
+    {
+        bIsUsingSkill = false;
+    }
 
     if (QSkillEffect)
     {
@@ -238,6 +242,10 @@ void ABaseCharacter::W(const FInputActionValue& Value)
     if (WMontage)
     {
         PlayAnimMontage(WMontage);
+    }
+    else
+    {
+        bIsUsingSkill = false;
     }
 
     if (WSkillEffect)
@@ -314,6 +322,10 @@ void ABaseCharacter::E(const FInputActionValue& Value)
     {
         PlayAnimMontage(EMontage);
     }
+    else
+    {
+        bIsUsingSkill = false;
+    }
 
     if (ESkillEffect)
     {
@@ -388,6 +400,10 @@ void ABaseCharacter::R(const FInputActionValue& Value)
     if (RMontage)
     {
         PlayAnimMontage(RMontage);
+    }
+    else
+    {
+        bIsUsingSkill = false;
     }
 
     if (RSkillEffect)
