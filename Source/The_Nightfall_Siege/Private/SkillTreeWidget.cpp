@@ -14,6 +14,8 @@ void USkillTreeWidget::NativeConstruct()
 
 	UpdateSkillLevelText();
 
+	UpdateSkillIcons();
+
 	if (Btn_Q_Damage)
 	{
 		Btn_Q_Damage->OnClicked.AddDynamic(
@@ -267,6 +269,37 @@ void USkillTreeWidget::UpdateSkillLevelText()
 		{
 			Btn_R_Damage->SetIsEnabled(true);
 		}
+	}
+}
+
+void USkillTreeWidget::UpdateSkillIcons()
+{
+	ABaseCharacter* Player =
+		Cast<ABaseCharacter>(
+			UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)
+		);
+
+	if (!Player)
+		return;
+
+	if (Img_Q && Player->QSkillIcon)
+	{
+		Img_Q->SetBrushFromTexture(Player->QSkillIcon);
+	}
+
+	if (Img_W && Player->WSkillIcon)
+	{
+		Img_W->SetBrushFromTexture(Player->WSkillIcon);
+	}
+
+	if (Img_E && Player->ESkillIcon)
+	{
+		Img_E->SetBrushFromTexture(Player->ESkillIcon);
+	}
+
+	if (Img_R && Player->RSkillIcon)
+	{
+		Img_R->SetBrushFromTexture(Player->RSkillIcon);
 	}
 }
 

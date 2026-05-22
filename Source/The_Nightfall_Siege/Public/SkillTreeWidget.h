@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/TextBlock.h"
+#include "Components/Image.h"
 #include "SkillTreeWidget.generated.h"
 
 /**
@@ -54,4 +55,18 @@ public:
 	void UpdateSkillPointText();
 
 	void UpdateSkillLevelText();
+
+	UPROPERTY(meta = (BindWidget))
+	class UImage* Img_Q;
+
+	UPROPERTY(meta = (BindWidget))
+	class UImage* Img_W;
+
+	UPROPERTY(meta = (BindWidget))
+	class UImage* Img_E;
+
+	UPROPERTY(meta = (BindWidget))
+	class UImage* Img_R;
+
+	void UpdateSkillIcons();
 };
