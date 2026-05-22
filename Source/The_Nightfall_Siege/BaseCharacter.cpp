@@ -206,6 +206,7 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
     }
 
     UE_LOG(LogTemp, Warning, TEXT("Q"));
+    UE_LOG(LogTemp, Warning, TEXT("Damage: %f"), AttackPower * QMultiplier);
 
     if (QMontage)
     {
@@ -263,7 +264,6 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
             if (Monster)
             {
                 Monster->TakeMonsterDamage(AttackPower * QMultiplier); // Q 데미지
-                GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, FString::Printf(TEXT("Q Damage : %f"), AttackPower * QMultiplier));
             }
         }
     }
@@ -286,6 +286,7 @@ void ABaseCharacter::W(const FInputActionValue& Value)
     }
 
     UE_LOG(LogTemp, Warning, TEXT("W"));
+    UE_LOG(LogTemp, Warning, TEXT("Damage: %f"), AttackPower * WMultiplier);
 
     if (WMontage)
     {
@@ -343,7 +344,6 @@ void ABaseCharacter::W(const FInputActionValue& Value)
             if (Monster)
             {
                 Monster->TakeMonsterDamage(AttackPower * WMultiplier); // W 데미지
-                GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, FString::Printf(TEXT("W Damage : %f"), AttackPower * WMultiplier));
             }
         }
     }
@@ -366,6 +366,7 @@ void ABaseCharacter::E(const FInputActionValue& Value)
     }
 
     UE_LOG(LogTemp, Warning, TEXT("E"));
+    UE_LOG(LogTemp, Warning, TEXT("Damage: %f"), AttackPower * EMultiplier);
 
     if (EMontage)
     {
@@ -423,7 +424,6 @@ void ABaseCharacter::E(const FInputActionValue& Value)
             if (Monster)
             {
                 Monster->TakeMonsterDamage(AttackPower * EMultiplier); // E 데미지
-                GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, FString::Printf(TEXT("E Damage : %f"), AttackPower * EMultiplier));
             }
         }
     }
@@ -446,6 +446,7 @@ void ABaseCharacter::R(const FInputActionValue& Value)
     }
 
     UE_LOG(LogTemp, Warning, TEXT("R"));
+    UE_LOG(LogTemp, Warning, TEXT("Damage: %f"), AttackPower * RMultiplier);
 
     if (RMontage)
     {
@@ -503,7 +504,6 @@ void ABaseCharacter::R(const FInputActionValue& Value)
             if (Monster)
             {
                 Monster->TakeMonsterDamage(AttackPower * RMultiplier); // R 데미지
-                GEngine->AddOnScreenDebugMessage( -1, 3.f, FColor::Green, FString::Printf( TEXT("R Damage : %f"), AttackPower * RMultiplier));
             }
         }
     }
