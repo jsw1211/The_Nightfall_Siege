@@ -7,6 +7,7 @@
 #include "Monster.generated.h"
 
 class ADungeonManager;
+class AAltar;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API AMonster : public ACharacter
@@ -56,4 +57,7 @@ public:
 	ADungeonManager* DungeonManager;
 
 	bool bIsDead;
+
+	UPROPERTY()
+	AAltar* OwnerAltar;
 };

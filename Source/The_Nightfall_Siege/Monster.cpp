@@ -7,6 +7,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "BaseCharacter.h"
 #include "DungeonManager.h"
+#include "Altar.h"
 
 // Sets default values
 AMonster::AMonster()
@@ -34,11 +35,6 @@ void AMonster::BeginPlay()
             UGameplayStatics::GetActorOfClass(
                 GetWorld(),
                 ADungeonManager::StaticClass()));
-
-    if (DungeonManager)
-    {
-        DungeonManager->RegisterMonster();
-    }
 }
 
 // Called every frame
@@ -99,6 +95,19 @@ void AMonster::ResetAttack()
 
 void AMonster::TakeMonsterDamage(float Damage)
 {
+    if (!OwnerAltar)
+    {
+        return;
+    }
+
+    // 제단 비활성 상태면 무적
+    if (!OwnerAltar->bActivated)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Monster Invincible"));
+
+        return;
+    }
+
     // 이미 죽었으면 무시
     if (bIsDead)
     {
