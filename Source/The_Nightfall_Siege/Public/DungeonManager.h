@@ -7,6 +7,8 @@
 #include "DungeonManager.generated.h"
 
 class ADungeonPrism;
+class AAltar;
+class AMonster;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ADungeonManager : public AActor
@@ -40,4 +42,15 @@ public:
 
 	// 몬스터 사망
 	void OnMonsterDead();
+
+	// 몬스터 클래스
+	UPROPERTY(EditAnywhere, Category = "Monster")
+	TSubclassOf<AMonster> MonsterClass;
+
+	// 제단당 몬스터 수
+	UPROPERTY(EditAnywhere)
+	int32 MonstersPerAltar;
+
+	// 몬스터 생성 함수
+	void SpawnMonsters();
 };

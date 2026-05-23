@@ -17,6 +17,7 @@
 #include "BaseController.h"
 #include "Kismet/GameplayStatics.h"
 #include "AIController.h"
+#include "SkillTreeWidget.h"
 
 
 // Sets default values
@@ -48,6 +49,11 @@ ABaseCharacter::ABaseCharacter()
     Camera->SetupAttachment(SpringArm);
     Camera->bUsePawnControlRotation = false;
 
+    SkillLevels.Add(ESkillType::Q, 1);
+    SkillLevels.Add(ESkillType::W, 1);
+    SkillLevels.Add(ESkillType::E, 1);
+    SkillLevels.Add(ESkillType::R, 1);
+
 }
 
 // Called when the game starts or when spawned
@@ -55,7 +61,56 @@ void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+    switch (CharacterType)
+    {
+    case ECharacterType::Paladin:
+
+        MaxHP = 500.f;
+        AttackPower = 100.f;
+
+        // Q
+        QMultiplier = 1.2f;
+        QCooldown = 5.f;
+        QRadius = 200.f;
+
+        // W
+        DefenseRate = 0.2f;
+
+        // E
+        HealAmount = 0.1f;
+
+        // R
+        RHealAmount = 0.2f;
+
+        break;
+
+    case ECharacterType::Archer:
+
+        MaxHP = 300.f;
+        AttackPower = 200.f;
+
+        QMultiplier = 1.5f;
+        EMultiplier = 1.5f;
+        RMultiplier = 3.0f;
+
+        AttackSpeed = 1.5f;
+
+        break;
+
+    case ECharacterType::Warrior:
+
+        MaxHP = 400.f;
+        AttackPower = 300.f;
+
+        QMultiplier = 1.2f;
+        EMultiplier = 1.2f;
+
+        break;
+    }
+
     CurrentHP = MaxHP;
+
+    SkillPoints = 5;
 	
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
@@ -127,8 +182,8 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         EnhancedInput->BindAction(IA_W, ETriggerEvent::Started, this, &ABaseCharacter::W);
         EnhancedInput->BindAction(IA_E, ETriggerEvent::Started, this, &ABaseCharacter::E);
         EnhancedInput->BindAction(IA_R, ETriggerEvent::Started, this, &ABaseCharacter::R);
-        EnhancedInput->BindAction(IA_Inventory, ETriggerEvent::Started,this, &ABaseCharacter::ToggleInventory
-        );
+        EnhancedInput->BindAction(IA_Inventory, ETriggerEvent::Started, this, &ABaseCharacter::ToggleInventory);
+        EnhancedInput->BindAction(IA_SkillTree, ETriggerEvent::Started, this, &ABaseCharacter::ToggleSkillTree);
     }
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
@@ -151,10 +206,15 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
     }
 
     UE_LOG(LogTemp, Warning, TEXT("Q"));
+    UE_LOG(LogTemp, Warning, TEXT("Damage: %f"), AttackPower * QMultiplier);
 
     if (QMontage)
     {
         PlayAnimMontage(QMontage);
+    }
+    else
+    {
+        bIsUsingSkill = false;
     }
 
     if (QSkillEffect)
@@ -180,22 +240,19 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
         false
     );
 
-    // 주변 몬스터 찾기
     FVector Start = GetActorLocation();
     float Radius = 150.f;
 
     TArray<FOverlapResult> Overlaps;
 
-    FCollisionQueryParams Params;
-    Params.AddIgnoredActor(this);
+    FCollisionShape Sphere = FCollisionShape::MakeSphere(QRadius);
 
     bool bHit = GetWorld()->OverlapMultiByChannel(
         Overlaps,
-        GetActorLocation(),
+        Start,
         FQuat::Identity,
         ECC_Pawn,
-        FCollisionShape::MakeSphere(100.f),
-        Params
+        Sphere
     );
 
     if (bHit)
@@ -206,7 +263,7 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(10.f); // Q 데미지
+                Monster->TakeMonsterDamage(AttackPower * QMultiplier); // Q 데미지
             }
         }
     }
@@ -229,10 +286,15 @@ void ABaseCharacter::W(const FInputActionValue& Value)
     }
 
     UE_LOG(LogTemp, Warning, TEXT("W"));
+    UE_LOG(LogTemp, Warning, TEXT("Damage: %f"), AttackPower * WMultiplier);
 
     if (WMontage)
     {
         PlayAnimMontage(WMontage);
+    }
+    else
+    {
+        bIsUsingSkill = false;
     }
 
     if (WSkillEffect)
@@ -263,7 +325,7 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
     TArray<FOverlapResult> Overlaps;
 
-    FCollisionShape Sphere = FCollisionShape::MakeSphere(Radius);
+    FCollisionShape Sphere = FCollisionShape::MakeSphere(WRadius);
 
     bool bHit = GetWorld()->OverlapMultiByChannel(
         Overlaps,
@@ -281,7 +343,7 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(20.f); // W 데미지
+                Monster->TakeMonsterDamage(AttackPower * WMultiplier); // W 데미지
             }
         }
     }
@@ -304,10 +366,15 @@ void ABaseCharacter::E(const FInputActionValue& Value)
     }
 
     UE_LOG(LogTemp, Warning, TEXT("E"));
+    UE_LOG(LogTemp, Warning, TEXT("Damage: %f"), AttackPower * EMultiplier);
 
     if (EMontage)
     {
         PlayAnimMontage(EMontage);
+    }
+    else
+    {
+        bIsUsingSkill = false;
     }
 
     if (ESkillEffect)
@@ -338,7 +405,7 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
     TArray<FOverlapResult> Overlaps;
 
-    FCollisionShape Sphere = FCollisionShape::MakeSphere(Radius);
+    FCollisionShape Sphere = FCollisionShape::MakeSphere(ERadius);
 
     bool bHit = GetWorld()->OverlapMultiByChannel(
         Overlaps,
@@ -356,7 +423,7 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(30.f); // E 데미지
+                Monster->TakeMonsterDamage(AttackPower * EMultiplier); // E 데미지
             }
         }
     }
@@ -379,10 +446,15 @@ void ABaseCharacter::R(const FInputActionValue& Value)
     }
 
     UE_LOG(LogTemp, Warning, TEXT("R"));
+    UE_LOG(LogTemp, Warning, TEXT("Damage: %f"), AttackPower * RMultiplier);
 
     if (RMontage)
     {
         PlayAnimMontage(RMontage);
+    }
+    else
+    {
+        bIsUsingSkill = false;
     }
 
     if (RSkillEffect)
@@ -413,7 +485,7 @@ void ABaseCharacter::R(const FInputActionValue& Value)
 
     TArray<FOverlapResult> Overlaps;
 
-    FCollisionShape Sphere = FCollisionShape::MakeSphere(Radius);
+    FCollisionShape Sphere = FCollisionShape::MakeSphere(RRadius);
 
     bool bHit = GetWorld()->OverlapMultiByChannel(
         Overlaps,
@@ -431,7 +503,7 @@ void ABaseCharacter::R(const FInputActionValue& Value)
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(50.f); // R 데미지
+                Monster->TakeMonsterDamage(AttackPower * RMultiplier); // R 데미지
             }
         }
     }
@@ -485,6 +557,37 @@ void ABaseCharacter::ToggleInventory()
     }
 }
 
+void ABaseCharacter::ToggleSkillTree()
+{
+    if (!SkillTreeWidgetClass)
+        return;
+
+    if (!bSkillTreeOpen)
+    {
+        SkillTreeWidget =
+            CreateWidget<USkillTreeWidget>(
+                GetWorld(),
+                SkillTreeWidgetClass
+            );
+
+        if (SkillTreeWidget)
+        {
+            SkillTreeWidget->AddToViewport();
+        }
+
+        bSkillTreeOpen = true;
+    }
+    else
+    {
+        if (SkillTreeWidget)
+        {
+            SkillTreeWidget->RemoveFromParent();
+        }
+
+        bSkillTreeOpen = false;
+    }
+}
+
 void ABaseCharacter::TakePlayerDamage(float Damage)
 {
     if (bIsDead) return;
@@ -521,5 +624,292 @@ void ABaseCharacter::EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketNa
             FAttachmentTransformRules::SnapToTargetNotIncludingScale,
             SocketName
         );
+    }
+}
+
+bool ABaseCharacter::UpgradeSkill(FSkillUpgradeData UpgradeData)
+{
+    if (SkillPoints <= 0)
+    {
+        GEngine->AddOnScreenDebugMessage(
+            -1,
+            2.f,
+            FColor::Red,
+            TEXT("Not Enough Skill Points")
+        );
+
+        return false;
+    }
+
+    // 최대 레벨 제한
+    if (SkillLevels[UpgradeData.SkillType] >= 4)
+    {
+        GEngine->AddOnScreenDebugMessage(
+            -1,
+            2.f,
+            FColor::Red,
+            TEXT("Max Level")
+        );
+
+        return false;
+    }
+
+
+    SkillPoints--;
+
+    SkillLevels[UpgradeData.SkillType]++;
+
+    ApplySkillUpgrade(UpgradeData);
+
+    GEngine->AddOnScreenDebugMessage(
+        -1,
+        2.f,
+        FColor::Green,
+        TEXT("Skill Upgraded")
+    );
+
+    return true;
+}
+
+void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
+{
+    int32 SkillLevel =
+        SkillLevels[UpgradeData.SkillType];
+
+    switch (CharacterType)
+    {
+    case ECharacterType::Paladin:
+
+        switch (UpgradeData.SkillType)
+        {
+        case ESkillType::Q:
+
+            if (SkillLevel == 2)
+            {
+                QMultiplier = 1.2f;
+            }
+            else if (SkillLevel == 3)
+            {
+                QMultiplier = 1.5f;
+            }
+            else if (SkillLevel == 4)
+            {
+                QMultiplier = 1.8f;
+                QCooldown -= 3.f;
+            }
+
+            break;
+
+        case ESkillType::W:
+
+            if (SkillLevel == 2)
+            {
+                DefenseRate = 0.2f;
+            }
+            else if (SkillLevel == 3)
+            {
+                DefenseRate = 0.4f;
+            }
+            else if (SkillLevel == 4)
+            {
+                DefenseRate = 0.6f;
+            }
+
+            break;
+
+        case ESkillType::E:
+
+            if (SkillLevel == 2)
+            {
+                HealAmount = 0.01f;
+            }
+            else if (SkillLevel == 3)
+            {
+                HealAmount = 0.15f;
+            }
+            else if (SkillLevel == 4)
+            {
+                HealAmount = 0.2f;
+            }
+
+            break;
+
+        case ESkillType::R:
+
+            if (SkillLevel == 2)
+            {
+                RHealAmount = 0.2f;
+            }
+            else if (SkillLevel == 3)
+            {
+                RHealAmount = 0.3f;
+            }
+            else if (SkillLevel == 4)
+            {
+                RHealAmount = 0.5f;
+            }
+
+            break;
+        }
+
+        break;
+
+    case ECharacterType::Archer:
+
+        switch (UpgradeData.SkillType)
+        {
+        case ESkillType::Q:
+
+            if (SkillLevel == 2)
+            {
+                QMultiplier = 1.5f;
+            }
+            else if (SkillLevel == 3)
+            {
+                QMultiplier = 1.8f;
+            }
+            else if (SkillLevel == 4)
+            {
+                QMultiplier = 2.0f;
+                QCooldown -= 3.f;
+            }
+
+            break;
+
+        case ESkillType::W:
+
+            if (SkillLevel == 2)
+            {
+                AttackSpeed = 1.5f;
+            }
+            else if (SkillLevel == 3)
+            {
+                AttackSpeed = 2.0f;
+            }
+            else if (SkillLevel == 4)
+            {
+                AttackSpeed = 2.5f;
+            }
+
+            break;
+
+        case ESkillType::E:
+
+            if (SkillLevel == 2)
+            {
+                EMultiplier = 1.5f;
+            }
+            else if (SkillLevel == 3)
+            {
+                EMultiplier = 1.8f;
+            }
+            else if (SkillLevel == 4)
+            {
+                EMultiplier = 2.0f;
+                ERadius += 100.f;
+            }
+
+            break;
+
+        case ESkillType::R:
+
+            if (SkillLevel == 2)
+            {
+                RMultiplier = 3.0f;
+            }
+            else if (SkillLevel == 3)
+            {
+                RMultiplier = 3.0f;
+            }
+            else if (SkillLevel == 4)
+            {
+                RMultiplier = 4.0f;
+            }
+
+            break;
+        }
+
+        break;
+
+    case ECharacterType::Warrior:
+
+        switch (UpgradeData.SkillType)
+        {
+        case ESkillType::Q:
+
+            if (SkillLevel == 2)
+            {
+                QMultiplier = 1.2f;
+            }
+            else if (SkillLevel == 3)
+            {
+                QMultiplier = 1.5f;
+            }
+            else if (SkillLevel == 4)
+            {
+                QMultiplier = 1.8f;
+            }
+
+            break;
+
+        case ESkillType::W:
+
+            if (SkillLevel == 2)
+            {
+                QCooldown -= 2.f;
+                ECooldown -= 2.f;
+                RCooldown -= 2.f;
+            }
+            else if (SkillLevel == 3)
+            {
+                QCooldown -= 3.f;
+                ECooldown -= 3.f;
+                RCooldown -= 3.f;
+            }
+            else if (SkillLevel == 4)
+            {
+                QCooldown -= 4.f;
+                ECooldown -= 4.f;
+                RCooldown -= 4.f;
+            }
+
+            break;
+
+        case ESkillType::E:
+
+            if (SkillLevel == 2)
+            {
+                EMultiplier = 1.2f;
+            }
+            else if (SkillLevel == 3)
+            {
+                EMultiplier = 1.5f;
+            }
+            else if (SkillLevel == 4)
+            {
+                EMultiplier = 1.8f;
+            }
+
+            break;
+
+        case ESkillType::R:
+
+            if (SkillLevel == 2)
+            {
+                AttackPower *= 1.5f;
+            }
+            else if (SkillLevel == 3)
+            {
+                AttackPower *= 1.8f;
+            }
+            else if (SkillLevel == 4)
+            {
+                AttackPower *= 2.0f;
+            }
+
+            break;
+        }
+
+        break;
     }
 }
