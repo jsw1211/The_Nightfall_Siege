@@ -12,9 +12,11 @@
 #include "NiagaraFunctionLibrary.h"
 #include "SkillUpgradeData.h"
 #include "CharacterType.h"
+#include "InputActionValue.h"
 #include "BaseCharacter.generated.h"
 
 class USkillTreeWidget;
+class ALantern;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABaseCharacter : public ACharacter
@@ -104,6 +106,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	UTexture2D* RSkillIcon;
 
+	UPROPERTY(BlueprintReadOnly)
+	bool bHasLantern = false;
+
+	UPROPERTY()
+	ALantern* NearbyLantern = nullptr;
+
+	void SetNearbyLantern(ALantern* Lantern);
+
+	void Interact(const FInputActionValue& Value);
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;
@@ -139,6 +151,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_SkillTree;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UInputAction* IA_Interact;
 
 	UPROPERTY(EditAnywhere, Category = "UI")
 	TSubclassOf<USkillTreeWidget> SkillTreeWidgetClass;

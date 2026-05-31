@@ -18,6 +18,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "AIController.h"
 #include "SkillTreeWidget.h"
+#include "Lantern.h"
 
 
 // Sets default values
@@ -177,13 +178,13 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
     if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent))
     {
-        UE_LOG(LogTemp, Warning, TEXT("asdf"));
         EnhancedInput->BindAction(IA_Q, ETriggerEvent::Started, this, &ABaseCharacter::Q);
         EnhancedInput->BindAction(IA_W, ETriggerEvent::Started, this, &ABaseCharacter::W);
         EnhancedInput->BindAction(IA_E, ETriggerEvent::Started, this, &ABaseCharacter::E);
         EnhancedInput->BindAction(IA_R, ETriggerEvent::Started, this, &ABaseCharacter::R);
         EnhancedInput->BindAction(IA_Inventory, ETriggerEvent::Started, this, &ABaseCharacter::ToggleInventory);
         EnhancedInput->BindAction(IA_SkillTree, ETriggerEvent::Started, this, &ABaseCharacter::ToggleSkillTree);
+        EnhancedInput->BindAction(IA_Interact, ETriggerEvent::Started, this, &ABaseCharacter::Interact);
     }
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
@@ -911,5 +912,24 @@ void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
         }
 
         break;
+    }
+}
+
+void ABaseCharacter::SetNearbyLantern(ALantern* Lantern)
+{
+    NearbyLantern = Lantern;
+}
+
+void ABaseCharacter::Interact(const FInputActionValue& Value)
+{
+    if (NearbyLantern)
+    {
+        bHasLantern = true;
+
+        UE_LOG(LogTemp, Warning, TEXT("Lantern Picked Up"));
+
+        NearbyLantern->Destroy();
+
+        NearbyLantern = nullptr;
     }
 }
