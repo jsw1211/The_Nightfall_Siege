@@ -131,6 +131,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void OnLanternEquipped();
 
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsEquippingLantern = false;
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;

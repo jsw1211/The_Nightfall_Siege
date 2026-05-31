@@ -955,6 +955,9 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
     if (!bHasLantern)
         return;
 
+    if (bIsEquippingLantern)
+        return;
+
     if (bLanternEquipped)
     {
         if (LanternUnequipMontage)
@@ -966,6 +969,8 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
     {
         if (LanternEquipMontage)
         {
+            bIsEquippingLantern = true;
+            GetCharacterMovement()->DisableMovement();
             PlayAnimMontage(LanternEquipMontage);
         }
     }
@@ -979,5 +984,7 @@ void ABaseCharacter::OnLanternEquipped()
 
     LanternLight->SetVisibility(true);
 
-    UE_LOG(LogTemp, Warning, TEXT("Lantern Equipped Notify"));
+    bIsEquippingLantern = false;
+
+    GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 }
