@@ -55,6 +55,21 @@ ABaseCharacter::ABaseCharacter()
     SkillLevels.Add(ESkillType::E, 1);
     SkillLevels.Add(ESkillType::R, 1);
 
+    EquippedLanternMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EquippedLanternMesh"));
+
+    EquippedLanternMesh->SetupAttachment(GetMesh(), TEXT("LanternSocket"));
+
+    EquippedLanternMesh->SetVisibility(false);
+
+    LanternLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("LanternLight"));
+
+    LanternLight->SetupAttachment(EquippedLanternMesh);
+
+    LanternLight->SetVisibility(false);
+
+    LanternLight->SetIntensity(5000.f);
+
+    LanternLight->SetAttenuationRadius(1200.f);
 }
 
 // Called when the game starts or when spawned
@@ -938,22 +953,24 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
 {
     if (!bHasLantern)
-    {
-        UE_LOG(LogTemp, Warning,
-            TEXT("No Lantern"));
         return;
-    }
-
-    bLanternEquipped = !bLanternEquipped;
 
     if (bLanternEquipped)
     {
-        UE_LOG(LogTemp, Warning,
-            TEXT("Lantern Equipped"));
+        if (LanternUnequipMontage)
+        {
+            PlayAnimMontage(LanternUnequipMontage);
+        }
+
+        bLanternEquipped = false;
     }
     else
     {
-        UE_LOG(LogTemp, Warning,
-            TEXT("Lantern Unequipped"));
+        if (LanternEquipMontage)
+        {
+            PlayAnimMontage(LanternEquipMontage);
+        }
+
+        bLanternEquipped = true;
     }
 }

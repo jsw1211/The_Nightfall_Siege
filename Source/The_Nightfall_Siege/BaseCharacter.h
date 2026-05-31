@@ -12,7 +12,8 @@
 #include "NiagaraFunctionLibrary.h"
 #include "SkillUpgradeData.h"
 #include "CharacterType.h"
-#include "InputActionValue.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "BaseCharacter.generated.h"
 
 class USkillTreeWidget;
@@ -121,6 +122,12 @@ public:
 
 	void UseSlot1(const FInputActionValue& Value);
 
+	UPROPERTY(VisibleAnywhere)
+	UStaticMeshComponent* EquippedLanternMesh;
+
+	UPROPERTY(VisibleAnywhere)
+	UPointLightComponent* LanternLight;
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;
@@ -137,6 +144,12 @@ protected:
 	UAnimMontage* EMontage;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
 	UAnimMontage* RMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lantern")
+	UAnimMontage* LanternEquipMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lantern")
+	UAnimMontage* LanternUnequipMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputMappingContext* IMC_BaseCharacter;
