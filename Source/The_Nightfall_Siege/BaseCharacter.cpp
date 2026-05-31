@@ -961,8 +961,6 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
         {
             PlayAnimMontage(LanternUnequipMontage);
         }
-
-        bLanternEquipped = false;
     }
     else
     {
@@ -970,7 +968,16 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
         {
             PlayAnimMontage(LanternEquipMontage);
         }
-
-        bLanternEquipped = true;
     }
+}
+
+void ABaseCharacter::OnLanternEquipped()
+{
+    bLanternEquipped = true;
+
+    EquippedLanternMesh->SetVisibility(true);
+
+    LanternLight->SetVisibility(true);
+
+    UE_LOG(LogTemp, Warning, TEXT("Lantern Equipped Notify"));
 }

@@ -128,6 +128,9 @@ public:
 	UPROPERTY(VisibleAnywhere)
 	UPointLightComponent* LanternLight;
 
+	UFUNCTION(BlueprintCallable)
+	void OnLanternEquipped();
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;
