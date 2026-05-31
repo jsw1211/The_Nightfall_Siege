@@ -116,6 +116,11 @@ public:
 
 	void Interact(const FInputActionValue& Value);
 
+	UPROPERTY(BlueprintReadOnly)
+	bool bLanternEquipped = false;
+
+	void UseSlot1(const FInputActionValue& Value);
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;
@@ -154,6 +159,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	UInputAction* IA_Interact;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UInputAction* IA_Slot1;
 
 	UPROPERTY(EditAnywhere, Category = "UI")
 	TSubclassOf<USkillTreeWidget> SkillTreeWidgetClass;

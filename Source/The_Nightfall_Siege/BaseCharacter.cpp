@@ -185,6 +185,7 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         EnhancedInput->BindAction(IA_Inventory, ETriggerEvent::Started, this, &ABaseCharacter::ToggleInventory);
         EnhancedInput->BindAction(IA_SkillTree, ETriggerEvent::Started, this, &ABaseCharacter::ToggleSkillTree);
         EnhancedInput->BindAction(IA_Interact, ETriggerEvent::Started, this, &ABaseCharacter::Interact);
+        EnhancedInput->BindAction(IA_Slot1, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot1);
     }
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
@@ -931,5 +932,28 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
         NearbyLantern->Destroy();
 
         NearbyLantern = nullptr;
+    }
+}
+
+void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
+{
+    if (!bHasLantern)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("No Lantern"));
+        return;
+    }
+
+    bLanternEquipped = !bLanternEquipped;
+
+    if (bLanternEquipped)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("Lantern Equipped"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("Lantern Unequipped"));
     }
 }
