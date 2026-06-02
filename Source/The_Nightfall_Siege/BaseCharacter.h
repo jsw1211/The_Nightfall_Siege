@@ -134,6 +134,15 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsEquippingLantern = false;
 
+	UFUNCTION(BlueprintCallable)
+	void OnLanternUnequipped();
+
+	UFUNCTION(BlueprintCallable)
+	void OnLanternUnequipFinished();
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bLanternPoseActive = false;
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;

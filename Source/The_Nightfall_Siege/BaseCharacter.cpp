@@ -958,20 +958,26 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
     if (bIsEquippingLantern)
         return;
 
-    if (bLanternEquipped)
+    bIsEquippingLantern = true;
+
+    if (!bLanternEquipped)
     {
-        if (LanternUnequipMontage)
+        if (LanternEquipMontage)
         {
-            PlayAnimMontage(LanternUnequipMontage);
+            GetCharacterMovement()->DisableMovement();
+
+            PlayAnimMontage(LanternEquipMontage);
         }
     }
     else
     {
-        if (LanternEquipMontage)
+        if (LanternUnequipMontage)
         {
-            bIsEquippingLantern = true;
             GetCharacterMovement()->DisableMovement();
-            PlayAnimMontage(LanternEquipMontage);
+            
+            bLanternPoseActive = false;
+
+            PlayAnimMontage(LanternUnequipMontage);
         }
     }
 }
@@ -980,10 +986,49 @@ void ABaseCharacter::OnLanternEquipped()
 {
     bLanternEquipped = true;
 
+    bLanternPoseActive = true;
+
     EquippedLanternMesh->SetVisibility(true);
 
     LanternLight->SetVisibility(true);
 
+    if (CharacterType == ECharacterType::Paladin)
+    {
+        if (RightHandWeapon)
+        {
+            RightHandWeapon->SetActorHiddenInGame(true);
+            RightHandWeapon->SetActorEnableCollision(false);
+        }
+    }
+
+    bIsEquippingLantern = false;
+
+    GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+}
+
+void ABaseCharacter::OnLanternUnequipped()
+{
+    UE_LOG(LogTemp, Warning, TEXT("UNEQUIP"));
+
+    EquippedLanternMesh->SetVisibility(false);
+
+    LanternLight->SetVisibility(false);
+
+    if (CharacterType == ECharacterType::Paladin)
+    {
+        if (RightHandWeapon)
+        {
+            RightHandWeapon->SetActorHiddenInGame(false);
+            RightHandWeapon->SetActorEnableCollision(true);
+        }
+    }
+}
+
+void ABaseCharacter::OnLanternUnequipFinished()
+{
+    UE_LOG(LogTemp, Warning, TEXT("UNEQUIP FINISHED"));
+
+    bLanternEquipped = false;
     bIsEquippingLantern = false;
 
     GetCharacterMovement()->SetMovementMode(MOVE_Walking);
