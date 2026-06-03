@@ -208,6 +208,8 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
 void ABaseCharacter::Q(const FInputActionValue& Value)
 {
+    if (bLanternEquipped) return;
+
     if (bIsDead) return;
 
     if (!bCanUseQ || bIsUsingSkill)
@@ -288,6 +290,8 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
 void ABaseCharacter::W(const FInputActionValue& Value)
 {
+    if (bLanternEquipped) return;
+
     if (bIsDead) return;
 
     if (!bCanUseW || bIsUsingSkill)
@@ -368,6 +372,8 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
 void ABaseCharacter::E(const FInputActionValue& Value)
 {
+    if (bLanternEquipped) return;
+
     if (bIsDead) return;
 
     if (!bCanUseE || bIsUsingSkill)
@@ -448,6 +454,8 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
 void ABaseCharacter::R(const FInputActionValue& Value)
 {
+    if (bLanternEquipped) return;
+
     if (bIsDead) return;
 
     if (!bCanUseR || bIsUsingSkill)
