@@ -91,7 +91,7 @@ void AAltar::Tick(float DeltaTime)
 
 			if (!bLanternPlaced)
 			{
-				if (PlayerChar->bHasLantern)
+				if (PlayerChar->bHasLantern && PlayerChar->bLanternEquipped)	
 				{
 					PlaceLantern(PlayerChar);
 				}
