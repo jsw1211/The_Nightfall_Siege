@@ -44,4 +44,24 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
     {
         Portrait->SetBrushFromTexture(Player->PortraitTexture);
     }
+
+    if (SkillQImage && Player->QSkillIcon)
+    {
+        SkillQImage->SetBrushFromTexture(Player->QSkillIcon);
+    }
+
+    if (SkillWImage && Player->WSkillIcon)
+    {
+        SkillWImage->SetBrushFromTexture(Player->WSkillIcon);
+    }
+
+    if (SkillEImage && Player->ESkillIcon)
+    {
+        SkillEImage->SetBrushFromTexture(Player->ESkillIcon);
+    }
+
+    if (SkillRImage && Player->RSkillIcon)
+    {
+        SkillRImage->SetBrushFromTexture(Player->RSkillIcon);
+    }
 }

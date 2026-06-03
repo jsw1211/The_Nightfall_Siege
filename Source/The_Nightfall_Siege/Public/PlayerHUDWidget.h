@@ -30,5 +30,17 @@ public:
 
     UPROPERTY(meta = (BindWidget))
     UImage* Portrait;
+
+    UPROPERTY(meta = (BindWidget))
+    UImage* SkillQImage;
+
+    UPROPERTY(meta = (BindWidget))
+    UImage* SkillWImage;
+
+    UPROPERTY(meta = (BindWidget))
+    UImage* SkillEImage;
+
+    UPROPERTY(meta = (BindWidget))
+    UImage* SkillRImage;
 	
 };
