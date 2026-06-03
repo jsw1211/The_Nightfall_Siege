@@ -8,6 +8,7 @@
 #include "BaseCharacter.h"
 #include "DungeonManager.h"
 #include "Altar.h"
+#include "Components/SphereComponent.h"
 
 // Sets default values
 AMonster::AMonster()
@@ -104,6 +105,15 @@ void AMonster::TakeMonsterDamage(float Damage)
     if (!OwnerAltar->bActivated)
     {
         UE_LOG(LogTemp, Warning, TEXT("Monster Invincible"));
+
+        return;
+    }
+
+    float Distance = FVector::Dist(GetActorLocation(), OwnerAltar->GetActorLocation());
+
+    if (Distance > OwnerAltar->LightRange->GetScaledSphereRadius())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Outside Light"));
 
         return;
     }
