@@ -72,4 +72,40 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
     SkillECooldown->SetText(Player->ERemainingCooldown > 0.f ? FText::FromString(FString::Printf(TEXT("%.1f"), Player->ERemainingCooldown)) : FText::GetEmpty());
 
     SkillRCooldown->SetText(Player->RRemainingCooldown > 0.f ? FText::FromString(FString::Printf(TEXT("%.1f"), Player->RRemainingCooldown)) : FText::GetEmpty());
+
+    if (Player->QRemainingCooldown > 0.f)
+    {
+        SkillQImage->SetOpacity(0.3f);
+    }
+    else
+    {
+        SkillQImage->SetOpacity(1.f);
+    }
+
+    if (Player->WRemainingCooldown > 0.f)
+    {
+        SkillWImage->SetOpacity(0.3f);
+    }
+    else
+    {
+        SkillWImage->SetOpacity(1.f);
+    }
+
+    if (Player->ERemainingCooldown > 0.f)
+    {
+        SkillEImage->SetOpacity(0.3f);
+    }
+    else
+    {
+        SkillEImage->SetOpacity(1.f);
+    }
+
+    if (Player->RRemainingCooldown > 0.f)
+    {
+        SkillRImage->SetOpacity(0.3f);
+    }
+    else
+    {
+        SkillRImage->SetOpacity(1.f);
+    }
 }
