@@ -18,8 +18,8 @@ AMonster::AMonster()
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-    MaxHP = 100.f;
-    CurrentHP = 100.f;
+    MaxHP = 1000.f;
+    CurrentHP = 1000.f;
 
     HPWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("HPWidget"));
 
