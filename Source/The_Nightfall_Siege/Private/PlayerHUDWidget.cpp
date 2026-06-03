@@ -6,6 +6,7 @@
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Blueprint/UserWidget.h"
+#include "Components/Image.h"
 
 void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
 {
@@ -38,4 +39,9 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
     HPBar->SetPercent(Player->CurrentHP / Player->MaxHP);
 
     HPText->SetText(FText::FromString(FString::Printf(TEXT("%.0f / %.0f"), Player->CurrentHP, Player->MaxHP)));
+
+    if (Portrait && Player->PortraitTexture)
+    {
+        Portrait->SetBrushFromTexture(Player->PortraitTexture);
+    }
 }

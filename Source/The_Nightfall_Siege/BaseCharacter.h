@@ -108,6 +108,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	UTexture2D* RSkillIcon;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	UTexture2D* PortraitTexture;
+
 	UPROPERTY(BlueprintReadOnly)
 	bool bHasLantern = false;
 

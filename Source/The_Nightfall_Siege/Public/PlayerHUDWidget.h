@@ -12,6 +12,7 @@
 
 class UProgressBar;
 class UTextBlock;
+class UImage;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API UPlayerHUDWidget : public UUserWidget
@@ -26,5 +27,8 @@ public:
 
     UPROPERTY(meta = (BindWidget))
     UTextBlock* HPText;
+
+    UPROPERTY(meta = (BindWidget))
+    UImage* Portrait;
 	
 };
