@@ -9,6 +9,8 @@
 #include "DungeonManager.h"
 #include "Altar.h"
 #include "Components/SphereComponent.h"
+#include "Components/WidgetComponent.h"
+#include "Blueprint/UserWidget.h"
 
 // Sets default values
 AMonster::AMonster()
@@ -18,6 +20,16 @@ AMonster::AMonster()
 
     MaxHP = 100.f;
     CurrentHP = 100.f;
+
+    HPWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("HPWidget"));
+
+    HPWidget->SetupAttachment(GetRootComponent());
+
+    HPWidget->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
+
+    HPWidget->SetWidgetSpace(EWidgetSpace::Screen);
+
+    HPWidget->SetDrawSize(FVector2D(150.f, 20.f));
 
     bIsAttacking = false;
     bCanAttack = true;
@@ -31,11 +43,12 @@ void AMonster::BeginPlay()
 {
 	Super::BeginPlay();
 	
-    DungeonManager =
-        Cast<ADungeonManager>(
-            UGameplayStatics::GetActorOfClass(
-                GetWorld(),
-                ADungeonManager::StaticClass()));
+    DungeonManager = Cast<ADungeonManager>(UGameplayStatics::GetActorOfClass(GetWorld(), ADungeonManager::StaticClass()));
+    
+    if (UUserWidget* Widget =
+        HPWidget->GetUserWidgetObject())
+    {
+    }
 }
 
 // Called every frame

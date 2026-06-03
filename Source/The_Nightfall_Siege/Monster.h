@@ -4,10 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Components/WidgetComponent.h"
 #include "Monster.generated.h"
 
 class ADungeonManager;
 class AAltar;
+class UWidgetComponent;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API AMonster : public ACharacter
@@ -60,4 +62,7 @@ public:
 
 	UPROPERTY()
 	AAltar* OwnerAltar;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UWidgetComponent* HPWidget;
 };
