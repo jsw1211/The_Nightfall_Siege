@@ -43,4 +43,15 @@ public:
     UPROPERTY(meta = (BindWidget))
     UImage* SkillRImage;
 	
+    UPROPERTY(meta = (BindWidget))
+    UTextBlock* SkillQCooldown;
+
+    UPROPERTY(meta = (BindWidget))
+    UTextBlock* SkillWCooldown;
+
+    UPROPERTY(meta = (BindWidget))
+    UTextBlock* SkillECooldown;
+
+    UPROPERTY(meta = (BindWidget))
+    UTextBlock* SkillRCooldown;
 };

@@ -160,6 +160,31 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
 	float CurrentHP;
 
+	// 쿨타임 시간
+	UPROPERTY(EditAnywhere, Category = "Cooldown")
+	float QCooldown = 5.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Cooldown")
+	float WCooldown = 20.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Cooldown")
+	float ECooldown = 10.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Cooldown")
+	float RCooldown = 20.0f;
+
+	UPROPERTY(BlueprintReadOnly)
+	float QRemainingCooldown = 0.f;
+
+	UPROPERTY(BlueprintReadOnly)
+	float WRemainingCooldown = 0.f;
+
+	UPROPERTY(BlueprintReadOnly)
+	float ERemainingCooldown = 0.f;
+
+	UPROPERTY(BlueprintReadOnly)
+	float RRemainingCooldown = 0.f;
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;
@@ -221,19 +246,6 @@ protected:
 	bool bCanUseW = true;
 	bool bCanUseE = true;
 	bool bCanUseR = true;
-
-	// 쿨타임 시간
-	UPROPERTY(EditAnywhere, Category = "Cooldown")
-	float QCooldown = 5.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Cooldown")
-	float WCooldown = 20.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Cooldown")
-	float ECooldown = 10.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Cooldown")
-	float RCooldown = 20.0f;
 
 	// 데미지
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")

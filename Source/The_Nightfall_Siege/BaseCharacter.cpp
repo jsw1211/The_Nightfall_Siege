@@ -200,6 +200,13 @@ void ABaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+    QRemainingCooldown = FMath::Max(0.f, QRemainingCooldown - DeltaTime);
+
+    WRemainingCooldown = FMath::Max(0.f, WRemainingCooldown - DeltaTime);
+
+    ERemainingCooldown = FMath::Max(0.f, ERemainingCooldown - DeltaTime);
+
+    RRemainingCooldown = FMath::Max(0.f, RRemainingCooldown - DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -266,6 +273,8 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
     } // VFX
 
     bCanUseQ = false;
+
+    QRemainingCooldown = QCooldown;
 
     GetWorldTimerManager().SetTimer(
         QCooldownTimer,
@@ -349,6 +358,8 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
     bCanUseW = false;
 
+    WRemainingCooldown = WCooldown;
+
     GetWorldTimerManager().SetTimer(
         WCooldownTimer,
         this,
@@ -431,6 +442,8 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
     bCanUseE = false;
 
+    ERemainingCooldown = ECooldown;
+
     GetWorldTimerManager().SetTimer(
         ECooldownTimer,
         this,
@@ -512,6 +525,8 @@ void ABaseCharacter::R(const FInputActionValue& Value)
     } // VFX
 
     bCanUseR = false;
+
+    RRemainingCooldown = RCooldown;
 
     GetWorldTimerManager().SetTimer(
         RCooldownTimer,
