@@ -9,6 +9,7 @@
 #include "Monster.h"
 #include "BaseCharacter.h"
 #include "Components/SphereComponent.h"
+#include "Components/PointLightComponent.h"
 
 // Sets default values
 AAltar::AAltar()
@@ -38,11 +39,21 @@ AAltar::AAltar()
 
 	LightRange->SetSphereRadius(1200.f);
 
-	LanternMesh = CreateDefaultSubobject<UStaticMeshComponent>( TEXT("LanternMesh"));
+	LanternMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LanternMesh"));
 
 	LanternMesh->SetupAttachment(RootComponent);
 
 	LanternMesh->SetVisibility(false);
+
+	AltarLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("AltarLight"));
+
+	AltarLight->SetupAttachment(LanternMesh);
+
+	AltarLight->SetIntensity(5000.f);
+
+	AltarLight->SetAttenuationRadius(1200.f);
+
+	AltarLight->SetVisibility(false);
 }
 
 // Called when the game starts or when spawned
@@ -121,6 +132,8 @@ void AAltar::PlaceLantern(ABaseCharacter* Player)
 
 	LanternMesh->SetVisibility(true);
 
+	AltarLight->SetVisibility(true);
+
 	UE_LOG(LogTemp, Warning, TEXT("Lantern Placed"));
 }
 
@@ -136,6 +149,8 @@ void AAltar::RemoveLantern(ABaseCharacter* Player)
 	Player->OnLanternEquipped();
 
 	LanternMesh->SetVisibility(false);
+
+	AltarLight->SetVisibility(false);
 
 	UE_LOG(LogTemp, Warning, TEXT("Lantern Removed"));
 }

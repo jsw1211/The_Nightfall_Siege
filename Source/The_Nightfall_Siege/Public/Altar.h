@@ -12,6 +12,7 @@ class AMonster;
 class ALantern;
 class ABaseCharacter;
 class USphereComponent;
+class UPointLightComponent;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API AAltar : public AActor
@@ -63,4 +64,7 @@ public:
 
 	UPROPERTY(VisibleAnywhere)
 	UStaticMeshComponent* LanternMesh;
+
+	UPROPERTY(VisibleAnywhere)
+	UPointLightComponent* AltarLight;
 };
