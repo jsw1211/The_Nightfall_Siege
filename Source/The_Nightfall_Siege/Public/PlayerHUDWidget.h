@@ -54,4 +54,16 @@ public:
 
     UPROPERTY(meta = (BindWidget))
     UTextBlock* SkillRCooldown;
+
+    UPROPERTY(meta = (BindWidget))
+    UImage* Item1;
+
+    UPROPERTY(meta = (BindWidget))
+    UImage* Item2;
+
+    UPROPERTY(meta = (BindWidget))
+    UImage* Item3;
+
+    UPROPERTY(meta = (BindWidget))
+    UImage* Item4;
 };

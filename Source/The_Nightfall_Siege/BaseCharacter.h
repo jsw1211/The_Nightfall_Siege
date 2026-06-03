@@ -185,6 +185,27 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	float RRemainingCooldown = 0.f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	UTexture2D* Slot1Icon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	UTexture2D* Slot2Icon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	UTexture2D* Slot3Icon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	UTexture2D* Slot4Icon;
+
+	UPROPERTY(EditAnywhere, Category = "Item")
+	UTexture2D* LanternIcon;
+
+	UPROPERTY(EditAnywhere, Category = "Item")
+	UTexture2D* PotionIcon;
+
+	UPROPERTY(EditAnywhere)
+	UTexture2D* EmptySlotIcon;
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;

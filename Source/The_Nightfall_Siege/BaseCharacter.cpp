@@ -163,6 +163,11 @@ void ABaseCharacter::BeginPlay()
             }
         }
     }
+
+    Slot1Icon = EmptySlotIcon;
+    Slot2Icon = EmptySlotIcon;
+    Slot3Icon = EmptySlotIcon;
+    Slot4Icon = EmptySlotIcon;
 }
 
 void ABaseCharacter::Die()
@@ -980,6 +985,8 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
     if (NearbyLantern)
     {
         bHasLantern = true;
+
+        Slot1Icon = LanternIcon;
 
         UE_LOG(LogTemp, Warning, TEXT("Lantern Picked Up"));
 

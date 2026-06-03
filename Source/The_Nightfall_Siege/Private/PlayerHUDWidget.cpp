@@ -108,4 +108,25 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
     {
         SkillRImage->SetOpacity(1.f);
     }
+
+    if (Item1 && Player->Slot1Icon)
+    {
+        Item1->SetBrushFromTexture(Player->Slot1Icon);
+    }
+
+    if (Item2 && Player->Slot2Icon)
+    {
+        Item2->SetBrushFromTexture(Player->Slot2Icon);
+    }
+
+    if (Item3 && Player->Slot3Icon)
+    {
+        Item3->SetBrushFromTexture(Player->Slot3Icon);
+    }
+
+    if (Item4 && Player->Slot4Icon)
+    {
+        Item4->SetBrushFromTexture(Player->Slot4Icon);
+    }
+
 }
