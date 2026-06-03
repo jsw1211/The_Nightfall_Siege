@@ -18,6 +18,7 @@
 
 class USkillTreeWidget;
 class ALantern;
+class UPlayerHUDWidget;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABaseCharacter : public ACharacter
@@ -143,6 +144,19 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	bool bLanternPoseActive = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TSubclassOf<UPlayerHUDWidget> HUDWidgetClass;
+
+	UPROPERTY()
+	UPlayerHUDWidget* HUDWidget;
+
+	// 체력
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	float MaxHP = 100.f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
+	float CurrentHP;
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;
@@ -263,13 +277,6 @@ protected:
 	TSubclassOf<class UUserWidget> InventoryWidgetClass;
 	UUserWidget* InventoryWidget;
 	bool bInventoryOpen = false;
-
-	// 체력
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
-	float MaxHP = 100.f;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
-	float CurrentHP;
 
 	// 공격력
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")

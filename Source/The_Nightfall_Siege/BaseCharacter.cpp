@@ -19,6 +19,7 @@
 #include "AIController.h"
 #include "SkillTreeWidget.h"
 #include "Lantern.h"
+#include "PlayerHUDWidget.h"
 
 
 // Sets default values
@@ -147,6 +148,21 @@ void ABaseCharacter::BeginPlay()
 
     EquipWeapon(RightHandWeaponClass, RightHandSocketName, RightHandWeapon);
     EquipWeapon(LeftHandWeaponClass, LeftHandSocketName, LeftHandWeapon);
+
+    if (HUDWidgetClass)
+    {
+        APlayerController* PC = Cast<APlayerController>(GetController());
+
+        if (PC)
+        {
+            HUDWidget = CreateWidget<UPlayerHUDWidget>(PC, HUDWidgetClass);
+
+            if (HUDWidget)
+            {
+                HUDWidget->AddToViewport();
+            }
+        }
+    }
 }
 
 void ABaseCharacter::Die()
