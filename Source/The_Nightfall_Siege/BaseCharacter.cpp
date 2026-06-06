@@ -18,6 +18,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "AIController.h"
 #include "SkillTreeWidget.h"
+#include "Lantern.h"
 
 
 // Sets default values
@@ -54,6 +55,21 @@ ABaseCharacter::ABaseCharacter()
     SkillLevels.Add(ESkillType::E, 1);
     SkillLevels.Add(ESkillType::R, 1);
 
+    EquippedLanternMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EquippedLanternMesh"));
+
+    EquippedLanternMesh->SetupAttachment(GetMesh(), TEXT("LanternSocket"));
+
+    EquippedLanternMesh->SetVisibility(false);
+
+    LanternLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("LanternLight"));
+
+    LanternLight->SetupAttachment(EquippedLanternMesh);
+
+    LanternLight->SetVisibility(false);
+
+    LanternLight->SetIntensity(5000.f);
+
+    LanternLight->SetAttenuationRadius(1200.f);
 }
 
 // Called when the game starts or when spawned
@@ -177,13 +193,14 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
     if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent))
     {
-        UE_LOG(LogTemp, Warning, TEXT("asdf"));
         EnhancedInput->BindAction(IA_Q, ETriggerEvent::Started, this, &ABaseCharacter::Q);
         EnhancedInput->BindAction(IA_W, ETriggerEvent::Started, this, &ABaseCharacter::W);
         EnhancedInput->BindAction(IA_E, ETriggerEvent::Started, this, &ABaseCharacter::E);
         EnhancedInput->BindAction(IA_R, ETriggerEvent::Started, this, &ABaseCharacter::R);
         EnhancedInput->BindAction(IA_Inventory, ETriggerEvent::Started, this, &ABaseCharacter::ToggleInventory);
         EnhancedInput->BindAction(IA_SkillTree, ETriggerEvent::Started, this, &ABaseCharacter::ToggleSkillTree);
+        EnhancedInput->BindAction(IA_Interact, ETriggerEvent::Started, this, &ABaseCharacter::Interact);
+        EnhancedInput->BindAction(IA_Slot1, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot1);
     }
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
@@ -912,4 +929,62 @@ void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
 
         break;
     }
+}
+
+void ABaseCharacter::SetNearbyLantern(ALantern* Lantern)
+{
+    NearbyLantern = Lantern;
+}
+
+void ABaseCharacter::Interact(const FInputActionValue& Value)
+{
+    if (NearbyLantern)
+    {
+        bHasLantern = true;
+
+        UE_LOG(LogTemp, Warning, TEXT("Lantern Picked Up"));
+
+        NearbyLantern->Destroy();
+
+        NearbyLantern = nullptr;
+    }
+}
+
+void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
+{
+    if (!bHasLantern)
+        return;
+
+    if (bIsEquippingLantern)
+        return;
+
+    if (bLanternEquipped)
+    {
+        if (LanternUnequipMontage)
+        {
+            PlayAnimMontage(LanternUnequipMontage);
+        }
+    }
+    else
+    {
+        if (LanternEquipMontage)
+        {
+            bIsEquippingLantern = true;
+            GetCharacterMovement()->DisableMovement();
+            PlayAnimMontage(LanternEquipMontage);
+        }
+    }
+}
+
+void ABaseCharacter::OnLanternEquipped()
+{
+    bLanternEquipped = true;
+
+    EquippedLanternMesh->SetVisibility(true);
+
+    LanternLight->SetVisibility(true);
+
+    bIsEquippingLantern = false;
+
+    GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 }

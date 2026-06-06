@@ -12,9 +12,12 @@
 #include "NiagaraFunctionLibrary.h"
 #include "SkillUpgradeData.h"
 #include "CharacterType.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "BaseCharacter.generated.h"
 
 class USkillTreeWidget;
+class ALantern;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABaseCharacter : public ACharacter
@@ -104,6 +107,33 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	UTexture2D* RSkillIcon;
 
+	UPROPERTY(BlueprintReadOnly)
+	bool bHasLantern = false;
+
+	UPROPERTY()
+	ALantern* NearbyLantern = nullptr;
+
+	void SetNearbyLantern(ALantern* Lantern);
+
+	void Interact(const FInputActionValue& Value);
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bLanternEquipped = false;
+
+	void UseSlot1(const FInputActionValue& Value);
+
+	UPROPERTY(VisibleAnywhere)
+	UStaticMeshComponent* EquippedLanternMesh;
+
+	UPROPERTY(VisibleAnywhere)
+	UPointLightComponent* LanternLight;
+
+	UFUNCTION(BlueprintCallable)
+	void OnLanternEquipped();
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsEquippingLantern = false;
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;
@@ -120,6 +150,12 @@ protected:
 	UAnimMontage* EMontage;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
 	UAnimMontage* RMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lantern")
+	UAnimMontage* LanternEquipMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lantern")
+	UAnimMontage* LanternUnequipMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputMappingContext* IMC_BaseCharacter;
@@ -139,6 +175,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_SkillTree;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UInputAction* IA_Interact;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UInputAction* IA_Slot1;
 
 	UPROPERTY(EditAnywhere, Category = "UI")
 	TSubclassOf<USkillTreeWidget> SkillTreeWidgetClass;
