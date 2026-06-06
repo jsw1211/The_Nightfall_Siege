@@ -26,6 +26,9 @@ AArrowProjectile::AArrowProjectile()
 	ProjectileMovement->InitialSpeed = 3000.f;
 	ProjectileMovement->MaxSpeed = 3000.f;
 
+	ProjectileMovement->bRotationFollowsVelocity = true;
+	ProjectileMovement->ProjectileGravityScale = 0.f;
+
 	Collision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 
 	Collision->SetCollisionResponseToAllChannels(ECR_Ignore);

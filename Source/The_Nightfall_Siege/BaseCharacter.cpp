@@ -247,15 +247,11 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
     if (CharacterType == ECharacterType::Archer)
     {
-        FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 100.f;
+        bIsUsingSkill = true;
 
-        FRotator SpawnRotation = GetActorRotation();
-
-        AArrowProjectile* Arrow = GetWorld()->SpawnActor<AArrowProjectile>(ArrowClass, SpawnLocation, SpawnRotation);
-
-        if (Arrow)
+        if (QMontage)
         {
-            Arrow->OwnerCharacter = this;
+            PlayAnimMontage(QMontage);
         }
 
         bCanUseQ = false;

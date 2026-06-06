@@ -218,7 +218,7 @@ public:
 		return AttackPower;
 	}
 
-	UPROPERTY(EditDefaultsOnly, Category = "Projectile")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Projectile")
 	TSubclassOf<AArrowProjectile> ArrowClass;
 
 protected:
