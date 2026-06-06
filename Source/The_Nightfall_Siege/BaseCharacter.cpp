@@ -521,6 +521,30 @@ void ABaseCharacter::R(const FInputActionValue& Value)
     if (!bCanUseR || bIsUsingSkill)
         return;
 
+    if (CharacterType == ECharacterType::Archer)
+    {
+        bIsUsingSkill = true;
+
+        if (RMontage)
+        {
+            PlayAnimMontage(RMontage);
+        }
+
+        bCanUseR = false;
+
+        RRemainingCooldown = RCooldown;
+
+        GetWorldTimerManager().SetTimer(
+            RCooldownTimer,
+            this,
+            &ABaseCharacter::ResetRCooldown,
+            RCooldown,
+            false
+        );
+
+        return;
+    }
+
     bIsUsingSkill = true;
 
     GetCharacterMovement()->StopMovementImmediately();
@@ -1197,7 +1221,37 @@ void ABaseCharacter::SpawnArrowFan()
         if (Arrow)
         {
             Arrow->OwnerCharacter = this;
+            Arrow->ArrowType = EArrowType::Normal;
         }
+    }
+}
+
+void ABaseCharacter::SpawnRArrow()
+{
+    if (CharacterType != ECharacterType::Archer)
+    {
+        return;
+    }
+
+    AWeaponBase* Bow = Cast<AWeaponBase>(LeftHandWeapon);
+
+    if (!Bow || !ArrowClass)
+    {
+        return;
+    }
+
+    FVector SpawnLocation = Bow->Mesh->GetSocketLocation(TEXT("ArrowSocket"));
+
+    FRotator SpawnRotation = GetActorForwardVector().Rotation();
+
+    AArrowProjectile* Arrow = GetWorld()->SpawnActor<AArrowProjectile>(ArrowClass, SpawnLocation, SpawnRotation);
+
+    if (Arrow)
+    {
+        Arrow->OwnerCharacter = this;
+        Arrow->ArrowType = EArrowType::Pierce;
+
+        Arrow->SetActorScale3D(FVector(3.f, 3.f, 3.f));
     }
 }
 

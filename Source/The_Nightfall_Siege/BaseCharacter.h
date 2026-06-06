@@ -227,6 +227,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SpawnArrowFan();
 
+	UFUNCTION(BlueprintCallable)
+	void SpawnRArrow();
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;

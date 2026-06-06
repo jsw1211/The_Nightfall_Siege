@@ -10,6 +10,15 @@
 class USphereComponent;
 class UProjectileMovementComponent;
 class ABaseCharacter;
+class AMonster;
+
+UENUM(BlueprintType)
+enum class EArrowType : uint8
+{
+	Normal,
+	Explosive,
+	Pierce
+};
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API AArrowProjectile : public AActor
@@ -34,6 +43,11 @@ public:
 
 	UFUNCTION()
 	void OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	UPROPERTY()
+	EArrowType ArrowType = EArrowType::Normal;
+
+	TSet<AMonster*> HitMonsters;
 
 protected:
 	// Called when the game starts or when spawned

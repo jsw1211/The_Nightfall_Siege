@@ -59,9 +59,19 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 
 	if (Monster && OwnerCharacter)
 	{
+		if (HitMonsters.Contains(Monster))
+		{
+			return;
+		}
+
+		HitMonsters.Add(Monster);
+
 		Monster->TakeMonsterDamage(OwnerCharacter->GetAttackPower());
 
-		Destroy();
+		if (ArrowType != EArrowType::Pierce)
+		{
+			Destroy();
+		}
 	}
 }
 
