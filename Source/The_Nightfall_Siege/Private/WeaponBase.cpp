@@ -49,7 +49,10 @@ void AWeaponBase::OnWeaponOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 	if (Monster)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Weapon Hit Monster"));
-		Monster->TakeMonsterDamage(100.f);
+		if (OwnerCharacter)
+		{
+			Monster->TakeMonsterDamage(OwnerCharacter->GetAttackPower());
+		}
 	}
 }
 

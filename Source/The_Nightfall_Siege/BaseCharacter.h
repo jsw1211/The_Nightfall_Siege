@@ -212,6 +212,11 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void DisableWeaponCollision();
 
+	float GetAttackPower() const
+	{
+		return AttackPower;
+	}
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;

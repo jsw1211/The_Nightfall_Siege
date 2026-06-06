@@ -679,6 +679,13 @@ void ABaseCharacter::EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketNa
 
     OutWeapon = GetWorld()->SpawnActor<AActor>(WeaponClass);
 
+    AWeaponBase* Weapon = Cast<AWeaponBase>(OutWeapon);
+
+    if (Weapon)
+    {
+        Weapon->OwnerCharacter = this;
+    }
+
     if (OutWeapon)
     {
         OutWeapon->AttachToComponent(

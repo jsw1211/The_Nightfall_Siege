@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Components/BoxComponent.h"
+#include "BaseCharacter.h"
 #include "WeaponBase.generated.h"
 
 class AMonster;
@@ -29,6 +30,9 @@ public:
 
 	void EnableCollision();
 	void DisableCollision();
+
+	UPROPERTY()
+	ABaseCharacter* OwnerCharacter;
 
 protected:
 	// Called when the game starts or when spawned
