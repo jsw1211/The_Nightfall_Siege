@@ -255,6 +255,7 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
         }
 
         bCanUseQ = false;
+
         QRemainingCooldown = QCooldown;
 
         GetWorldTimerManager().SetTimer(
@@ -1133,6 +1134,70 @@ void ABaseCharacter::DisableWeaponCollision()
         Weapon->DisableCollision();
 
         UE_LOG(LogTemp, Warning, TEXT("Collision OFF"));
+    }
+}
+
+void ABaseCharacter::SpawnArrow()
+{
+    if (CharacterType != ECharacterType::Archer)
+    {
+        return;
+    }
+
+    AWeaponBase* Bow = Cast<AWeaponBase>(LeftHandWeapon);
+
+    if (!Bow || !ArrowClass)
+    {
+        return;
+    }
+
+    FVector SpawnLocation = Bow->Mesh->GetSocketLocation(TEXT("ArrowSocket"));
+
+    FRotator SpawnRotation = GetActorForwardVector().Rotation();
+
+    AArrowProjectile* Arrow = GetWorld()->SpawnActor<AArrowProjectile>(ArrowClass, SpawnLocation, SpawnRotation);
+
+    if (Arrow)
+    {
+        Arrow->OwnerCharacter = this;
+    }
+}
+
+void ABaseCharacter::SpawnArrowFan()
+{
+    if (CharacterType != ECharacterType::Archer)
+    {
+        return;
+    }
+
+    AWeaponBase* Bow = Cast<AWeaponBase>(LeftHandWeapon);
+
+    if (!Bow || !ArrowClass)
+    {
+        return;
+    }
+
+    FVector SpawnLocation = Bow->Mesh->GetSocketLocation(TEXT("ArrowSocket"));
+
+    FVector Forward = GetActorForwardVector();
+
+    const int32 ArrowCount = 5;
+    const float SpreadAngle = 30.f;
+
+    for (int32 i = 0; i < ArrowCount; i++)
+    {
+        float Angle = -SpreadAngle * 0.5f + (SpreadAngle / (ArrowCount - 1)) * i;
+
+        FVector Direction = FRotator(0.f, Angle, 0.f).RotateVector(Forward);
+
+        FRotator Rotation = Direction.Rotation();
+
+        AArrowProjectile* Arrow = GetWorld()->SpawnActor<AArrowProjectile>(ArrowClass, SpawnLocation, Rotation);
+
+        if (Arrow)
+        {
+            Arrow->OwnerCharacter = this;
+        }
     }
 }
 

@@ -221,6 +221,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Projectile")
 	TSubclassOf<AArrowProjectile> ArrowClass;
 
+	UFUNCTION(BlueprintCallable)
+	void SpawnArrow();
+
+	UFUNCTION(BlueprintCallable)
+	void SpawnArrowFan();
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;
