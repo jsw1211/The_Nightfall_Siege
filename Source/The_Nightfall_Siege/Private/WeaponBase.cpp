@@ -17,7 +17,7 @@ AWeaponBase::AWeaponBase()
 
 	WeaponCollision->SetupAttachment(Mesh);
 
-	WeaponCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	WeaponCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	WeaponCollision->SetGenerateOverlapEvents(true);
 
@@ -49,6 +49,17 @@ void AWeaponBase::OnWeaponOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 	if (Monster)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Weapon Hit Monster"));
+		Monster->TakeMonsterDamage(100.f);
 	}
+}
+
+void AWeaponBase::EnableCollision()
+{
+	WeaponCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+}
+
+void AWeaponBase::DisableCollision()
+{
+	WeaponCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 

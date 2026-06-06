@@ -206,6 +206,12 @@ public:
 	UPROPERTY(EditAnywhere)
 	UTexture2D* EmptySlotIcon;
 
+	UFUNCTION(BlueprintCallable)
+	void EnableWeaponCollision();
+
+	UFUNCTION(BlueprintCallable)
+	void DisableWeaponCollision();
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;

@@ -20,6 +20,7 @@
 #include "SkillTreeWidget.h"
 #include "Lantern.h"
 #include "PlayerHUDWidget.h"
+#include "WeaponBase.h"
 
 
 // Sets default values
@@ -1079,3 +1080,28 @@ void ABaseCharacter::OnLanternUnequipFinished()
 
     GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 }
+
+void ABaseCharacter::EnableWeaponCollision()
+{
+    AWeaponBase* Weapon = Cast<AWeaponBase>(RightHandWeapon);
+
+    if (Weapon)
+    {
+        Weapon->EnableCollision();
+
+        UE_LOG(LogTemp, Warning, TEXT("Collision ON"));
+    }
+}
+
+void ABaseCharacter::DisableWeaponCollision()
+{
+    AWeaponBase* Weapon = Cast<AWeaponBase>(RightHandWeapon);
+
+    if (Weapon)
+    {
+        Weapon->DisableCollision();
+
+        UE_LOG(LogTemp, Warning, TEXT("Collision OFF"));
+    }
+}
+

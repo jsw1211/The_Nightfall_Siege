@@ -12,8 +12,6 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
 
-    UE_LOG(LogTemp, Warning, TEXT("Tick Start"));
-
     if (!HPBar)
     {
         UE_LOG(LogTemp, Error, TEXT("HPBar NULL"));
@@ -33,8 +31,6 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
         UE_LOG(LogTemp, Error, TEXT("Player NULL"));
         return;
     }
-
-    UE_LOG(LogTemp, Warning, TEXT("All Valid"));
 
     HPBar->SetPercent(Player->CurrentHP / Player->MaxHP);
 
