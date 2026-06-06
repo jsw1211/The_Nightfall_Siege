@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "ArrowProjectile.generated.h"
 
 class USphereComponent;
@@ -23,7 +24,7 @@ public:
 	USphereComponent* Collision;
 
 	UPROPERTY(VisibleAnywhere)
-	UStaticMeshComponent* Mesh;
+	USkeletalMeshComponent* Mesh;
 
 	UPROPERTY(VisibleAnywhere)
 	UProjectileMovementComponent* ProjectileMovement;

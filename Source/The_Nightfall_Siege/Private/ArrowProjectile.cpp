@@ -17,7 +17,7 @@ AArrowProjectile::AArrowProjectile()
 
 	RootComponent = Collision;
 
-	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
+	Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh"));
 
 	Mesh->SetupAttachment(RootComponent);
 
