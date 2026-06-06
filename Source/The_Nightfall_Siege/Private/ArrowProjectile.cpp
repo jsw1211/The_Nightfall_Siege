@@ -1,0 +1,64 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+
+#include "ArrowProjectile.h"
+#include "Components/SphereComponent.h"
+#include "GameFramework/ProjectileMovementComponent.h"
+#include "Monster.h"
+#include "BaseCharacter.h"
+
+// Sets default values
+AArrowProjectile::AArrowProjectile()
+{
+ 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	PrimaryActorTick.bCanEverTick = false;
+
+	Collision = CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
+
+	RootComponent = Collision;
+
+	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
+
+	Mesh->SetupAttachment(RootComponent);
+
+	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
+
+	ProjectileMovement->InitialSpeed = 3000.f;
+	ProjectileMovement->MaxSpeed = 3000.f;
+
+	Collision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+
+	Collision->SetCollisionResponseToAllChannels(ECR_Ignore);
+
+	Collision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+
+}
+
+// Called when the game starts or when spawned
+void AArrowProjectile::BeginPlay()
+{
+	Super::BeginPlay();
+	
+	Collision->OnComponentBeginOverlap.AddDynamic(this, &AArrowProjectile::OnArrowOverlap);
+
+}
+
+// Called every frame
+void AArrowProjectile::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+}
+
+void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	AMonster* Monster = Cast<AMonster>(OtherActor);
+
+	if (Monster && OwnerCharacter)
+	{
+		Monster->TakeMonsterDamage(OwnerCharacter->GetAttackPower());
+
+		Destroy();
+	}
+}
+

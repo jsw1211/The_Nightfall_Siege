@@ -19,6 +19,7 @@
 class USkillTreeWidget;
 class ALantern;
 class UPlayerHUDWidget;
+class AArrowProjectile;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABaseCharacter : public ACharacter
@@ -216,6 +217,9 @@ public:
 	{
 		return AttackPower;
 	}
+
+	UPROPERTY(EditDefaultsOnly, Category = "Projectile")
+	TSubclassOf<AArrowProjectile> ArrowClass;
 
 protected:
 	UPROPERTY(VisibleAnywhere)

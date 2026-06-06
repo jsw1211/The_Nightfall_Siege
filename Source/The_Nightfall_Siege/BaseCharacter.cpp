@@ -21,6 +21,7 @@
 #include "Lantern.h"
 #include "PlayerHUDWidget.h"
 #include "WeaponBase.h"
+#include "ArrowProjectile.h"
 
 
 // Sets default values
@@ -243,6 +244,33 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
     if (!bCanUseQ || bIsUsingSkill)
         return;
+
+    if (CharacterType == ECharacterType::Archer)
+    {
+        FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 100.f;
+
+        FRotator SpawnRotation = GetActorRotation();
+
+        AArrowProjectile* Arrow = GetWorld()->SpawnActor<AArrowProjectile>(ArrowClass, SpawnLocation, SpawnRotation);
+
+        if (Arrow)
+        {
+            Arrow->OwnerCharacter = this;
+        }
+
+        bCanUseQ = false;
+        QRemainingCooldown = QCooldown;
+
+        GetWorldTimerManager().SetTimer(
+            QCooldownTimer,
+            this,
+            &ABaseCharacter::ResetQCooldown,
+            QCooldown,
+            false
+        );
+
+        return;
+    }
 
     bIsUsingSkill = true;
 
