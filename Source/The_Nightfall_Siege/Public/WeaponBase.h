@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "Components/BoxComponent.h"
 #include "BaseCharacter.h"
+#include "Containers/Set.h"
 #include "WeaponBase.generated.h"
 
 class AMonster;
@@ -33,6 +34,9 @@ public:
 
 	UPROPERTY()
 	ABaseCharacter* OwnerCharacter;
+
+	UPROPERTY()
+	TSet<AMonster*> HitMonsters;
 
 protected:
 	// Called when the game starts or when spawned

@@ -48,7 +48,15 @@ void AWeaponBase::OnWeaponOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 
 	if (Monster)
 	{
+		if (HitMonsters.Contains(Monster))
+		{
+			return;
+		}
+
+		HitMonsters.Add(Monster);
+
 		UE_LOG(LogTemp, Warning, TEXT("Weapon Hit Monster"));
+
 		if (OwnerCharacter)
 		{
 			Monster->TakeMonsterDamage(OwnerCharacter->GetAttackPower());
@@ -58,6 +66,8 @@ void AWeaponBase::OnWeaponOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 
 void AWeaponBase::EnableCollision()
 {
+	HitMonsters.Empty();
+
 	WeaponCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 }
 
