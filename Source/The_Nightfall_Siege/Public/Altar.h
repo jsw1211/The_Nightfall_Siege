@@ -9,6 +9,10 @@
 class UStaticMeshComponent;
 class UBoxComponent;
 class AMonster;
+class ALantern;
+class ABaseCharacter;
+class USphereComponent;
+class UPointLightComponent;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API AAltar : public AActor
@@ -48,4 +52,19 @@ public:
 
 	// 제단 활성화
 	void ActivateAltar();
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bLanternPlaced = false;
+
+	void PlaceLantern(ABaseCharacter* Player);
+	void RemoveLantern(ABaseCharacter* Player);
+
+	UPROPERTY(VisibleAnywhere)
+	USphereComponent* LightRange;
+
+	UPROPERTY(VisibleAnywhere)
+	UStaticMeshComponent* LanternMesh;
+
+	UPROPERTY(VisibleAnywhere)
+	UPointLightComponent* AltarLight;
 };

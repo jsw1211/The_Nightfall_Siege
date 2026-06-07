@@ -7,6 +7,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
 #include "Monster.h"
+#include "BaseCharacter.h"
+#include "Components/SphereComponent.h"
+#include "Components/PointLightComponent.h"
 
 // Sets default values
 AAltar::AAltar()
@@ -29,6 +32,28 @@ AAltar::AAltar()
 
 	bActivated = false;
 	bPlayerInside = false;
+
+	LightRange = CreateDefaultSubobject<USphereComponent>(TEXT("LightRange"));
+
+	LightRange->SetupAttachment(RootComponent);
+
+	LightRange->SetSphereRadius(1200.f);
+
+	LanternMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LanternMesh"));
+
+	LanternMesh->SetupAttachment(RootComponent);
+
+	LanternMesh->SetVisibility(false);
+
+	AltarLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("AltarLight"));
+
+	AltarLight->SetupAttachment(LanternMesh);
+
+	AltarLight->SetIntensity(5000.f);
+
+	AltarLight->SetAttenuationRadius(1200.f);
+
+	AltarLight->SetVisibility(false);
 }
 
 // Called when the game starts or when spawned
@@ -59,15 +84,28 @@ void AAltar::Tick(float DeltaTime)
 
 		if (PC && PC->WasInputKeyJustPressed(EKeys::F))
 		{
-			ActivateAltar();
+			ABaseCharacter* PlayerChar = Cast<ABaseCharacter>(Player);
+
+			if (!PlayerChar)
+				return;
+
+			if (!bLanternPlaced)
+			{
+				if (PlayerChar->bHasLantern && PlayerChar->bLanternEquipped)	
+				{
+					PlaceLantern(PlayerChar);
+				}
+			}
+			else
+			{
+				RemoveLantern(PlayerChar);
+			}
 		}
 	}
 }
 
 void AAltar::ActivateAltar()
 {
-	if (bActivated) return;
-
 	bActivated = true;
 
 	UE_LOG(LogTemp, Warning, TEXT("Altar Activated"));
@@ -79,4 +117,40 @@ void AAltar::RegisterMonster(AMonster* Monster)
 	{
 		OwnedMonsters.Add(Monster);
 	}
+}
+
+void AAltar::PlaceLantern(ABaseCharacter* Player)
+{
+	bLanternPlaced = true;
+	bActivated = true;
+
+	Player->bHasLantern = false;
+	Player->bLanternEquipped = false;
+	Player->bLanternPoseActive = false;
+
+	Player->OnLanternUnequipped();
+
+	LanternMesh->SetVisibility(true);
+
+	AltarLight->SetVisibility(true);
+
+	UE_LOG(LogTemp, Warning, TEXT("Lantern Placed"));
+}
+
+void AAltar::RemoveLantern(ABaseCharacter* Player)
+{
+	bLanternPlaced = false;
+	bActivated = false;
+
+	Player->bHasLantern = true;
+	Player->bLanternEquipped = true;
+	Player->bLanternPoseActive = true;
+
+	Player->OnLanternEquipped();
+
+	LanternMesh->SetVisibility(false);
+
+	AltarLight->SetVisibility(false);
+
+	UE_LOG(LogTemp, Warning, TEXT("Lantern Removed"));
 }

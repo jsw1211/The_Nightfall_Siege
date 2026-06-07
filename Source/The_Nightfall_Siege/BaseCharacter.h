@@ -18,6 +18,8 @@
 
 class USkillTreeWidget;
 class ALantern;
+class UPlayerHUDWidget;
+class AArrowProjectile;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABaseCharacter : public ACharacter
@@ -107,6 +109,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	UTexture2D* RSkillIcon;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	UTexture2D* PortraitTexture;
+
 	UPROPERTY(BlueprintReadOnly)
 	bool bHasLantern = false;
 
@@ -133,6 +138,97 @@ public:
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsEquippingLantern = false;
+
+	UFUNCTION(BlueprintCallable)
+	void OnLanternUnequipped();
+
+	UFUNCTION(BlueprintCallable)
+	void OnLanternUnequipFinished();
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bLanternPoseActive = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TSubclassOf<UPlayerHUDWidget> HUDWidgetClass;
+
+	UPROPERTY()
+	UPlayerHUDWidget* HUDWidget;
+
+	// 체력
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	float MaxHP = 100.f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
+	float CurrentHP;
+
+	// 쿨타임 시간
+	UPROPERTY(EditAnywhere, Category = "Cooldown")
+	float QCooldown = 5.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Cooldown")
+	float WCooldown = 20.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Cooldown")
+	float ECooldown = 10.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Cooldown")
+	float RCooldown = 20.0f;
+
+	UPROPERTY(BlueprintReadOnly)
+	float QRemainingCooldown = 0.f;
+
+	UPROPERTY(BlueprintReadOnly)
+	float WRemainingCooldown = 0.f;
+
+	UPROPERTY(BlueprintReadOnly)
+	float ERemainingCooldown = 0.f;
+
+	UPROPERTY(BlueprintReadOnly)
+	float RRemainingCooldown = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	UTexture2D* Slot1Icon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	UTexture2D* Slot2Icon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	UTexture2D* Slot3Icon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	UTexture2D* Slot4Icon;
+
+	UPROPERTY(EditAnywhere, Category = "Item")
+	UTexture2D* LanternIcon;
+
+	UPROPERTY(EditAnywhere, Category = "Item")
+	UTexture2D* PotionIcon;
+
+	UPROPERTY(EditAnywhere)
+	UTexture2D* EmptySlotIcon;
+
+	UFUNCTION(BlueprintCallable)
+	void EnableWeaponCollision();
+
+	UFUNCTION(BlueprintCallable)
+	void DisableWeaponCollision();
+
+	float GetAttackPower() const
+	{
+		return AttackPower;
+	}
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Projectile")
+	TSubclassOf<AArrowProjectile> ArrowClass;
+
+	UFUNCTION(BlueprintCallable)
+	void SpawnArrow();
+
+	UFUNCTION(BlueprintCallable)
+	void SpawnArrowFan();
+
+	UFUNCTION(BlueprintCallable)
+	void SpawnRArrow();
 
 protected:
 	UPROPERTY(VisibleAnywhere)
@@ -196,19 +292,6 @@ protected:
 	bool bCanUseE = true;
 	bool bCanUseR = true;
 
-	// 쿨타임 시간
-	UPROPERTY(EditAnywhere, Category = "Cooldown")
-	float QCooldown = 5.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Cooldown")
-	float WCooldown = 20.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Cooldown")
-	float ECooldown = 10.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Cooldown")
-	float RCooldown = 20.0f;
-
 	// 데미지
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	float QDamage = 10.f;
@@ -254,13 +337,6 @@ protected:
 	TSubclassOf<class UUserWidget> InventoryWidgetClass;
 	UUserWidget* InventoryWidget;
 	bool bInventoryOpen = false;
-
-	// 체력
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
-	float MaxHP = 100.f;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
-	float CurrentHP;
 
 	// 공격력
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")

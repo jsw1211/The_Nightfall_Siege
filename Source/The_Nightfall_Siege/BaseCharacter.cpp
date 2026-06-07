@@ -19,6 +19,9 @@
 #include "AIController.h"
 #include "SkillTreeWidget.h"
 #include "Lantern.h"
+#include "PlayerHUDWidget.h"
+#include "WeaponBase.h"
+#include "ArrowProjectile.h"
 
 
 // Sets default values
@@ -147,6 +150,26 @@ void ABaseCharacter::BeginPlay()
 
     EquipWeapon(RightHandWeaponClass, RightHandSocketName, RightHandWeapon);
     EquipWeapon(LeftHandWeaponClass, LeftHandSocketName, LeftHandWeapon);
+
+    if (HUDWidgetClass)
+    {
+        APlayerController* PC = Cast<APlayerController>(GetController());
+
+        if (PC)
+        {
+            HUDWidget = CreateWidget<UPlayerHUDWidget>(PC, HUDWidgetClass);
+
+            if (HUDWidget)
+            {
+                HUDWidget->AddToViewport();
+            }
+        }
+    }
+
+    Slot1Icon = EmptySlotIcon;
+    Slot2Icon = EmptySlotIcon;
+    Slot3Icon = EmptySlotIcon;
+    Slot4Icon = EmptySlotIcon;
 }
 
 void ABaseCharacter::Die()
@@ -184,6 +207,13 @@ void ABaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+    QRemainingCooldown = FMath::Max(0.f, QRemainingCooldown - DeltaTime);
+
+    WRemainingCooldown = FMath::Max(0.f, WRemainingCooldown - DeltaTime);
+
+    ERemainingCooldown = FMath::Max(0.f, ERemainingCooldown - DeltaTime);
+
+    RRemainingCooldown = FMath::Max(0.f, RRemainingCooldown - DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -208,10 +238,36 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
 void ABaseCharacter::Q(const FInputActionValue& Value)
 {
+    if (bLanternEquipped) return;
+
     if (bIsDead) return;
 
     if (!bCanUseQ || bIsUsingSkill)
         return;
+
+    if (CharacterType == ECharacterType::Archer)
+    {
+        bIsUsingSkill = true;
+
+        if (QMontage)
+        {
+            PlayAnimMontage(QMontage);
+        }
+
+        bCanUseQ = false;
+
+        QRemainingCooldown = QCooldown;
+
+        GetWorldTimerManager().SetTimer(
+            QCooldownTimer,
+            this,
+            &ABaseCharacter::ResetQCooldown,
+            QCooldown,
+            false
+        );
+
+        return;
+    }
 
     bIsUsingSkill = true;
 
@@ -248,6 +304,8 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
     } // VFX
 
     bCanUseQ = false;
+
+    QRemainingCooldown = QCooldown;
 
     GetWorldTimerManager().SetTimer(
         QCooldownTimer,
@@ -288,6 +346,8 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
 void ABaseCharacter::W(const FInputActionValue& Value)
 {
+    if (bLanternEquipped) return;
+
     if (bIsDead) return;
 
     if (!bCanUseW || bIsUsingSkill)
@@ -329,6 +389,8 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
     bCanUseW = false;
 
+    WRemainingCooldown = WCooldown;
+
     GetWorldTimerManager().SetTimer(
         WCooldownTimer,
         this,
@@ -368,6 +430,8 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
 void ABaseCharacter::E(const FInputActionValue& Value)
 {
+    if (bLanternEquipped) return;
+
     if (bIsDead) return;
 
     if (!bCanUseE || bIsUsingSkill)
@@ -409,6 +473,8 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
     bCanUseE = false;
 
+    ERemainingCooldown = ECooldown;
+
     GetWorldTimerManager().SetTimer(
         ECooldownTimer,
         this,
@@ -448,10 +514,36 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
 void ABaseCharacter::R(const FInputActionValue& Value)
 {
+    if (bLanternEquipped) return;
+
     if (bIsDead) return;
 
     if (!bCanUseR || bIsUsingSkill)
         return;
+
+    if (CharacterType == ECharacterType::Archer)
+    {
+        bIsUsingSkill = true;
+
+        if (RMontage)
+        {
+            PlayAnimMontage(RMontage);
+        }
+
+        bCanUseR = false;
+
+        RRemainingCooldown = RCooldown;
+
+        GetWorldTimerManager().SetTimer(
+            RCooldownTimer,
+            this,
+            &ABaseCharacter::ResetRCooldown,
+            RCooldown,
+            false
+        );
+
+        return;
+    }
 
     bIsUsingSkill = true;
 
@@ -488,6 +580,8 @@ void ABaseCharacter::R(const FInputActionValue& Value)
     } // VFX
 
     bCanUseR = false;
+
+    RRemainingCooldown = RCooldown;
 
     GetWorldTimerManager().SetTimer(
         RCooldownTimer,
@@ -633,6 +727,13 @@ void ABaseCharacter::EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketNa
     if (!WeaponClass) return;
 
     OutWeapon = GetWorld()->SpawnActor<AActor>(WeaponClass);
+
+    AWeaponBase* Weapon = Cast<AWeaponBase>(OutWeapon);
+
+    if (Weapon)
+    {
+        Weapon->OwnerCharacter = this;
+    }
 
     if (OutWeapon)
     {
@@ -942,6 +1043,8 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
     {
         bHasLantern = true;
 
+        Slot1Icon = LanternIcon;
+
         UE_LOG(LogTemp, Warning, TEXT("Lantern Picked Up"));
 
         NearbyLantern->Destroy();
@@ -958,20 +1061,26 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
     if (bIsEquippingLantern)
         return;
 
-    if (bLanternEquipped)
+    bIsEquippingLantern = true;
+
+    if (!bLanternEquipped)
     {
-        if (LanternUnequipMontage)
+        if (LanternEquipMontage)
         {
-            PlayAnimMontage(LanternUnequipMontage);
+            GetCharacterMovement()->DisableMovement();
+
+            PlayAnimMontage(LanternEquipMontage);
         }
     }
     else
     {
-        if (LanternEquipMontage)
+        if (LanternUnequipMontage)
         {
-            bIsEquippingLantern = true;
             GetCharacterMovement()->DisableMovement();
-            PlayAnimMontage(LanternEquipMontage);
+            
+            bLanternPoseActive = false;
+
+            PlayAnimMontage(LanternUnequipMontage);
         }
     }
 }
@@ -980,11 +1089,169 @@ void ABaseCharacter::OnLanternEquipped()
 {
     bLanternEquipped = true;
 
+    bLanternPoseActive = true;
+
     EquippedLanternMesh->SetVisibility(true);
 
     LanternLight->SetVisibility(true);
+
+    if (CharacterType == ECharacterType::Paladin)
+    {
+        if (RightHandWeapon)
+        {
+            RightHandWeapon->SetActorHiddenInGame(true);
+            RightHandWeapon->SetActorEnableCollision(false);
+        }
+    }
 
     bIsEquippingLantern = false;
 
     GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 }
+
+void ABaseCharacter::OnLanternUnequipped()
+{
+    UE_LOG(LogTemp, Warning, TEXT("UNEQUIP"));
+
+    EquippedLanternMesh->SetVisibility(false);
+
+    LanternLight->SetVisibility(false);
+
+    if (CharacterType == ECharacterType::Paladin)
+    {
+        if (RightHandWeapon)
+        {
+            RightHandWeapon->SetActorHiddenInGame(false);
+            RightHandWeapon->SetActorEnableCollision(true);
+        }
+    }
+}
+
+void ABaseCharacter::OnLanternUnequipFinished()
+{
+    UE_LOG(LogTemp, Warning, TEXT("UNEQUIP FINISHED"));
+
+    bLanternEquipped = false;
+    bIsEquippingLantern = false;
+
+    GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+}
+
+void ABaseCharacter::EnableWeaponCollision()
+{
+    AWeaponBase* Weapon = Cast<AWeaponBase>(RightHandWeapon);
+
+    if (Weapon)
+    {
+        Weapon->EnableCollision();
+
+        UE_LOG(LogTemp, Warning, TEXT("Collision ON"));
+    }
+}
+
+void ABaseCharacter::DisableWeaponCollision()
+{
+    AWeaponBase* Weapon = Cast<AWeaponBase>(RightHandWeapon);
+
+    if (Weapon)
+    {
+        Weapon->DisableCollision();
+
+        UE_LOG(LogTemp, Warning, TEXT("Collision OFF"));
+    }
+}
+
+void ABaseCharacter::SpawnArrow()
+{
+    if (CharacterType != ECharacterType::Archer)
+    {
+        return;
+    }
+
+    AWeaponBase* Bow = Cast<AWeaponBase>(LeftHandWeapon);
+
+    if (!Bow || !ArrowClass)
+    {
+        return;
+    }
+
+    FVector SpawnLocation = Bow->Mesh->GetSocketLocation(TEXT("ArrowSocket"));
+
+    FRotator SpawnRotation = GetActorForwardVector().Rotation();
+
+    AArrowProjectile* Arrow = GetWorld()->SpawnActor<AArrowProjectile>(ArrowClass, SpawnLocation, SpawnRotation);
+
+    if (Arrow)
+    {
+        Arrow->OwnerCharacter = this;
+    }
+}
+
+void ABaseCharacter::SpawnArrowFan()
+{
+    if (CharacterType != ECharacterType::Archer)
+    {
+        return;
+    }
+
+    AWeaponBase* Bow = Cast<AWeaponBase>(LeftHandWeapon);
+
+    if (!Bow || !ArrowClass)
+    {
+        return;
+    }
+
+    FVector SpawnLocation = Bow->Mesh->GetSocketLocation(TEXT("ArrowSocket"));
+
+    FVector Forward = GetActorForwardVector();
+
+    const int32 ArrowCount = 5;
+    const float SpreadAngle = 30.f;
+
+    for (int32 i = 0; i < ArrowCount; i++)
+    {
+        float Angle = -SpreadAngle * 0.5f + (SpreadAngle / (ArrowCount - 1)) * i;
+
+        FVector Direction = FRotator(0.f, Angle, 0.f).RotateVector(Forward);
+
+        FRotator Rotation = Direction.Rotation();
+
+        AArrowProjectile* Arrow = GetWorld()->SpawnActor<AArrowProjectile>(ArrowClass, SpawnLocation, Rotation);
+
+        if (Arrow)
+        {
+            Arrow->OwnerCharacter = this;
+            Arrow->ArrowType = EArrowType::Normal;
+        }
+    }
+}
+
+void ABaseCharacter::SpawnRArrow()
+{
+    if (CharacterType != ECharacterType::Archer)
+    {
+        return;
+    }
+
+    AWeaponBase* Bow = Cast<AWeaponBase>(LeftHandWeapon);
+
+    if (!Bow || !ArrowClass)
+    {
+        return;
+    }
+
+    FVector SpawnLocation = Bow->Mesh->GetSocketLocation(TEXT("ArrowSocket"));
+
+    FRotator SpawnRotation = GetActorForwardVector().Rotation();
+
+    AArrowProjectile* Arrow = GetWorld()->SpawnActor<AArrowProjectile>(ArrowClass, SpawnLocation, SpawnRotation);
+
+    if (Arrow)
+    {
+        Arrow->OwnerCharacter = this;
+        Arrow->ArrowType = EArrowType::Pierce;
+
+        Arrow->SetActorScale3D(FVector(3.f, 3.f, 3.f));
+    }
+}
+

@@ -8,6 +8,9 @@
 #include "BaseCharacter.h"
 #include "DungeonManager.h"
 #include "Altar.h"
+#include "Components/SphereComponent.h"
+#include "Components/WidgetComponent.h"
+#include "Blueprint/UserWidget.h"
 
 // Sets default values
 AMonster::AMonster()
@@ -15,8 +18,18 @@ AMonster::AMonster()
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-    MaxHP = 100.f;
-    CurrentHP = 100.f;
+    MaxHP = 1000.f;
+    CurrentHP = 1000.f;
+
+    HPWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("HPWidget"));
+
+    HPWidget->SetupAttachment(GetRootComponent());
+
+    HPWidget->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
+
+    HPWidget->SetWidgetSpace(EWidgetSpace::Screen);
+
+    HPWidget->SetDrawSize(FVector2D(150.f, 20.f));
 
     bIsAttacking = false;
     bCanAttack = true;
@@ -30,11 +43,12 @@ void AMonster::BeginPlay()
 {
 	Super::BeginPlay();
 	
-    DungeonManager =
-        Cast<ADungeonManager>(
-            UGameplayStatics::GetActorOfClass(
-                GetWorld(),
-                ADungeonManager::StaticClass()));
+    DungeonManager = Cast<ADungeonManager>(UGameplayStatics::GetActorOfClass(GetWorld(), ADungeonManager::StaticClass()));
+    
+    if (UUserWidget* Widget =
+        HPWidget->GetUserWidgetObject())
+    {
+    }
 }
 
 // Called every frame
@@ -104,6 +118,15 @@ void AMonster::TakeMonsterDamage(float Damage)
     if (!OwnerAltar->bActivated)
     {
         UE_LOG(LogTemp, Warning, TEXT("Monster Invincible"));
+
+        return;
+    }
+
+    float Distance = FVector::Dist(GetActorLocation(), OwnerAltar->GetActorLocation());
+
+    if (Distance > OwnerAltar->LightRange->GetScaledSphereRadius())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Outside Light"));
 
         return;
     }
