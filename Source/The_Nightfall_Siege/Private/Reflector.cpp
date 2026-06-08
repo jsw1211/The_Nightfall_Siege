@@ -20,6 +20,8 @@ void AReflector::BeginPlay()
 {
 	Super::BeginPlay();
 	
+    GetWorld()->GetTimerManager().SetTimerForNextTick([this](){ReflectBreath();});
+
 }
 
 // Called every frame
