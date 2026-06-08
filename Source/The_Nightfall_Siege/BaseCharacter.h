@@ -236,6 +236,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool IsDead() const;
 
+	UPROPERTY(BlueprintReadOnly)
+	bool bDarknessDebuff = false;
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;

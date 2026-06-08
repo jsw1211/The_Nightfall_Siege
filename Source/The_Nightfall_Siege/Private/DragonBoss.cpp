@@ -96,7 +96,7 @@ void ADragonBoss::StartAttackCycle()
 
 EDragonAttackType ADragonBoss::ChooseRandomAttack()
 {
-	int32 Rand = FMath::RandRange(1, 100);
+	/*int32 Rand = FMath::RandRange(1, 100);
 
 	if (Rand <= 40)
 	{
@@ -113,7 +113,8 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 		return EDragonAttackType::Debuff;
 	}
 
-	return EDragonAttackType::Bite;
+	return EDragonAttackType::Bite;*/
+	return EDragonAttackType::Debuff;
 }
 
 void ADragonBoss::ExecuteRandomAttack()
@@ -307,11 +308,22 @@ void ADragonBoss::DebuffAttack()
 
 	CurrentState = EDragonState::Attacking;
 
-	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Debuff"));
+	UE_LOG(LogTemp, Warning,
+		TEXT("Dragon Used Debuff"));
 
-	// TODO:
-	// 시야 제한
-	// HP 감소 디버프
+	UpdatePlayerList();
+
+	for (ABaseCharacter* Player : AlivePlayers)
+	{
+		if (Player)
+		{
+			Player->bDarknessDebuff = true;
+
+			UE_LOG(LogTemp, Warning,
+				TEXT("%s Darkness Debuff"),
+				*Player->GetName());
+		}
+	}
 
 	FTimerHandle AttackEndHandle;
 
