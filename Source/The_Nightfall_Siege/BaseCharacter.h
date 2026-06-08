@@ -230,6 +230,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SpawnRArrow();
 
+	UFUNCTION(BlueprintCallable)
+	void SpawnEArrow();
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;

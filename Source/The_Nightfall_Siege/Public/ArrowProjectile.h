@@ -49,6 +49,11 @@ public:
 
 	TSet<AMonster*> HitMonsters;
 
+	UPROPERTY()
+	FVector TargetLocation;
+
+	void Explode();
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

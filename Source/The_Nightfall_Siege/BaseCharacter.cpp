@@ -22,6 +22,7 @@
 #include "PlayerHUDWidget.h"
 #include "WeaponBase.h"
 #include "ArrowProjectile.h"
+#include "GameFramework/ProjectileMovementComponent.h"
 
 
 // Sets default values
@@ -436,6 +437,24 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
     if (!bCanUseE || bIsUsingSkill)
         return;
+
+    if (CharacterType == ECharacterType::Archer)
+    {
+        bIsUsingSkill = true;
+
+        if (EMontage)
+        {
+            PlayAnimMontage(EMontage);
+        }
+
+        bCanUseE = false;
+
+        ERemainingCooldown = ECooldown;
+
+        GetWorldTimerManager().SetTimer(ECooldownTimer, this, &ABaseCharacter::ResetECooldown, ECooldown, false);
+
+        return;
+    }
 
     bIsUsingSkill = true;
 
@@ -1252,6 +1271,38 @@ void ABaseCharacter::SpawnRArrow()
         Arrow->ArrowType = EArrowType::Pierce;
 
         Arrow->SetActorScale3D(FVector(3.f, 3.f, 3.f));
+    }
+}
+
+void ABaseCharacter::SpawnEArrow()
+{
+    if (CharacterType != ECharacterType::Archer)
+    {
+        return;
+    }
+
+    AWeaponBase* Bow = Cast<AWeaponBase>(LeftHandWeapon);
+
+    if (!Bow || !ArrowClass)
+    {
+        return;
+    }
+
+    FVector SpawnLocation = Bow->Mesh->GetSocketLocation(TEXT("ArrowSocket"));
+
+    FRotator SpawnRotation = GetActorForwardVector().Rotation();
+
+    AArrowProjectile* Arrow = GetWorld()->SpawnActor<AArrowProjectile>(ArrowClass, SpawnLocation, SpawnRotation);
+
+    if (Arrow)
+    {
+        Arrow->OwnerCharacter = this;
+
+        Arrow->ArrowType = EArrowType::Explosive;
+
+        Arrow->ProjectileMovement->ProjectileGravityScale = 1.0f;
+
+        Arrow->ProjectileMovement->Velocity = GetActorForwardVector() * 1200.f + FVector(0.f, 0.f, 800.f);
     }
 }
 
