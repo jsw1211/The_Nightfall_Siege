@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "ForestManager.generated.h"
 
+class ADungeonPortal;
+
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API AForestManager : public AActor
 {
