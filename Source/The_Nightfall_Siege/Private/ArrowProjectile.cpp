@@ -36,6 +36,7 @@ AArrowProjectile::AArrowProjectile()
 
 	Collision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 
+	Collision->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
 }
 
 // Called when the game starts or when spawned
@@ -45,6 +46,7 @@ void AArrowProjectile::BeginPlay()
 	
 	Collision->OnComponentBeginOverlap.AddDynamic(this, &AArrowProjectile::OnArrowOverlap);
 
+	ProjectileMovement->OnProjectileStop.AddDynamic(this,&AArrowProjectile::OnProjectileStop);
 }
 
 // Called every frame
@@ -106,5 +108,18 @@ void AArrowProjectile::Explode()
 	}
 
 	Destroy();
+}
+
+void AArrowProjectile::OnProjectileStop(
+	const FHitResult& ImpactResult)
+{
+	if (ArrowType == EArrowType::Explosive)
+	{
+		Explode();
+	}
+	else
+	{
+		Destroy();
+	}
 }
 

@@ -1300,7 +1300,7 @@ void ABaseCharacter::SpawnEArrow()
 
         Arrow->ArrowType = EArrowType::Explosive;
 
-        FVector TargetLocation = GetActorLocation() + GetActorForwardVector() * 1000.f;
+        FVector TargetLocation = GetActorLocation() + GetActorForwardVector() * 300.f;
 
         FVector LaunchVelocity;
 
