@@ -1300,9 +1300,17 @@ void ABaseCharacter::SpawnEArrow()
 
         Arrow->ArrowType = EArrowType::Explosive;
 
-        Arrow->ProjectileMovement->ProjectileGravityScale = 1.0f;
+        FVector TargetLocation = GetActorLocation() + GetActorForwardVector() * 1000.f;
 
-        Arrow->ProjectileMovement->Velocity = GetActorForwardVector() * 1200.f + FVector(0.f, 0.f, 800.f);
+        FVector LaunchVelocity;
+
+        bool bSuccess = UGameplayStatics::SuggestProjectileVelocity(this, LaunchVelocity, SpawnLocation, TargetLocation, 1200.f, false, 0.f, 0.f, ESuggestProjVelocityTraceOption::DoNotTrace);
+
+        if (bSuccess)
+        {
+            Arrow->ProjectileMovement->ProjectileGravityScale = 1.f;
+            Arrow->ProjectileMovement->Velocity = LaunchVelocity;
+        }
     }
 }
 
