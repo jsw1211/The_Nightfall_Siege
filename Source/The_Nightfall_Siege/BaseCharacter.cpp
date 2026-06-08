@@ -22,6 +22,8 @@
 #include "PlayerHUDWidget.h"
 #include "WeaponBase.h"
 #include "ArrowProjectile.h"
+#include "GameFramework/ProjectileMovementComponent.h"
+#include "DungeonPrism.h"
 
 
 // Sets default values
@@ -231,6 +233,9 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         EnhancedInput->BindAction(IA_SkillTree, ETriggerEvent::Started, this, &ABaseCharacter::ToggleSkillTree);
         EnhancedInput->BindAction(IA_Interact, ETriggerEvent::Started, this, &ABaseCharacter::Interact);
         EnhancedInput->BindAction(IA_Slot1, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot1);
+        //EnhancedInput->BindAction(IA_Slot2, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot2);
+        EnhancedInput->BindAction(IA_Slot3, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot3);
+        //EnhancedInput->BindAction(IA_Slot4, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot4);
     }
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
@@ -436,6 +441,24 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
     if (!bCanUseE || bIsUsingSkill)
         return;
+
+    if (CharacterType == ECharacterType::Archer)
+    {
+        bIsUsingSkill = true;
+
+        if (EMontage)
+        {
+            PlayAnimMontage(EMontage);
+        }
+
+        bCanUseE = false;
+
+        ERemainingCooldown = ECooldown;
+
+        GetWorldTimerManager().SetTimer(ECooldownTimer, this, &ABaseCharacter::ResetECooldown, ECooldown, false);
+
+        return;
+    }
 
     bIsUsingSkill = true;
 
@@ -1051,6 +1074,20 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 
         NearbyLantern = nullptr;
     }
+
+    if (NearbyPrism)
+    {
+        bHasPrism = true;
+
+        Slot3Icon = PrismIcon;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Prism Picked Up"));
+
+        NearbyPrism->Destroy();
+
+        NearbyPrism = nullptr;
+    }
 }
 
 void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
@@ -1083,6 +1120,23 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
             PlayAnimMontage(LanternUnequipMontage);
         }
     }
+}
+
+void ABaseCharacter::UseSlot3(
+    const FInputActionValue& Value)
+{
+    if (!bHasPrism)
+    {
+        return;
+    }
+
+    bPrismEquipped = !bPrismEquipped;
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Prism Equipped : %s"),
+        bPrismEquipped ?
+        TEXT("TRUE") :
+        TEXT("FALSE"));
 }
 
 void ABaseCharacter::OnLanternEquipped()
@@ -1253,5 +1307,56 @@ void ABaseCharacter::SpawnRArrow()
 
         Arrow->SetActorScale3D(FVector(3.f, 3.f, 3.f));
     }
+}
+
+void ABaseCharacter::SpawnEArrow()
+{
+    if (CharacterType != ECharacterType::Archer)
+    {
+        return;
+    }
+
+    AWeaponBase* Bow = Cast<AWeaponBase>(LeftHandWeapon);
+
+    if (!Bow || !ArrowClass)
+    {
+        return;
+    }
+
+    FVector SpawnLocation = Bow->Mesh->GetSocketLocation(TEXT("ArrowSocket"));
+
+    FRotator SpawnRotation = GetActorForwardVector().Rotation();
+
+    AArrowProjectile* Arrow = GetWorld()->SpawnActor<AArrowProjectile>(ArrowClass, SpawnLocation, SpawnRotation);
+
+    if (Arrow)
+    {
+        Arrow->OwnerCharacter = this;
+
+        Arrow->ArrowType = EArrowType::Explosive;
+
+        FVector TargetLocation = GetActorLocation() + GetActorForwardVector() * 300.f;
+
+        FVector LaunchVelocity;
+
+        bool bSuccess = UGameplayStatics::SuggestProjectileVelocity(this, LaunchVelocity, SpawnLocation, TargetLocation, 1200.f, false, 0.f, 0.f, ESuggestProjVelocityTraceOption::DoNotTrace);
+
+        if (bSuccess)
+        {
+            Arrow->ProjectileMovement->ProjectileGravityScale = 1.f;
+            Arrow->ProjectileMovement->Velocity = LaunchVelocity;
+        }
+    }
+}
+
+bool ABaseCharacter::IsDead() const
+{
+    return bIsDead;
+}
+
+void ABaseCharacter::SetNearbyPrism(
+    ADungeonPrism* Prism)
+{
+    NearbyPrism = Prism;
 }
 

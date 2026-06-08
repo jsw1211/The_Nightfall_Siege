@@ -4,18 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "ForestManager.generated.h"
+#include "Reflector.generated.h"
 
-class ADungeonPortal;
+class UStaticMeshComponent;
+class ADragonBoss;
 
 UCLASS()
-class THE_NIGHTFALL_SIEGE_API AForestManager : public AActor
+class THE_NIGHTFALL_SIEGE_API AReflector : public AActor
 {
 	GENERATED_BODY()
 	
 public:	
 	// Sets default values for this actor's properties
-	AForestManager();
+	AReflector();
 
 protected:
 	// Called when the game starts or when spawned
@@ -25,13 +26,12 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-protected:
+	UPROPERTY(VisibleAnywhere)
+	UStaticMeshComponent* Mesh;
+
+	UFUNCTION()
+	void ReflectBreath();
 
 	UPROPERTY(EditAnywhere)
-	TSubclassOf<ADungeonPortal> PortalClass;
-
-	UPROPERTY(EditAnywhere)
-	TArray<AActor*> PortalSpawnPoints;
-
-	void SpawnDungeonPortal();
+	ADragonBoss* DragonBoss;
 };

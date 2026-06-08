@@ -6,6 +6,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Monster.h"
 #include "BaseCharacter.h"
+#include "Engine/OverlapResult.h"
 
 // Sets default values
 AArrowProjectile::AArrowProjectile()
@@ -35,6 +36,7 @@ AArrowProjectile::AArrowProjectile()
 
 	Collision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 
+	Collision->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
 }
 
 // Called when the game starts or when spawned
@@ -44,6 +46,7 @@ void AArrowProjectile::BeginPlay()
 	
 	Collision->OnComponentBeginOverlap.AddDynamic(this, &AArrowProjectile::OnArrowOverlap);
 
+	ProjectileMovement->OnProjectileStop.AddDynamic(this,&AArrowProjectile::OnProjectileStop);
 }
 
 // Called every frame
@@ -68,10 +71,55 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 
 		Monster->TakeMonsterDamage(OwnerCharacter->GetAttackPower());
 
-		if (ArrowType != EArrowType::Pierce)
+		if (ArrowType == EArrowType::Explosive)
 		{
-			Destroy();
+			Explode();
+			return;
 		}
+		else if (ArrowType == EArrowType::Pierce)
+		{
+		}
+		else
+		{
+		}
+	}
+}
+
+void AArrowProjectile::Explode()
+{
+	TArray<FOverlapResult> Overlaps;
+
+	FCollisionShape Sphere = FCollisionShape::MakeSphere(300.f);
+
+	bool bHit =
+		GetWorld()->OverlapMultiByChannel(Overlaps, GetActorLocation(), FQuat::Identity, ECC_Pawn, Sphere);
+
+	if (bHit)
+	{
+		for (auto& Result : Overlaps)
+		{
+			AMonster* Monster = Cast<AMonster>(Result.GetActor());
+
+			if (Monster && OwnerCharacter)
+			{
+				Monster->TakeMonsterDamage(OwnerCharacter->GetAttackPower() * OwnerCharacter->EMultiplier);
+			}
+		}
+	}
+
+	Destroy();
+}
+
+void AArrowProjectile::OnProjectileStop(
+	const FHitResult& ImpactResult)
+{
+	if (ArrowType == EArrowType::Explosive)
+	{
+		Explode();
+	}
+	else
+	{
+		Destroy();
 	}
 }
 
