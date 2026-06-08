@@ -176,4 +176,6 @@ public:
 	void OnAttackFinished();
 
 	FTimerHandle CenterFailHandle;
+
+	void Die();
 };

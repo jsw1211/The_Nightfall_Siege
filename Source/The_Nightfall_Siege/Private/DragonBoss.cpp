@@ -7,6 +7,7 @@
 #include "Animation/AnimInstance.h"
 #include "TimerManager.h"
 #include "AIController.h"
+#include "Components/CapsuleComponent.h"
 
 // Sets default values
 ADragonBoss::ADragonBoss()
@@ -38,6 +39,11 @@ void ADragonBoss::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
 	if (TargetPlayer == nullptr)
 	{
 		ChooseRandomTarget();
@@ -68,6 +74,11 @@ void ADragonBoss::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 
 void ADragonBoss::StartAttackCycle()
 {
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
 	UE_LOG(LogTemp, Warning, TEXT("StartAttackCycle"));
 
 	ChooseRandomTarget();
@@ -133,6 +144,11 @@ void ADragonBoss::ExecuteRandomAttack()
 
 void ADragonBoss::BiteAttack()
 {
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
 	bIsAttacking = true;
 
 	AAIController* AIController = Cast<AAIController>(GetController());
@@ -177,6 +193,11 @@ void ADragonBoss::BiteAttack()
 
 void ADragonBoss::CloseBreathAttack()
 {
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
 	bIsAttacking = true;
 
 	AAIController* AIController = Cast<AAIController>(GetController());
@@ -221,6 +242,11 @@ void ADragonBoss::CloseBreathAttack()
 
 void ADragonBoss::BreathAttack()
 {
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
 	bIsAttacking = true;
 
 	AAIController* AIController = Cast<AAIController>(GetController());
@@ -265,6 +291,11 @@ void ADragonBoss::BreathAttack()
 
 void ADragonBoss::DebuffAttack()
 {
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
 	bIsAttacking = true;
 
 	AAIController* AIController = Cast<AAIController>(GetController());
@@ -377,7 +408,7 @@ void ADragonBoss::TakeBossDamage(float Damage)
 
 	if (CurrentHP <= 0.f)
 	{
-		CurrentState = EDragonState::Dead;
+		Die();
 	}
 }
 
@@ -485,6 +516,11 @@ EDragonPatternType ADragonBoss::ChoosePattern()
 
 void ADragonBoss::ExecutePattern()
 {
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
 	UE_LOG(LogTemp, Warning, TEXT("ExecutePattern"));
 
 	EDragonPatternType Pattern = ChoosePattern();
@@ -602,8 +638,29 @@ void ADragonBoss::OnCenterMechanicSuccess()
 
 void ADragonBoss::OnAttackFinished()
 {
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
 	bIsAttacking = false;
 
 	StartAttackCycle();
+}
+
+void ADragonBoss::Die()
+{
+	CurrentState = EDragonState::Dead;
+
+	bIsAttacking = false;
+
+	GetCharacterMovement()->DisableMovement();
+
+	GetWorldTimerManager().ClearTimer(
+		AttackTimerHandle
+	);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Dragon Dead"));
 }
 
