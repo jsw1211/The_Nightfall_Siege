@@ -19,8 +19,6 @@ AReflector::AReflector()
 void AReflector::BeginPlay()
 {
 	Super::BeginPlay();
-	
-    GetWorld()->GetTimerManager().SetTimerForNextTick([this](){ReflectBreath();});
 
 }
 
@@ -38,12 +36,16 @@ void AReflector::ReflectBreath()
         return;
     }
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("Breath Reflected")
-    );
+    UE_LOG(LogTemp, Warning,
+        TEXT("Breath Reflected"));
 
-    DragonBoss->OnBreathReflected();
+    if (DragonBoss->bCenterMechanicActive)
+    {
+        DragonBoss->OnCenterMechanicSuccess();
+    }
+    else
+    {
+        DragonBoss->OnBreathReflected();
+    }
 }
 

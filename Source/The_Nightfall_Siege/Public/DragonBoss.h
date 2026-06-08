@@ -167,4 +167,13 @@ public:
 	void TargetChangePattern();
 
 	void CenterMechanicPattern();
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bCenterMechanicActive = false;
+
+	void OnCenterMechanicSuccess();
+
+	void OnAttackFinished();
+
+	FTimerHandle CenterFailHandle;
 };

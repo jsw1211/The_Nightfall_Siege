@@ -20,6 +20,8 @@ ADragonBoss::ADragonBoss()
 void ADragonBoss::BeginPlay()
 {
 	Super::BeginPlay();
+
+	ArenaCenter = FVector(0.f, 0.f, 0.f);
 	
 	bShielded = true;
 	bCanTakeDamage = false;
@@ -127,8 +129,6 @@ void ADragonBoss::ExecuteRandomAttack()
 		DebuffAttack();
 		break;
 	}
-
-	StartAttackCycle();
 }
 
 void ADragonBoss::BiteAttack()
@@ -148,6 +148,13 @@ void ADragonBoss::BiteAttack()
 
 	float Damage = AttackPower * 1.0f;
 
+	ABaseCharacter* Player = Cast<ABaseCharacter>(TargetPlayer);
+
+	if (Player)
+	{
+		Player->TakePlayerDamage(Damage);
+	}
+
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 
 	if (AnimInstance && BiteMontage)
@@ -161,7 +168,7 @@ void ADragonBoss::BiteAttack()
 		AttackEndHandle,
 		[this]()
 		{
-			bIsAttacking = false;
+			OnAttackFinished();
 		},
 		2.0f,
 		false
@@ -185,6 +192,13 @@ void ADragonBoss::CloseBreathAttack()
 
 	float Damage = AttackPower * 2.0f;
 
+	ABaseCharacter* Player = Cast<ABaseCharacter>(TargetPlayer);
+
+	if (Player)
+	{
+		Player->TakePlayerDamage(Damage);
+	}
+
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 
 	if (AnimInstance && CloseBreathMontage)
@@ -198,7 +212,7 @@ void ADragonBoss::CloseBreathAttack()
 		AttackEndHandle,
 		[this]()
 		{
-			bIsAttacking = false;
+			OnAttackFinished();
 		},
 		3.0f,
 		false
@@ -220,6 +234,15 @@ void ADragonBoss::BreathAttack()
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Breath"));
 
+	ABaseCharacter* Player = Cast<ABaseCharacter>(TargetPlayer);
+
+	if (Player)
+	{
+		float Damage = Player->MaxHP * 0.8f;
+
+		Player->TakePlayerDamage(Damage);
+	}
+
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 
 	if (AnimInstance && BreathMontage)
@@ -233,7 +256,7 @@ void ADragonBoss::BreathAttack()
 		AttackEndHandle,
 		[this]()
 		{
-			bIsAttacking = false;
+			OnAttackFinished();
 		},
 		4.0f,
 		false
@@ -265,7 +288,7 @@ void ADragonBoss::DebuffAttack()
 		AttackEndHandle,
 		[this]()
 		{
-			bIsAttacking = false;
+			OnAttackFinished();
 		},
 		2.5f,
 		false
@@ -322,10 +345,19 @@ void ADragonBoss::FlyToCenter()
 
 	CurrentState = EDragonState::Flying;
 
-	UE_LOG(LogTemp, Warning, TEXT("Dragon Flying To Center"));
+	UE_LOG(LogTemp, Warning,
+		TEXT("Dragon Flying To Center"));
 
-	// TODO:
-	// AI Move To ArenaCenter
+	AAIController* AIController =
+		Cast<AAIController>(GetController());
+
+	if (AIController)
+	{
+		AIController->MoveToLocation(
+			ArenaCenter,
+			100.f
+		);
+	}
 }
 
 void ADragonBoss::TakeBossDamage(float Damage)
@@ -436,7 +468,7 @@ void ADragonBoss::ChooseRandomTarget()
 
 EDragonPatternType ADragonBoss::ChoosePattern()
 {
-	/*int32 Rand = FMath::RandRange(1, 100);
+	int32 Rand = FMath::RandRange(1, 100);
 
 	if (Rand <= 70)
 	{
@@ -448,8 +480,7 @@ EDragonPatternType ADragonBoss::ChoosePattern()
 		return EDragonPatternType::TargetChange;
 	}
 
-	return EDragonPatternType::CenterMechanic;*/
-	return EDragonPatternType::TargetChange;
+	return EDragonPatternType::CenterMechanic;
 }
 
 void ADragonBoss::ExecutePattern()
@@ -498,24 +529,16 @@ void ADragonBoss::TargetChangePattern()
 
 		if (Rand == 0)
 		{
-			UE_LOG(LogTemp, Warning,
-				TEXT("Far Breath"));
-
 			BreathAttack();
+			return;
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning,
-				TEXT("Fly Only"));
-
 			FlyToTarget();
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning,
-			TEXT("Close Target"));
-
 		WalkToTarget();
 	}
 
@@ -527,7 +550,59 @@ void ADragonBoss::CenterMechanicPattern()
 	UE_LOG(LogTemp, Warning,
 		TEXT("Center Mechanic"));
 
+	bCenterMechanicActive = true;
+
 	FlyToCenter();
+
+	ChooseRandomTarget();
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Center Target : %s"),
+		*TargetPlayer->GetName());
+
+	GetWorldTimerManager().SetTimer(
+		CenterFailHandle,
+		this,
+		&ADragonBoss::StartAttackCycle,
+		8.f,
+		false
+	);
+}
+
+void ADragonBoss::OnCenterMechanicSuccess()
+{
+	if (!bCenterMechanicActive)
+	{
+		return;
+	}
+
+	float Damage = MaxHP * 0.1f;
+
+	CurrentHP -= Damage;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Center Mechanic Success"));
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Damage : %f"),
+		Damage);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Boss HP : %f"),
+		CurrentHP);
+
+	bCenterMechanicActive = false;
+
+	StartAttackCycle();
+
+	GetWorldTimerManager().ClearTimer(
+		CenterFailHandle
+	);
+}
+
+void ADragonBoss::OnAttackFinished()
+{
+	bIsAttacking = false;
 
 	StartAttackCycle();
 }
