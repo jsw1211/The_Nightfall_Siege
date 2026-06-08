@@ -31,6 +31,12 @@ ADungeonPrism::ADungeonPrism()
 		this,
 		&ADungeonPrism::OnOverlapBegin);
 
+	SphereCollision->SetCollisionEnabled(
+		ECollisionEnabled::QueryOnly);
+
+	SphereCollision->SetCollisionResponseToAllChannels(
+		ECR_Overlap);
+
 	bActivated = false;
 }
 
@@ -39,10 +45,6 @@ void ADungeonPrism::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	// Ã³À½¿£ ¼û±è
-	SetActorHiddenInGame(true);
-
-	SetActorEnableCollision(false);
 }
 
 // Called every frame
@@ -75,11 +77,6 @@ void ADungeonPrism::OnOverlapBegin(
 	bool bFromSweep,
 	const FHitResult& SweepResult)
 {
-	if (!bActivated)
-	{
-		return;
-	}
-
 	ABaseCharacter* Player =
 		Cast<ABaseCharacter>(OtherActor);
 
@@ -88,40 +85,10 @@ void ADungeonPrism::OnOverlapBegin(
 		return;
 	}
 
-	URaidGameInstance* GI =
-		Cast<URaidGameInstance>(GetGameInstance());
-
-	if (!GI)
-	{
-		return;
-	}
-
-	bool bAllClear =
-		GI->ClearCurrentDungeon();
-
-	if (bAllClear)
-	{
-		UGameplayStatics::OpenLevel(
-			this,
-			"DragonBossMap");
-	}
-	else
-	{
-		UGameplayStatics::OpenLevel(
-			this,
-			"ForestLevel");
-	}
-
-	ActivatedPlayers.AddUnique(Player);
+	Player->SetNearbyPrism(this);
 
 	UE_LOG(LogTemp, Warning,
-		TEXT("%s Activated Prism"),
-		*Player->GetName());
-
-	if (ActivatedPlayers.Num() >= 2)
-	{
-		RemoveDarknessDebuff();
-	}
+		TEXT("Prism Nearby"));
 }
 
 void ADungeonPrism::RemoveDarknessDebuff()
