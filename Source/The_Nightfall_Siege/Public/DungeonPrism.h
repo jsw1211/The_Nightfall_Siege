@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "BaseCharacter.h"
 #include "DungeonPrism.generated.h"
 
 class UStaticMeshComponent;
@@ -49,4 +50,9 @@ protected:
 public:
 
 	void ActivatePrism();
+
+	UPROPERTY()
+	TArray<ABaseCharacter*> ActivatedPlayers;
+
+	void RemoveDarknessDebuff();
 };

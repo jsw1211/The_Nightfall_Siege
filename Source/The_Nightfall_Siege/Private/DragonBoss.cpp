@@ -8,6 +8,7 @@
 #include "TimerManager.h"
 #include "AIController.h"
 #include "Components/CapsuleComponent.h"
+#include "DungeonPrism.h"
 
 // Sets default values
 ADragonBoss::ADragonBoss()
@@ -310,6 +311,24 @@ void ADragonBoss::DebuffAttack()
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("Dragon Used Debuff"));
+
+	TArray<AActor*> Prisms;
+
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(),
+		ADungeonPrism::StaticClass(),
+		Prisms);
+
+	for (AActor* Actor : Prisms)
+	{
+		ADungeonPrism* Prism =
+			Cast<ADungeonPrism>(Actor);
+
+		if (Prism)
+		{
+			Prism->ActivatePrism();
+		}
+	}
 
 	UpdatePlayerList();
 

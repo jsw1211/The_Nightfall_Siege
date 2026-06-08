@@ -80,6 +80,14 @@ void ADungeonPrism::OnOverlapBegin(
 		return;
 	}
 
+	ABaseCharacter* Player =
+		Cast<ABaseCharacter>(OtherActor);
+
+	if (!Player)
+	{
+		return;
+	}
+
 	URaidGameInstance* GI =
 		Cast<URaidGameInstance>(GetGameInstance());
 
@@ -103,5 +111,42 @@ void ADungeonPrism::OnOverlapBegin(
 			this,
 			"ForestLevel");
 	}
+
+	ActivatedPlayers.AddUnique(Player);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("%s Activated Prism"),
+		*Player->GetName());
+
+	if (ActivatedPlayers.Num() >= 2)
+	{
+		RemoveDarknessDebuff();
+	}
+}
+
+void ADungeonPrism::RemoveDarknessDebuff()
+{
+	TArray<AActor*> Players;
+
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(),
+		ABaseCharacter::StaticClass(),
+		Players);
+
+	for (AActor* Actor : Players)
+	{
+		ABaseCharacter* Player =
+			Cast<ABaseCharacter>(Actor);
+
+		if (Player)
+		{
+			Player->bDarknessDebuff = false;
+		}
+	}
+
+	ActivatedPlayers.Empty();
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Darkness Removed"));
 }
 

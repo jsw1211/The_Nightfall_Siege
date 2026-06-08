@@ -125,7 +125,19 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	bool bLanternEquipped = false;
 
+	UPROPERTY(BlueprintReadOnly)
+	bool bHasPrism = false;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bPrismEquipped = false;
+
+	UPROPERTY()
+	class ADungeonPrism* NearbyPrism = nullptr;
+
 	void UseSlot1(const FInputActionValue& Value);
+	void SetNearbyPrism(class ADungeonPrism* Prism);
+
+	void UseSlot3(const FInputActionValue& Value);
 
 	UPROPERTY(VisibleAnywhere)
 	UStaticMeshComponent* EquippedLanternMesh;
@@ -203,6 +215,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Item")
 	UTexture2D* PotionIcon;
+
+	UPROPERTY(EditAnywhere, Category = "Item")
+	UTexture2D* PrismIcon;
 
 	UPROPERTY(EditAnywhere)
 	UTexture2D* EmptySlotIcon;
@@ -286,6 +301,15 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	UInputAction* IA_Slot1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UInputAction* IA_Slot2;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UInputAction* IA_Slot3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UInputAction* IA_Slot4;
 
 	UPROPERTY(EditAnywhere, Category = "UI")
 	TSubclassOf<USkillTreeWidget> SkillTreeWidgetClass;
