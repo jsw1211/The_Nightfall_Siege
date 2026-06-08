@@ -233,6 +233,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SpawnEArrow();
 
+	UFUNCTION(BlueprintCallable)
+	bool IsDead() const;
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;

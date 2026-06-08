@@ -1314,3 +1314,8 @@ void ABaseCharacter::SpawnEArrow()
     }
 }
 
+bool ABaseCharacter::IsDead() const
+{
+    return bIsDead;
+}
+

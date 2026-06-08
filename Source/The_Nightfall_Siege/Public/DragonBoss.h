@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Animation/AnimMontage.h"
+#include "BaseCharacter.h"
 #include "DragonBoss.generated.h"
 
 UENUM(BlueprintType)
@@ -25,6 +26,14 @@ enum class EDragonAttackType : uint8
 	CloseBreath,
 	Breath,
 	Debuff
+};
+
+UENUM(BlueprintType)
+enum class EDragonPatternType : uint8
+{
+	NormalAttack,
+	TargetChange,
+	CenterMechanic
 };
 
 UCLASS()
@@ -77,6 +86,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
 	AActor* TargetPlayer;
 
+	UPROPERTY()
+	TArray<ABaseCharacter*> AlivePlayers;
+
 	// =========================
 	// Arena
 	// =========================
@@ -128,4 +140,31 @@ public:
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsAttacking = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
+	bool bShielded = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
+	bool bCanTakeDamage = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
+	bool bStunned = false;
+
+	void OnBreathReflected();
+
+	void EndStun();
+
+	void TakeBossDamage(float Damage);
+
+	void UpdatePlayerList();
+
+	void ChooseRandomTarget();
+
+	EDragonPatternType ChoosePattern();
+
+	void ExecutePattern();
+
+	void TargetChangePattern();
+
+	void CenterMechanicPattern();
 };

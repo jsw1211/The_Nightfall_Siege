@@ -2,7 +2,6 @@
 
 
 #include "DragonBoss.h"
-
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Animation/AnimInstance.h"
@@ -22,6 +21,13 @@ void ADragonBoss::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	bShielded = true;
+	bCanTakeDamage = false;
+
+	CurrentState = EDragonState::Idle;
+
+	UpdatePlayerList();
+
 	StartAttackCycle();
 }
 
@@ -32,15 +38,12 @@ void ADragonBoss::Tick(float DeltaTime)
 
 	if (TargetPlayer == nullptr)
 	{
-		TargetPlayer = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
+		ChooseRandomTarget();
 	}
 
-	if (TargetPlayer && !bIsAttacking)
+	if (TargetPlayer && !bIsAttacking && !bStunned)
 	{
-		float Distance = FVector::Dist(
-			GetActorLocation(),
-			TargetPlayer->GetActorLocation()
-		);
+		float Distance = FVector::Dist(GetActorLocation(), TargetPlayer->GetActorLocation());
 
 		if (Distance < 1200.f)
 		{
@@ -63,12 +66,16 @@ void ADragonBoss::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 
 void ADragonBoss::StartAttackCycle()
 {
+	UE_LOG(LogTemp, Warning, TEXT("StartAttackCycle"));
+
+	ChooseRandomTarget();
+
 	float RandomDelay = FMath::RandRange(5.f, 7.f);
 
 	GetWorldTimerManager().SetTimer(
 		AttackTimerHandle,
 		this,
-		&ADragonBoss::ExecuteRandomAttack,
+		&ADragonBoss::ExecutePattern,
 		RandomDelay,
 		false
 	);
@@ -78,30 +85,28 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 {
 	int32 Rand = FMath::RandRange(1, 100);
 
-	// Bite 35%
-	if (Rand <= 35)
+	if (Rand <= 40)
 	{
 		return EDragonAttackType::Bite;
 	}
 
-	// Close Breath 35%
-	else if (Rand <= 70)
+	if (Rand <= 80)
 	{
 		return EDragonAttackType::CloseBreath;
 	}
 
-	// Breath 20%
-	else if (Rand <= 90)
+	if (Rand <= 100)
 	{
-		return EDragonAttackType::Breath;
+		return EDragonAttackType::Debuff;
 	}
 
-	// Debuff 10%
-	return EDragonAttackType::Debuff;
+	return EDragonAttackType::Bite;
 }
 
 void ADragonBoss::ExecuteRandomAttack()
 {
+	UE_LOG(LogTemp, Warning, TEXT("ExecuteRandomAttack"));
+
 	EDragonAttackType AttackType = ChooseRandomAttack();
 
 	switch (AttackType)
@@ -321,5 +326,209 @@ void ADragonBoss::FlyToCenter()
 
 	// TODO:
 	// AI Move To ArenaCenter
+}
+
+void ADragonBoss::TakeBossDamage(float Damage)
+{
+	if (!bCanTakeDamage)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("Dragon Is Invincible"));
+		return;
+	}
+
+	CurrentHP -= Damage;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Dragon HP : %f"),
+		CurrentHP);
+
+	if (CurrentHP <= 0.f)
+	{
+		CurrentState = EDragonState::Dead;
+	}
+}
+
+void ADragonBoss::OnBreathReflected()
+{
+	UE_LOG(LogTemp, Warning,
+		TEXT("Shield Broken"));
+
+	bShielded = false;
+	bCanTakeDamage = true;
+
+	bStunned = true;
+
+	CurrentState = EDragonState::Attacking;
+
+	GetCharacterMovement()->DisableMovement();
+
+	GetWorldTimerManager().SetTimer(
+		AttackTimerHandle,
+		this,
+		&ADragonBoss::EndStun,
+		5.f,
+		false
+	);
+}
+
+void ADragonBoss::EndStun()
+{
+	bStunned = false;
+
+	GetCharacterMovement()->SetMovementMode(
+		MOVE_Walking
+	);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Stun End"));
+
+	StartAttackCycle();
+}
+
+void ADragonBoss::UpdatePlayerList()
+{
+	AlivePlayers.Empty();
+
+	TArray<AActor*> FoundPlayers;
+
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(),
+		ABaseCharacter::StaticClass(),
+		FoundPlayers
+	);
+
+	for (AActor* Actor : FoundPlayers)
+	{
+		ABaseCharacter* Player =
+			Cast<ABaseCharacter>(Actor);
+
+		if (Player && !Player->IsDead())
+		{
+			AlivePlayers.Add(Player);
+		}
+	}
+}
+
+void ADragonBoss::ChooseRandomTarget()
+{
+	UpdatePlayerList();
+
+	if (AlivePlayers.Num() == 0)
+	{
+		TargetPlayer = nullptr;
+		return;
+	}
+
+	int32 RandomIndex =
+		FMath::RandRange(
+			0,
+			AlivePlayers.Num() - 1
+		);
+
+	TargetPlayer =
+		AlivePlayers[RandomIndex];
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("New Target : %s"),
+		*TargetPlayer->GetName());
+}
+
+EDragonPatternType ADragonBoss::ChoosePattern()
+{
+	/*int32 Rand = FMath::RandRange(1, 100);
+
+	if (Rand <= 70)
+	{
+		return EDragonPatternType::NormalAttack;
+	}
+
+	if (Rand <= 90)
+	{
+		return EDragonPatternType::TargetChange;
+	}
+
+	return EDragonPatternType::CenterMechanic;*/
+	return EDragonPatternType::TargetChange;
+}
+
+void ADragonBoss::ExecutePattern()
+{
+	UE_LOG(LogTemp, Warning, TEXT("ExecutePattern"));
+
+	EDragonPatternType Pattern = ChoosePattern();
+
+	switch (Pattern)
+	{
+	case EDragonPatternType::NormalAttack:
+		ExecuteRandomAttack();
+		break;
+
+	case EDragonPatternType::TargetChange:
+		TargetChangePattern();
+		break;
+
+	case EDragonPatternType::CenterMechanic:
+		CenterMechanicPattern();
+		break;
+	}
+}
+
+void ADragonBoss::TargetChangePattern()
+{
+	UE_LOG(LogTemp, Warning,
+		TEXT("Target Change Pattern"));
+
+	ChooseRandomTarget();
+
+	if (!TargetPlayer)
+	{
+		StartAttackCycle();
+		return;
+	}
+
+	float Distance = FVector::Dist(
+		GetActorLocation(),
+		TargetPlayer->GetActorLocation()
+	);
+
+	if (Distance > 1500.f)
+	{
+		int32 Rand = FMath::RandRange(0, 1);
+
+		if (Rand == 0)
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("Far Breath"));
+
+			BreathAttack();
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("Fly Only"));
+
+			FlyToTarget();
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("Close Target"));
+
+		WalkToTarget();
+	}
+
+	StartAttackCycle();
+}
+
+void ADragonBoss::CenterMechanicPattern()
+{
+	UE_LOG(LogTemp, Warning,
+		TEXT("Center Mechanic"));
+
+	FlyToCenter();
+
+	StartAttackCycle();
 }
 
