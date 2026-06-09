@@ -52,6 +52,9 @@ public:
 	UPROPERTY()
 	FVector TargetLocation;
 
+	UPROPERTY()
+	float DamageMultiplier = 1.f;
+
 	void Explode();
 
 	UFUNCTION()

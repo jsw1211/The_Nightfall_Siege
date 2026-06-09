@@ -70,7 +70,9 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 
 		HitMonsters.Add(Monster);
 
-		Monster->TakeMonsterDamage(OwnerCharacter->GetAttackPower());
+		float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
+
+		Monster->TakeMonsterDamage(Damage);
 
 		if (ArrowType == EArrowType::Explosive)
 		{
@@ -82,6 +84,8 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 		}
 		else
 		{
+			Destroy();
+			return;
 		}
 	}
 
@@ -89,7 +93,11 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 
 	if (Dragon && OwnerCharacter)
 	{
-		Dragon->TakeBossDamage(OwnerCharacter->GetAttackPower());
+		float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
+
+		Dragon->TakeBossDamage(Damage);
+
+		UE_LOG(LogTemp, Warning, TEXT("Arrow Damage : %f"),	Damage);
 
 		UE_LOG(LogTemp, Warning, TEXT("Arrow Hit Dragon"));
 
@@ -126,14 +134,18 @@ void AArrowProjectile::Explode()
 
 			if (Monster && OwnerCharacter)
 			{
-				Monster->TakeMonsterDamage(OwnerCharacter->GetAttackPower() * OwnerCharacter->EMultiplier);
+				float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
+
+				Monster->TakeMonsterDamage(Damage);
 			}
 
 			ADragonBoss* Dragon = Cast<ADragonBoss>(Result.GetActor());
 
 			if (Dragon && OwnerCharacter)
 			{
-				Dragon->TakeBossDamage(OwnerCharacter->GetAttackPower() * OwnerCharacter->EMultiplier);
+				float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
+
+				Dragon->TakeBossDamage(Damage);
 			}
 		}
 	}

@@ -1268,6 +1268,7 @@ void ABaseCharacter::SpawnArrow()
     if (Arrow)
     {
         Arrow->OwnerCharacter = this;
+        Arrow->DamageMultiplier = 1.f;
     }
 }
 
@@ -1306,6 +1307,8 @@ void ABaseCharacter::SpawnArrowFan()
         {
             Arrow->OwnerCharacter = this;
             Arrow->ArrowType = EArrowType::Normal;
+
+            Arrow->DamageMultiplier = QMultiplier;
         }
     }
 }
@@ -1334,6 +1337,7 @@ void ABaseCharacter::SpawnRArrow()
     {
         Arrow->OwnerCharacter = this;
         Arrow->ArrowType = EArrowType::Pierce;
+        Arrow->DamageMultiplier = RMultiplier;
 
         Arrow->SetActorScale3D(FVector(3.f, 3.f, 3.f));
     }
@@ -1364,6 +1368,8 @@ void ABaseCharacter::SpawnEArrow()
         Arrow->OwnerCharacter = this;
 
         Arrow->ArrowType = EArrowType::Explosive;
+
+        Arrow->DamageMultiplier = EMultiplier;
 
         FVector TargetLocation = GetActorLocation() + GetActorForwardVector() * 300.f;
 
