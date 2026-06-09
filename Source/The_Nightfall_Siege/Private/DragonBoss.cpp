@@ -42,6 +42,28 @@ void ADragonBoss::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (bCenterMechanicActive)
+	{
+		float Distance =
+			FVector::Dist(
+				GetActorLocation(),
+				ArenaCenter);
+
+		if (Distance <= 200.f)
+		{
+			UE_LOG(LogTemp, Error,
+				TEXT("CENTER BREATH START"));
+
+			BreathAttack();
+
+			bCenterMechanicActive = false;
+
+			return;
+		}
+
+		return;
+	}
+
 	if (CurrentState == EDragonState::Dead)
 	{
 		return;
@@ -50,6 +72,11 @@ void ADragonBoss::Tick(float DeltaTime)
 	if (TargetPlayer == nullptr)
 	{
 		ChooseRandomTarget();
+	}
+
+	if (bCenterMechanicActive)
+	{
+		return;
 	}
 
 	if (TargetPlayer && !bIsAttacking && !bStunned && !bIsTelegraphing)
@@ -458,6 +485,10 @@ void ADragonBoss::FlyToCenter()
 			100.f
 		);
 	}
+
+	UE_LOG(LogTemp, Error,
+		TEXT("Moving To Center : %s"),
+		*ArenaCenter.ToString());
 }
 
 void ADragonBoss::TakeBossDamage(float Damage)
@@ -483,6 +514,34 @@ void ADragonBoss::TakeBossDamage(float Damage)
 
 void ADragonBoss::OnBreathReflected()
 {
+	if (bCenterMechanicActive)
+	{
+		OnCenterMechanicSuccess();
+		return;
+	}
+
+	if (!bShielded)
+	{
+		float Damage = MaxHP * 0.1f;
+
+		CurrentHP -= Damage;
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("Reflect Damage : %f"),
+			Damage);
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("Boss HP : %f"),
+			CurrentHP);
+
+		if (CurrentHP <= 0.f)
+		{
+			Die();
+		}
+
+		return;
+	}
+
 	UE_LOG(LogTemp, Warning,
 		TEXT("Shield Broken"));
 
@@ -571,7 +630,7 @@ void ADragonBoss::ChooseRandomTarget()
 
 EDragonPatternType ADragonBoss::ChoosePattern()
 {
-	int32 Rand = FMath::RandRange(1, 100);
+	/*int32 Rand = FMath::RandRange(1, 100);
 
 	if (Rand <= 70)
 	{
@@ -583,6 +642,7 @@ EDragonPatternType ADragonBoss::ChoosePattern()
 		return EDragonPatternType::TargetChange;
 	}
 
+	return EDragonPatternType::CenterMechanic;*/
 	return EDragonPatternType::CenterMechanic;
 }
 

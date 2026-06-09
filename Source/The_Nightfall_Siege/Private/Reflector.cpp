@@ -50,13 +50,6 @@ void AReflector::ReflectBreath()
     UE_LOG(LogTemp, Warning,
         TEXT("Breath Reflected"));
 
-    if (DragonBoss->bCenterMechanicActive)
-    {
-        DragonBoss->OnCenterMechanicSuccess();
-    }
-    else
-    {
-        DragonBoss->OnBreathReflected();
-    }
+    DragonBoss->OnBreathReflected();
 }
 
