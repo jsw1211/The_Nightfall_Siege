@@ -3,6 +3,7 @@
 
 #include "WeaponBase.h"
 #include "Monster.h"
+#include "DragonBoss.h"
 
 // Sets default values
 AWeaponBase::AWeaponBase()
@@ -21,9 +22,11 @@ AWeaponBase::AWeaponBase()
 
 	WeaponCollision->SetGenerateOverlapEvents(true);
 
-	WeaponCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
+	WeaponCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
 
 	WeaponCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+
+	WeaponCollision->SetCollisionObjectType(ECC_WorldDynamic);
 }
 
 // Called when the game starts or when spawned
@@ -60,6 +63,19 @@ void AWeaponBase::OnWeaponOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 		if (OwnerCharacter)
 		{
 			Monster->TakeMonsterDamage(OwnerCharacter->GetAttackPower());
+		}
+	}
+
+	ADragonBoss* Dragon = Cast<ADragonBoss>(OtherActor);
+
+	if (Dragon)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("Weapon Hit Dragon"));
+
+		if (OwnerCharacter)
+		{
+			Dragon->TakeBossDamage(OwnerCharacter->GetAttackPower());
 		}
 	}
 }

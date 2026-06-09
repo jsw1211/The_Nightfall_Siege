@@ -311,6 +311,51 @@ void ABaseCharacter::Attack(
             AttackMontage,
             AttackSpeed);
     }
+
+    FVector Start = GetActorLocation();
+
+    TArray<FOverlapResult> Overlaps;
+
+    FCollisionShape Sphere =
+        FCollisionShape::MakeSphere(150.f);
+
+    bool bHit =
+        GetWorld()->OverlapMultiByChannel(
+            Overlaps,
+            Start,
+            FQuat::Identity,
+            ECC_Pawn,
+            Sphere);
+
+    if (bHit)
+    {
+        for (auto& Result : Overlaps)
+        {
+            AMonster* Monster =
+                Cast<AMonster>(Result.GetActor());
+
+            if (Monster)
+            {
+                Monster->TakeMonsterDamage(
+                    AttackPower);
+
+                UE_LOG(LogTemp, Warning,
+                    TEXT("Basic Attack Hit"));
+            }
+
+            ADragonBoss* Dragon =
+                Cast<ADragonBoss>(Result.GetActor());
+
+            if (Dragon)
+            {
+                Dragon->TakeBossDamage(
+                    AttackPower);
+
+                UE_LOG(LogTemp, Warning,
+                    TEXT("Basic Attack Hit Dragon"));
+            }
+        }
+    }
 }
 
 void ABaseCharacter::Q(const FInputActionValue& Value)
