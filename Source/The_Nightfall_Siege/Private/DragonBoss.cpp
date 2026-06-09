@@ -125,7 +125,7 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 	}
 
 	return EDragonAttackType::Bite;*/
-	return EDragonAttackType::CloseBreath;
+	return EDragonAttackType::Bite;
 }
 
 void ADragonBoss::ExecuteRandomAttack()
@@ -160,11 +160,33 @@ void ADragonBoss::BiteAttack()
 
 	float Damage = AttackPower * 1.0f;
 
-	ABaseCharacter* Player = Cast<ABaseCharacter>(TargetPlayer);
+	FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
 
-	if (Player)
+	FVector Forward = GetActorForwardVector();
+
+	FVector BiteCenter = MouthLocation + Forward * 200.f;
+
+	TArray<AActor*> Players;
+
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+
+	for (AActor* Actor : Players)
 	{
-		Player->TakePlayerDamage(Damage);
+		ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
+
+		if (!Player)
+		{
+			continue;
+		}
+
+		float Distance = FVector::Dist(Player->GetActorLocation(), BiteCenter);
+
+		if (Distance <= 350.f)
+		{
+			Player->TakePlayerDamage(Damage);
+
+			UE_LOG(LogTemp, Warning, TEXT("Bite Hit : %s"), *Player->GetName());
+		}
 	}
 
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
@@ -209,11 +231,33 @@ void ADragonBoss::CloseBreathAttack()
 
 	float Damage = AttackPower * 2.0f;
 
-	ABaseCharacter* Player = Cast<ABaseCharacter>(TargetPlayer);
+	FVector MouthLocation = GetMesh()->GetSocketLocation( TEXT("MouthSocket"));
 
-	if (Player)
+	FVector Forward = GetActorForwardVector();
+
+	FVector BreathCenter = MouthLocation + Forward * 300.f;
+
+	TArray<AActor*> Players;
+
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+
+	for (AActor* Actor : Players)
 	{
-		Player->TakePlayerDamage(Damage);
+		ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
+
+		if (!Player)
+		{
+			continue;
+		}
+
+		float Distance = FVector::Dist( Player->GetActorLocation(), BreathCenter);
+
+		if (Distance <= 350.f)
+		{
+			Player->TakePlayerDamage(Damage);
+
+			UE_LOG(LogTemp, Warning, TEXT("Close Breath Hit : %s"), *Player->GetName());
+		}
 	}
 
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
