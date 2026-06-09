@@ -8,6 +8,14 @@
 
 class UDecalComponent;
 
+UENUM(BlueprintType)
+enum class EDangerZoneType : uint8
+{
+	Circle,
+	Cone,
+	Line
+};
+
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ADangerZone : public AActor
 {
@@ -30,4 +38,16 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	float LifeTime = 3.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EDangerZoneType ZoneType;
+
+	UFUNCTION(BlueprintCallable)
+	void SetLineShape();
+	
+	UFUNCTION(BlueprintCallable)
+	void SetBiteShape();
+
+	UFUNCTION(BlueprintCallable)
+	void SetCloseBreathShape();
 };

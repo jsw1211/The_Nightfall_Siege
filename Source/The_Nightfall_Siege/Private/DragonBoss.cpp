@@ -125,7 +125,7 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 	}
 
 	return EDragonAttackType::Bite;*/
-	return EDragonAttackType::Bite;
+	return EDragonAttackType::CloseBreath;
 }
 
 void ADragonBoss::ExecuteRandomAttack()
@@ -729,41 +729,70 @@ void ADragonBoss::StartAttackTelegraph(
 		AIController->StopMovement();
 	}
 
-	if (DangerZoneClass &&
-		TargetPlayer)
-	{
-		FVector SpawnLocation =
-			TargetPlayer->GetActorLocation();
-
-		SpawnLocation.Z -= 90.f;
-
-		GetWorld()->SpawnActor<ADangerZone>(
-			DangerZoneClass,
-			SpawnLocation,
-			FRotator(-90.f, 0.f, 0.f));
-	}
-
 	switch (AttackType)
 	{
 	case EDragonAttackType::Bite:
-		UE_LOG(LogTemp, Warning,
-			TEXT("Bite Danger Area"));
+	{
+		FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+
+		FVector Forward = GetActorForwardVector();
+
+		FVector SpawnLocation = MouthLocation + Forward * 200.f;
+
+		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, FRotator(-90.f, 0.f, 0.f));
+
+		if (Zone)
+		{
+			Zone->SetBiteShape();
+		}
+
 		break;
+	}
 
 	case EDragonAttackType::CloseBreath:
-		UE_LOG(LogTemp, Warning,
-			TEXT("Close Breath Danger Area"));
+	{
+		FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+
+		FVector Forward = GetActorForwardVector();
+
+		FVector SpawnLocation = MouthLocation + Forward * 300.f;
+
+		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, FRotator(-90.f, 0.f, 0.f));
+
+		if (Zone)
+		{
+			Zone->SetCloseBreathShape();
+		}
+
 		break;
+	}
 
 	case EDragonAttackType::Breath:
-		UE_LOG(LogTemp, Warning,
-			TEXT("Breath Danger Area"));
+	{
+		FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+
+		FVector Forward = GetActorForwardVector();
+
+		FVector SpawnLocation = MouthLocation + Forward * 500.f;
+
+		FRotator Rot = (TargetPlayer->GetActorLocation() - MouthLocation).Rotation();
+
+		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, Rot);
+
+		if (Zone)
+		{
+			Zone->SetLineShape();
+		}
+
 		break;
+	}
 
 	case EDragonAttackType::Debuff:
+	{
 		UE_LOG(LogTemp, Warning,
 			TEXT("Debuff Warning"));
 		break;
+	}
 	}
 
 	FTimerDelegate Delegate;

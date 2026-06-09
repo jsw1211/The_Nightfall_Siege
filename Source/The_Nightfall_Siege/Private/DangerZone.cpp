@@ -32,3 +32,31 @@ void ADangerZone::Tick(float DeltaTime)
 
 }
 
+void ADangerZone::SetLineShape()
+{
+	Decal->DecalSize =
+		FVector(
+			300.f,
+			500.f,
+			5000.f
+		);
+}
+
+void ADangerZone::SetBiteShape()
+{
+	Decal->DecalSize =
+		FVector(
+			300.f,
+			350.f,
+			350.f);
+}
+
+void ADangerZone::SetCloseBreathShape()
+{
+	Decal->DecalSize =
+		FVector(
+			300.f,
+			1000.f,
+			700.f);
+}
+
