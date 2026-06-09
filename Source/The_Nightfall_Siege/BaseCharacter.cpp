@@ -1319,6 +1319,11 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 
 void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
 {
+    if (bPrismEquipped)
+    {
+        return;
+    }
+
     if (!bHasLantern)
         return;
 
@@ -1331,8 +1336,6 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
     {
         if (LanternEquipMontage)
         {
-            GetCharacterMovement()->DisableMovement();
-
             PlayAnimMontage(LanternEquipMontage);
         }
     }
@@ -1340,8 +1343,6 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
     {
         if (LanternUnequipMontage)
         {
-            GetCharacterMovement()->DisableMovement();
-            
             bLanternPoseActive = false;
 
             PlayAnimMontage(LanternUnequipMontage);
@@ -1349,27 +1350,51 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
     }
 }
 
-void ABaseCharacter::UseSlot3(const FInputActionValue& Value)
+void ABaseCharacter::UseSlot3(
+    const FInputActionValue& Value)
 {
-    if (!bHasPrism)
+    if (bLanternEquipped)
     {
         return;
     }
 
-    bPrismEquipped = !bPrismEquipped;
+    if (!bHasPrism)
+        return;
 
-    EquippedPrismMesh->SetVisibility(bPrismEquipped);
+    if (bIsEquippingPrism)
+        return;
 
-    UE_LOG(LogTemp, Warning,
-        TEXT("Prism Equipped : %s"),
-        bPrismEquipped ?
-        TEXT("TRUE") :
-        TEXT("FALSE"));
+    bIsEquippingPrism = true;
+
+    if (!bPrismEquipped)
+    {
+        if (PrismEquipMontage)
+        {
+            PlayAnimMontage(PrismEquipMontage);
+        }
+    }
+    else
+    {
+        if (PrismUnequipMontage)
+        {
+            bPrismPoseActive = false;
+
+            PlayAnimMontage(PrismUnequipMontage);
+        }
+    }
 }
 
 void ABaseCharacter::OnLanternEquipped()
 {
+    EquippedPrismMesh->SetVisibility(false);
+
+    bPrismEquipped = false;
+
     bLanternEquipped = true;
+
+    bPrismPoseActive = false;
+
+    bIsEquippingLantern = false;
 
     bLanternPoseActive = true;
 
@@ -1394,6 +1419,12 @@ void ABaseCharacter::OnLanternEquipped()
 void ABaseCharacter::OnLanternUnequipped()
 {
     UE_LOG(LogTemp, Warning, TEXT("UNEQUIP"));
+
+    bLanternEquipped = false;
+
+    bLanternPoseActive = false;
+
+    bIsEquippingLantern = false;
 
     EquippedLanternMesh->SetVisibility(false);
 
@@ -1652,8 +1683,48 @@ bool ABaseCharacter::CanUseCombatAction() const
         !bLanternEquipped &&
         !bPrismEquipped &&
         !bIsEquippingLantern &&
+        !bIsEquippingPrism &&
         !bIsDead &&
         !bIsUsingSkill &&
         !bIsAttacking;
+}
+
+void ABaseCharacter::OnPrismEquipped()
+{
+    EquippedLanternMesh->SetVisibility(false);
+    LanternLight->SetVisibility(false);
+
+    bLanternEquipped = false;
+    bLanternPoseActive = false;
+
+    bPrismEquipped = true;
+
+    bPrismPoseActive = true;
+
+    bLanternPoseActive = false;
+
+    EquippedPrismMesh->SetVisibility(true);
+
+    bIsEquippingPrism = false;
+
+    GetCharacterMovement()->SetMovementMode(
+        MOVE_Walking);
+}
+
+void ABaseCharacter::OnPrismUnequipped()
+{
+    EquippedPrismMesh->SetVisibility(false);
+}
+
+void ABaseCharacter::OnPrismUnequipFinished()
+{
+    bPrismEquipped = false;
+
+    bIsEquippingPrism = false;
+
+    bPrismPoseActive = false;
+
+    GetCharacterMovement()->SetMovementMode(
+        MOVE_Walking);
 }
 

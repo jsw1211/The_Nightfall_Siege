@@ -33,7 +33,17 @@ void ABaseController::MoveToMouse()
         return;
     }
 
-    if (!MyCharacter->CanUseCombatAction())
+    if (MyCharacter->bIsDead)
+    {
+        return;
+    }
+
+    if (MyCharacter->bIsUsingSkill)
+    {
+        return;
+    }
+
+    if (MyCharacter->bIsAttacking)
     {
         return;
     }

@@ -163,14 +163,29 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsEquippingLantern = false;
 
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsEquippingPrism = false;
+
 	UFUNCTION(BlueprintCallable)
 	void OnLanternUnequipped();
 
 	UFUNCTION(BlueprintCallable)
 	void OnLanternUnequipFinished();
 
+	UFUNCTION(BlueprintCallable)
+	void OnPrismEquipped();
+
+	UFUNCTION(BlueprintCallable)
+	void OnPrismUnequipped();
+
+	UFUNCTION(BlueprintCallable)
+	void OnPrismUnequipFinished();
+
 	UPROPERTY(BlueprintReadOnly)
 	bool bLanternPoseActive = false;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bPrismPoseActive = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSubclassOf<UPlayerHUDWidget> HUDWidgetClass;
@@ -275,6 +290,10 @@ public:
 
 	bool CanUseCombatAction() const;
 
+	// 상태
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
+	bool bIsDead = false;
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;
@@ -300,6 +319,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lantern")
 	UAnimMontage* LanternUnequipMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UAnimMontage* PrismEquipMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UAnimMontage* PrismUnequipMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputMappingContext* IMC_BaseCharacter;
@@ -409,10 +434,6 @@ protected:
 	// 공격속도
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float AttackSpeed = 1.f;
-
-	// 상태
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
-	bool bIsDead = false;
 
 	// 애니메이션 상태 전달용
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
