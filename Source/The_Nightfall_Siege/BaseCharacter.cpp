@@ -121,7 +121,9 @@ void ABaseCharacter::BeginPlay()
         EMultiplier = 1.5f;
         RMultiplier = 3.0f;
 
-        AttackSpeed = 1.5f;
+        AttackSpeed = 1.0f;
+
+        DefaultAttackSpeed = 1.0f;
 
         break;
 
@@ -373,6 +375,38 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
 void ABaseCharacter::W(const FInputActionValue& Value)
 {
+    if (CharacterType == ECharacterType::Archer)
+    {
+        AttackSpeed = BuffAttackSpeed;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Attack Speed Buff Start : %f"),
+            AttackSpeed);
+
+        GetWorldTimerManager().ClearTimer(
+            AttackSpeedBuffHandle);
+
+        GetWorldTimerManager().SetTimer(
+            AttackSpeedBuffHandle,
+            this,
+            &ABaseCharacter::EndAttackSpeedBuff,
+            5.f,
+            false);
+
+        bCanUseW = false;
+
+        WRemainingCooldown = WCooldown;
+
+        GetWorldTimerManager().SetTimer(
+            WCooldownTimer,
+            this,
+            &ABaseCharacter::ResetWCooldown,
+            WCooldown,
+            false);
+
+        return;
+    }
+
     if (bLanternEquipped) return;
 
     if (bIsDead) return;
@@ -949,15 +983,15 @@ void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
 
             if (SkillLevel == 2)
             {
-                AttackSpeed = 1.5f;
+                BuffAttackSpeed = 1.5f;
             }
             else if (SkillLevel == 3)
             {
-                AttackSpeed = 2.0f;
+                BuffAttackSpeed = 2.0f;
             }
             else if (SkillLevel == 4)
             {
-                AttackSpeed = 2.5f;
+                BuffAttackSpeed = 2.5f;
             }
 
             break;
@@ -1405,5 +1439,13 @@ void ABaseCharacter::SetNearbyPrism(
     ADungeonPrism* Prism)
 {
     NearbyPrism = Prism;
+}
+
+void ABaseCharacter::EndAttackSpeedBuff()
+{
+    AttackSpeed = DefaultAttackSpeed;
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Attack Speed Buff End"));
 }
 

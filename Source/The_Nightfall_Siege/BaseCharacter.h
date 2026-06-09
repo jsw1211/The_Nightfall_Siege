@@ -81,6 +81,12 @@ public:
 
 	bool bRBonusDamage = false;
 
+	FTimerHandle AttackSpeedBuffHandle;
+
+	float DefaultAttackSpeed = 1.0f;
+
+	float BuffAttackSpeed = 1.5f;
+
 	// 현재 보유 스킬 포인트
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	int32 SkillPoints = 0;
@@ -258,6 +264,8 @@ public:
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bDarknessDebuff = false;
+
+	void EndAttackSpeedBuff();
 
 protected:
 	UPROPERTY(VisibleAnywhere)
