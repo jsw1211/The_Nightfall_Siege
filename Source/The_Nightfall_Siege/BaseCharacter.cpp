@@ -234,6 +234,7 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
     if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent))
     {
+        EnhancedInput->BindAction(IA_Attack, ETriggerEvent::Started, this, &ABaseCharacter::Attack);
         EnhancedInput->BindAction(IA_Q, ETriggerEvent::Started, this, &ABaseCharacter::Q);
         EnhancedInput->BindAction(IA_W, ETriggerEvent::Started, this, &ABaseCharacter::W);
         EnhancedInput->BindAction(IA_E, ETriggerEvent::Started, this, &ABaseCharacter::E);
@@ -248,6 +249,30 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     }
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
+}
+
+void ABaseCharacter::Attack(
+    const FInputActionValue& Value)
+{
+    if (bIsDead)
+    {
+        return;
+    }
+
+    if (bIsUsingSkill)
+    {
+        return;
+    }
+
+    bIsUsingSkill = true;
+
+    if (AttackMontage)
+    {
+        PlayAnimMontage(
+            AttackMontage,
+            AttackSpeed
+        );
+    }
 }
 
 void ABaseCharacter::Q(const FInputActionValue& Value)

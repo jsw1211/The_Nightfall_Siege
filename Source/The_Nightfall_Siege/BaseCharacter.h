@@ -46,6 +46,7 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	void Attack(const FInputActionValue& Value);
 	void Q(const FInputActionValue& Value);
 	void W(const FInputActionValue& Value);
 	void E(const FInputActionValue& Value);
@@ -275,6 +276,9 @@ protected:
 	class UCameraComponent* Camera;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+	UAnimMontage* AttackMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
 	UAnimMontage* QMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
@@ -292,6 +296,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputMappingContext* IMC_BaseCharacter;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UInputAction* IA_Attack;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_Q;
