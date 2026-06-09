@@ -125,7 +125,7 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 	}
 
 	return EDragonAttackType::Bite;*/
-	return EDragonAttackType::Breath;
+	return EDragonAttackType::Bite;
 }
 
 void ADragonBoss::ExecuteRandomAttack()
