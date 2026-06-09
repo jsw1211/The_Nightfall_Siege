@@ -252,7 +252,7 @@ public:
 	void SpawnArrow();
 
 	UFUNCTION(BlueprintCallable)
-	void SpawnArrowFan();
+	void SpawnQArrow();
 
 	UFUNCTION(BlueprintCallable)
 	void SpawnRArrow();

@@ -1450,7 +1450,7 @@ void ABaseCharacter::SpawnArrow()
     }
 }
 
-void ABaseCharacter::SpawnArrowFan()
+void ABaseCharacter::SpawnQArrow()
 {
     if (CharacterType != ECharacterType::Archer)
     {
