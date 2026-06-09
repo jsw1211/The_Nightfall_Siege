@@ -145,6 +145,9 @@ public:
 	UPROPERTY(VisibleAnywhere)
 	UPointLightComponent* LanternLight;
 
+	UPROPERTY(VisibleAnywhere)
+	UStaticMeshComponent* EquippedPrismMesh;
+
 	UFUNCTION(BlueprintCallable)
 	void OnLanternEquipped();
 

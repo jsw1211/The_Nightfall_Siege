@@ -66,6 +66,12 @@ ABaseCharacter::ABaseCharacter()
 
     EquippedLanternMesh->SetVisibility(false);
 
+    EquippedPrismMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EquippedPrismMesh"));
+
+    EquippedPrismMesh->SetupAttachment(GetMesh(), TEXT("PrismSocket"));
+
+    EquippedPrismMesh->SetVisibility(false);
+
     LanternLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("LanternLight"));
 
     LanternLight->SetupAttachment(EquippedLanternMesh);
@@ -1062,6 +1068,16 @@ void ABaseCharacter::SetNearbyLantern(ALantern* Lantern)
 
 void ABaseCharacter::Interact(const FInputActionValue& Value)
 {
+    if (bDarknessDebuff && bPrismEquipped)
+    {
+        bDarknessDebuff = false;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Darkness Cleared"));
+
+        return;
+    }
+
     if (NearbyLantern)
     {
         bHasLantern = true;
@@ -1122,8 +1138,7 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
     }
 }
 
-void ABaseCharacter::UseSlot3(
-    const FInputActionValue& Value)
+void ABaseCharacter::UseSlot3(const FInputActionValue& Value)
 {
     if (!bHasPrism)
     {
@@ -1131,6 +1146,8 @@ void ABaseCharacter::UseSlot3(
     }
 
     bPrismEquipped = !bPrismEquipped;
+
+    EquippedPrismMesh->SetVisibility(bPrismEquipped);
 
     UE_LOG(LogTemp, Warning,
         TEXT("Prism Equipped : %s"),
