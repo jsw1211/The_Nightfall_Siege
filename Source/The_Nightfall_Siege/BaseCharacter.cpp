@@ -254,6 +254,29 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 void ABaseCharacter::Attack(
     const FInputActionValue& Value)
 {
+    APlayerController* PC =
+        Cast<APlayerController>(GetController());
+
+    if (PC)
+    {
+        FHitResult Hit;
+
+        PC->GetHitResultUnderCursor(
+            ECC_Visibility,
+            false,
+            Hit);
+
+        FVector LookDirection =
+            Hit.Location - GetActorLocation();
+
+        LookDirection.Z = 0.f;
+
+        FRotator TargetRotation =
+            LookDirection.Rotation();
+
+        SetActorRotation(TargetRotation);
+    }
+
     if (bIsDead)
     {
         return;
