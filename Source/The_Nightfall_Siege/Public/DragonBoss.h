@@ -226,4 +226,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void OnLandFinished();
+
+	UPROPERTY()
+	FRotator TelegraphRotation;
 };

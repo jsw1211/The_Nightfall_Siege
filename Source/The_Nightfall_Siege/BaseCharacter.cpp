@@ -350,6 +350,11 @@ void ABaseCharacter::Attack(
 
 void ABaseCharacter::Q(const FInputActionValue& Value)
 {
+    if (!bCanUseQ)
+    {
+        return;
+    }
+
     if (!CanUseCombatAction())
     {
         return;
@@ -482,6 +487,11 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
 void ABaseCharacter::W(const FInputActionValue& Value)
 {
+    if (!bCanUseW)
+    {
+        return;
+    }
+
     if (!CanUseCombatAction())
     {
         return;
@@ -605,6 +615,11 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
 void ABaseCharacter::E(const FInputActionValue& Value)
 {
+    if (!bCanUseE)
+    {
+        return;
+    }
+
     if (!CanUseCombatAction())
     {
         return;
@@ -719,6 +734,11 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
 void ABaseCharacter::R(const FInputActionValue& Value)
 {
+    if (!bCanUseR)
+    {
+        return;
+    }
+
     if (!CanUseCombatAction())
     {
         return;
@@ -1584,6 +1604,11 @@ void ABaseCharacter::EndAttackSpeedBuff()
 
 void ABaseCharacter::RotateToMouseCursor()
 {
+    if (bIsDead)
+    {
+        return;
+    }
+
     if (bIsUsingSkill || bIsAttacking)
     {
         return;

@@ -214,14 +214,7 @@ void ADragonBoss::ExecuteRandomAttack()
 
 void ADragonBoss::BiteAttack()
 {
-	FVector Direction =
-		TargetPlayer->GetActorLocation()
-		- GetActorLocation();
-
-	Direction.Z = 0.f;
-
-	SetActorRotation(
-		Direction.Rotation());
+	SetActorRotation(TelegraphRotation);
 
 	if (CurrentState == EDragonState::Dead)
 	{
@@ -294,14 +287,7 @@ void ADragonBoss::BiteAttack()
 
 void ADragonBoss::CloseBreathAttack()
 {
-	FVector Direction =
-		TargetPlayer->GetActorLocation()
-		- GetActorLocation();
-
-	Direction.Z = 0.f;
-
-	SetActorRotation(
-		Direction.Rotation());
+	SetActorRotation(TelegraphRotation);
 
 	if (CurrentState == EDragonState::Dead)
 	{
@@ -866,6 +852,15 @@ void ADragonBoss::OnAttackFinished()
 		return;
 	}
 
+	if (TargetPlayer)
+	{
+		FVector Direction = TargetPlayer->GetActorLocation() - GetActorLocation();
+
+		Direction.Z = 0.f;
+
+		SetActorRotation(Direction.Rotation());
+	}
+
 	bIsAttacking = false;
 
 	StartAttackCycle();
@@ -914,6 +909,21 @@ void ADragonBoss::StartAttackTelegraph(
 
 	bIsAttacking = true;
 
+	if (TargetPlayer)
+	{
+		FVector Direction =
+			TargetPlayer->GetActorLocation()
+			- GetActorLocation();
+
+		Direction.Z = 0.f;
+
+		TelegraphRotation =
+			Direction.Rotation();
+
+		SetActorRotation(
+			TelegraphRotation);
+	}
+
 	switch (AttackType)
 	{
 	case EDragonAttackType::Bite:
@@ -924,7 +934,11 @@ void ADragonBoss::StartAttackTelegraph(
 
 		FVector SpawnLocation = MouthLocation + Forward * 500.f;
 
-		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, FRotator(-90.f, 0.f, 0.f));
+		FRotator ZoneRotation = TelegraphRotation;
+
+		ZoneRotation.Pitch = -90.f;
+
+		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, ZoneRotation);
 
 		if (Zone)
 		{
@@ -942,7 +956,11 @@ void ADragonBoss::StartAttackTelegraph(
 
 		FVector SpawnLocation = MouthLocation + Forward * 700.f;
 
-		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, FRotator(-90.f, 0.f, 0.f));
+		FRotator ZoneRotation = TelegraphRotation;
+
+		ZoneRotation.Pitch = -90.f;
+
+		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, ZoneRotation);
 
 		if (Zone)
 		{
