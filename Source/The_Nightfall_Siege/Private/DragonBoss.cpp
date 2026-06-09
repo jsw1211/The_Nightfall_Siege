@@ -175,12 +175,12 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 {
 	int32 Rand = FMath::RandRange(1, 100);
 
-	if (Rand <= 40)
+	if (Rand <= 50)
 	{
 		return EDragonAttackType::Bite;
 	}
 
-	if (Rand <= 80)
+	if (Rand <= 90)
 	{
 		return EDragonAttackType::CloseBreath;
 	}
