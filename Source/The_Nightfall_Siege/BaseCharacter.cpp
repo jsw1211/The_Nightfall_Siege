@@ -1645,11 +1645,6 @@ void ABaseCharacter::RotateToMouseCursor()
         return;
     }
 
-    if (GetVelocity().Length() > 10.f)
-    {
-        return;
-    }
-
     APlayerController* PC =
         Cast<APlayerController>(GetController());
 
