@@ -211,4 +211,6 @@ public:
 
 	UPROPERTY()
 	ADangerZone* CurrentBreathZone = nullptr;
+
+	bool bFirstBreathDone = false;
 };

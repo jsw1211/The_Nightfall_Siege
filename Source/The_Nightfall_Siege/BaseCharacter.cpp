@@ -24,6 +24,7 @@
 #include "ArrowProjectile.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "DungeonPrism.h"
+#include "DragonBoss.h"
 
 
 // Sets default values
@@ -345,11 +346,23 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
     {
         for (auto& Result : Overlaps)
         {
-            AMonster* Monster = Cast<AMonster>(Result.GetActor());
+            AMonster* Monster =
+                Cast<AMonster>(Result.GetActor());
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(AttackPower * QMultiplier); // Q µ¥¹ÌÁö
+                Monster->TakeMonsterDamage(
+                    AttackPower * QMultiplier);
+            }
+
+            ADragonBoss* Dragon = Cast<ADragonBoss>(Result.GetActor());
+
+            if (Dragon)
+            {
+                Dragon->TakeBossDamage(AttackPower * QMultiplier);
+
+                UE_LOG(LogTemp, Warning,
+                    TEXT("Dragon Hit By Q"));
             }
         }
     }

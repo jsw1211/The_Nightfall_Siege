@@ -7,6 +7,7 @@
 #include "Monster.h"
 #include "BaseCharacter.h"
 #include "Engine/OverlapResult.h"
+#include "DragonBoss.h"
 
 // Sets default values
 AArrowProjectile::AArrowProjectile()
@@ -83,6 +84,29 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 		{
 		}
 	}
+
+	ADragonBoss* Dragon = Cast<ADragonBoss>(OtherActor);
+
+	if (Dragon && OwnerCharacter)
+	{
+		Dragon->TakeBossDamage(OwnerCharacter->GetAttackPower());
+
+		UE_LOG(LogTemp, Warning, TEXT("Arrow Hit Dragon"));
+
+		if (ArrowType == EArrowType::Explosive)
+		{
+			Explode();
+			return;
+		}
+		else if (ArrowType == EArrowType::Pierce)
+		{
+		}
+		else
+		{
+			Destroy();
+			return;
+		}
+	}
 }
 
 void AArrowProjectile::Explode()
@@ -103,6 +127,13 @@ void AArrowProjectile::Explode()
 			if (Monster && OwnerCharacter)
 			{
 				Monster->TakeMonsterDamage(OwnerCharacter->GetAttackPower() * OwnerCharacter->EMultiplier);
+			}
+
+			ADragonBoss* Dragon = Cast<ADragonBoss>(Result.GetActor());
+
+			if (Dragon && OwnerCharacter)
+			{
+				Dragon->TakeBossDamage(OwnerCharacter->GetAttackPower() * OwnerCharacter->EMultiplier);
 			}
 		}
 	}

@@ -34,7 +34,11 @@ void ADragonBoss::BeginPlay()
 
 	UpdatePlayerList();
 
-	StartAttackCycle();
+	ChooseRandomTarget();
+
+	StartAttackTelegraph(EDragonAttackType::Breath);
+
+	bFirstBreathDone = true;
 }
 
 // Called every frame
@@ -121,6 +125,13 @@ void ADragonBoss::Tick(float DeltaTime)
 		}
 	}
 
+	UE_LOG(LogTemp, Warning,
+		TEXT("Dragon Z : %f"),
+		GetActorLocation().Z);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Player Z : %f"),
+		TargetPlayer->GetActorLocation().Z);
 }
 
 // Called to bind functionality to input
@@ -162,7 +173,7 @@ void ADragonBoss::StartAttackCycle()
 
 EDragonAttackType ADragonBoss::ChooseRandomAttack()
 {
-	/*int32 Rand = FMath::RandRange(1, 100);
+	int32 Rand = FMath::RandRange(1, 100);
 
 	if (Rand <= 40)
 	{
@@ -174,13 +185,7 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 		return EDragonAttackType::CloseBreath;
 	}
 
-	if (Rand <= 100)
-	{
-		return EDragonAttackType::Debuff;
-	}
-
-	return EDragonAttackType::Bite;*/
-	return EDragonAttackType::Breath;
+	return EDragonAttackType::Debuff;
 }
 
 void ADragonBoss::ExecuteRandomAttack()
@@ -458,6 +463,12 @@ void ADragonBoss::WalkToTarget()
 
 		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 
+		FVector Location = GetActorLocation();
+
+		Location.Z = 100.f;
+
+		SetActorLocation(Location);
+
 		CurrentState = EDragonState::Walking;
 
 		UE_LOG(LogTemp, Warning, TEXT("Dragon Walking"));
@@ -658,7 +669,7 @@ void ADragonBoss::ChooseRandomTarget()
 
 EDragonPatternType ADragonBoss::ChoosePattern()
 {
-	/*int32 Rand = FMath::RandRange(1, 100);
+	int32 Rand = FMath::RandRange(1, 100);
 
 	if (Rand <= 70)
 	{
@@ -670,7 +681,6 @@ EDragonPatternType ADragonBoss::ChoosePattern()
 		return EDragonPatternType::TargetChange;
 	}
 
-	return EDragonPatternType::CenterMechanic;*/
 	return EDragonPatternType::CenterMechanic;
 }
 
