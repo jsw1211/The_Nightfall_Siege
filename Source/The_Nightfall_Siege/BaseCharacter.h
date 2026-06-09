@@ -79,6 +79,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	float RHealAmount = 0.2f;	
 
+	bool bRBonusDamage = false;
+
 	// 현재 보유 스킬 포인트
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	int32 SkillPoints = 0;

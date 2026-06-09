@@ -980,10 +980,12 @@ void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
             else if (SkillLevel == 3)
             {
                 RMultiplier = 3.0f;
+                bRBonusDamage = true;
             }
             else if (SkillLevel == 4)
             {
                 RMultiplier = 4.0f;
+                bRBonusDamage = true;
             }
 
             break;

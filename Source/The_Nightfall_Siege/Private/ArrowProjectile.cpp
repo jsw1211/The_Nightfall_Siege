@@ -94,7 +94,11 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 	if (Dragon && OwnerCharacter)
 	{
 		float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
-
+		if (ArrowType == EArrowType::Pierce &&
+			OwnerCharacter->bRBonusDamage)
+		{
+			Damage += Dragon->MaxHP * 0.05f;
+		}
 		Dragon->TakeBossDamage(Damage);
 
 		UE_LOG(LogTemp, Warning, TEXT("Arrow Damage : %f"),	Damage);
@@ -145,6 +149,11 @@ void AArrowProjectile::Explode()
 			{
 				float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
 
+				if (ArrowType == EArrowType::Pierce &&
+					OwnerCharacter->bRBonusDamage)
+				{
+					Damage += Dragon->MaxHP * 0.05f;
+				}
 				Dragon->TakeBossDamage(Damage);
 			}
 		}
