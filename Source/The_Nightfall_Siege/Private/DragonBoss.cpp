@@ -115,23 +115,38 @@ void ADragonBoss::Tick(float DeltaTime)
 	{
 		float Distance = FVector::Dist(GetActorLocation(), TargetPlayer->GetActorLocation());
 
-		if (Distance < 1200.f)
+		const float CombatRange = 700.f;
+
+		if (Distance > 2000.f)
+		{
+			FlyToTarget();
+		}
+		else if (Distance > 1000.f)
 		{
 			WalkToTarget();
 		}
 		else
 		{
-			FlyToTarget();
+			AAIController* AIController =
+				Cast<AAIController>(GetController());
+
+			if (AIController)
+			{
+				AIController->StopMovement();
+			}
+
+			GetCharacterMovement()->StopMovementImmediately();
+
+			FVector Direction =
+				TargetPlayer->GetActorLocation()
+				- GetActorLocation();
+
+			Direction.Z = 0.f;
+
+			SetActorRotation(
+				Direction.Rotation());
 		}
 	}
-
-	UE_LOG(LogTemp, Warning,
-		TEXT("Dragon Z : %f"),
-		GetActorLocation().Z);
-
-	UE_LOG(LogTemp, Warning,
-		TEXT("Player Z : %f"),
-		TargetPlayer->GetActorLocation().Z);
 }
 
 // Called to bind functionality to input
@@ -190,16 +205,24 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 
 void ADragonBoss::ExecuteRandomAttack()
 {
-	UE_LOG(LogTemp, Warning,
-		TEXT("ExecuteRandomAttack"));
+	EDragonAttackType AttackType =
+		ChooseRandomAttack();
 
-	EDragonAttackType AttackType = ChooseRandomAttack();
-
-	StartAttackTelegraph(AttackType);
+	StartAttackTelegraph(
+		AttackType);
 }
 
 void ADragonBoss::BiteAttack()
 {
+	FVector Direction =
+		TargetPlayer->GetActorLocation()
+		- GetActorLocation();
+
+	Direction.Z = 0.f;
+
+	SetActorRotation(
+		Direction.Rotation());
+
 	if (CurrentState == EDragonState::Dead)
 	{
 		return;
@@ -224,7 +247,7 @@ void ADragonBoss::BiteAttack()
 
 	FVector Forward = GetActorForwardVector();
 
-	FVector BiteCenter = MouthLocation + Forward * 200.f;
+	FVector BiteCenter = MouthLocation + Forward * 500.f;
 
 	TArray<AActor*> Players;
 
@@ -271,6 +294,15 @@ void ADragonBoss::BiteAttack()
 
 void ADragonBoss::CloseBreathAttack()
 {
+	FVector Direction =
+		TargetPlayer->GetActorLocation()
+		- GetActorLocation();
+
+	Direction.Z = 0.f;
+
+	SetActorRotation(
+		Direction.Rotation());
+
 	if (CurrentState == EDragonState::Dead)
 	{
 		return;
@@ -295,7 +327,7 @@ void ADragonBoss::CloseBreathAttack()
 
 	FVector Forward = GetActorForwardVector();
 
-	FVector BreathCenter = MouthLocation + Forward * 300.f;
+	FVector BreathCenter = MouthLocation + Forward * 700.f;
 
 	TArray<AActor*> Players;
 
@@ -461,17 +493,14 @@ void ADragonBoss::WalkToTarget()
 	{
 		bIsFlying = false;
 
-		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+		CurrentState = EDragonState::Landing;
 
-		FVector Location = GetActorLocation();
+		if (LandMontage)
+		{
+			PlayAnimMontage(LandMontage);
+		}
 
-		Location.Z = 100.f;
-
-		SetActorLocation(Location);
-
-		CurrentState = EDragonState::Walking;
-
-		UE_LOG(LogTemp, Warning, TEXT("Dragon Walking"));
+		return;
 	}
 
 	AAIController* AIController = Cast<AAIController>(GetController());
@@ -486,20 +515,28 @@ void ADragonBoss::FlyToTarget()
 {
 	if (!bIsFlying)
 	{
-		bIsFlying = true;
+		CurrentState = EDragonState::Leap;
 
-		GetCharacterMovement()->SetMovementMode(MOVE_Flying);
+		if (LeapMontage)
+		{
+			PlayAnimMontage(LeapMontage);
+		}
 
-		CurrentState = EDragonState::Flying;
-
-		UE_LOG(LogTemp, Warning, TEXT("Dragon Flying"));
+		return;
 	}
+
+	FVector FlyLocation =
+		TargetPlayer->GetActorLocation();
+
+	FlyLocation.Z += 300.f;
 
 	AAIController* AIController = Cast<AAIController>(GetController());
 
 	if (AIController && TargetPlayer)
 	{
-		AIController->MoveToActor(TargetPlayer, 300.f);
+		AIController->MoveToLocation(
+			FlyLocation,
+			300.f);
 	}
 }
 
@@ -686,6 +723,17 @@ EDragonPatternType ADragonBoss::ChoosePattern()
 
 void ADragonBoss::ExecutePattern()
 {
+	float Distance =
+		FVector::Dist(
+			GetActorLocation(),
+			TargetPlayer->GetActorLocation());
+
+	if (Distance > 1000.f)
+	{
+		StartAttackCycle();
+		return;
+	}
+
 	if (bStunned)
 	{
 		return;
@@ -851,16 +899,20 @@ void ADragonBoss::Die()
 void ADragonBoss::StartAttackTelegraph(
 	EDragonAttackType AttackType)
 {
-	bIsTelegraphing = true;
-
-	bIsAttacking = true;
-
-	AAIController* AIController = Cast<AAIController>(GetController());
+	AAIController* AIController =
+		Cast<AAIController>(GetController());
 
 	if (AIController)
 	{
 		AIController->StopMovement();
 	}
+
+	GetCharacterMovement()
+		->StopMovementImmediately();
+
+	bIsTelegraphing = true;
+
+	bIsAttacking = true;
 
 	switch (AttackType)
 	{
@@ -870,7 +922,7 @@ void ADragonBoss::StartAttackTelegraph(
 
 		FVector Forward = GetActorForwardVector();
 
-		FVector SpawnLocation = MouthLocation + Forward * 200.f;
+		FVector SpawnLocation = MouthLocation + Forward * 500.f;
 
 		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, FRotator(-90.f, 0.f, 0.f));
 
@@ -888,7 +940,7 @@ void ADragonBoss::StartAttackTelegraph(
 
 		FVector Forward = GetActorForwardVector();
 
-		FVector SpawnLocation = MouthLocation + Forward * 300.f;
+		FVector SpawnLocation = MouthLocation + Forward * 700.f;
 
 		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, FRotator(-90.f, 0.f, 0.f));
 
@@ -980,5 +1032,29 @@ void ADragonBoss::ExecuteTelegraphedAttack(
 		DebuffAttack();
 		break;
 	}
+}
+
+void ADragonBoss::OnLeapFinished()
+{
+	bIsFlying = true;
+
+	CurrentState = EDragonState::Flying;
+
+	GetCharacterMovement()
+		->SetMovementMode(
+			MOVE_Flying);
+}
+
+void ADragonBoss::OnLandFinished()
+{
+	bIsFlying = false;
+
+	CurrentState = EDragonState::Walking;
+
+	GetCharacterMovement()
+		->SetMovementMode(
+			MOVE_Walking);
+
+	GetCharacterMovement()->Velocity = FVector::ZeroVector;
 }
 

@@ -16,6 +16,7 @@ enum class EDragonState : uint8
 {
 	Idle,
 	Walking,
+	Leap,
 	Flying,
 	Landing,
 	Attacking,
@@ -213,4 +214,16 @@ public:
 	ADangerZone* CurrentBreathZone = nullptr;
 
 	bool bFirstBreathDone = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UAnimMontage* LeapMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UAnimMontage* LandMontage;
+
+	UFUNCTION(BlueprintCallable)
+	void OnLeapFinished();
+
+	UFUNCTION(BlueprintCallable)
+	void OnLandFinished();
 };
