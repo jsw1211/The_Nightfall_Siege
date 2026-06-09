@@ -256,6 +256,11 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 void ABaseCharacter::Attack(
     const FInputActionValue& Value)
 {
+    if (!CanUseCombatAction())
+    {
+        return;
+    }
+
     APlayerController* PC =
         Cast<APlayerController>(GetController());
 
@@ -277,21 +282,6 @@ void ABaseCharacter::Attack(
             LookDirection.Rotation();
 
         SetActorRotation(TargetRotation);
-    }
-
-    if (bIsDead)
-    {
-        return;
-    }
-
-    if (bIsUsingSkill)
-    {
-        return;
-    }
-
-    if (bIsAttacking)
-    {
-        return;
     }
 
     GetCharacterMovement()->StopMovementImmediately();
@@ -360,12 +350,10 @@ void ABaseCharacter::Attack(
 
 void ABaseCharacter::Q(const FInputActionValue& Value)
 {
-    if (bLanternEquipped) return;
-
-    if (bIsDead) return;
-
-    if (!bCanUseQ || bIsUsingSkill)
+    if (!CanUseCombatAction())
+    {
         return;
+    }
 
     if (CharacterType == ECharacterType::Archer)
     {
@@ -494,6 +482,11 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
 void ABaseCharacter::W(const FInputActionValue& Value)
 {
+    if (!CanUseCombatAction())
+    {
+        return;
+    }
+
     if (CharacterType == ECharacterType::Archer)
     {
         AttackSpeed = BuffAttackSpeed;
@@ -612,12 +605,10 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
 void ABaseCharacter::E(const FInputActionValue& Value)
 {
-    if (bLanternEquipped) return;
-
-    if (bIsDead) return;
-
-    if (!bCanUseE || bIsUsingSkill)
+    if (!CanUseCombatAction())
+    {
         return;
+    }
 
     if (CharacterType == ECharacterType::Archer)
     {
@@ -728,12 +719,10 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
 void ABaseCharacter::R(const FInputActionValue& Value)
 {
-    if (bLanternEquipped) return;
-
-    if (bIsDead) return;
-
-    if (!bCanUseR || bIsUsingSkill)
+    if (!CanUseCombatAction())
+    {
         return;
+    }
 
     if (CharacterType == ECharacterType::Archer)
     {
@@ -1630,5 +1619,16 @@ void ABaseCharacter::RotateToMouseCursor()
         SetActorRotation(
             Direction.Rotation());
     }
+}
+
+bool ABaseCharacter::CanUseCombatAction() const
+{
+    return
+        !bLanternEquipped &&
+        !bPrismEquipped &&
+        !bIsEquippingLantern &&
+        !bIsDead &&
+        !bIsUsingSkill &&
+        !bIsAttacking;
 }
 

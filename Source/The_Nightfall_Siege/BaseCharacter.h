@@ -273,6 +273,8 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsAttacking = false;
 
+	bool CanUseCombatAction() const;
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;
