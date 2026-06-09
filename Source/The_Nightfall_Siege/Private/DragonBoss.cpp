@@ -76,6 +76,11 @@ void ADragonBoss::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 
 void ADragonBoss::StartAttackCycle()
 {
+	if (bStunned)
+	{
+		return;
+	}
+
 	if (CurrentState == EDragonState::Dead)
 	{
 		return;
@@ -468,7 +473,7 @@ void ADragonBoss::OnBreathReflected()
 	GetCharacterMovement()->DisableMovement();
 
 	GetWorldTimerManager().SetTimer(
-		AttackTimerHandle,
+		StunTimerHandle,
 		this,
 		&ADragonBoss::EndStun,
 		5.f,
@@ -478,6 +483,9 @@ void ADragonBoss::OnBreathReflected()
 
 void ADragonBoss::EndStun()
 {
+	UE_LOG(LogTemp, Error,
+		TEXT("EndStun Called"));
+
 	bStunned = false;
 
 	GetCharacterMovement()->SetMovementMode(
@@ -557,6 +565,11 @@ EDragonPatternType ADragonBoss::ChoosePattern()
 
 void ADragonBoss::ExecutePattern()
 {
+	if (bStunned)
+	{
+		return;
+	}
+
 	if (CurrentState == EDragonState::Dead)
 	{
 		return;

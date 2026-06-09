@@ -5,6 +5,10 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
+#include "Reflector.h"
+#include "DragonBoss.h"
+#include "BaseCharacter.h"
+#include "Engine/DamageEvents.h"
 
 // Sets default values
 ADragonBreathProjectile::ADragonBreathProjectile()
@@ -16,6 +20,10 @@ ADragonBreathProjectile::ADragonBreathProjectile()
 
     RootComponent = Collision;
 
+    Collision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+
+    Collision->SetCollisionResponseToAllChannels(ECR_Overlap);
+
     Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 
     Mesh->SetupAttachment(RootComponent);
@@ -26,6 +34,7 @@ ADragonBreathProjectile::ADragonBreathProjectile()
     ProjectileMovement->MaxSpeed = 1200.f;
 
     Collision->OnComponentBeginOverlap.AddDynamic(this, &ADragonBreathProjectile::OnOverlapBegin);
+
 }
 
 // Called when the game starts or when spawned
@@ -50,5 +59,43 @@ void ADragonBreathProjectile::OnOverlapBegin(
     bool bFromSweep,
     const FHitResult& SweepResult)
 {
+    if (!OtherActor)
+    {
+        return;
+    }
+
+    UE_LOG(LogTemp, Error,
+        TEXT("Projectile Hit : %s"),
+        *OtherActor->GetName());
+
+    AReflector* Reflector = Cast<AReflector>(OtherActor);
+
+    if (Reflector)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("Breath Hit Reflector"));
+
+        Reflector->ReflectBreath();
+
+        Destroy();
+
+        return;
+    }
+
+    ABaseCharacter* Player = Cast<ABaseCharacter>(OtherActor);
+
+    if (Player)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("Breath Hit Player"));
+
+        float Damage = Player->MaxHP * 0.8f;
+
+        Player->TakeDamage(Damage, FDamageEvent(), nullptr, this);
+
+        Destroy();
+
+        return;
+    }
 }
 

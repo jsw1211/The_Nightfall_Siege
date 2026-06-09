@@ -4,6 +4,7 @@
 #include "Reflector.h"
 #include "Components/StaticMeshComponent.h"
 #include "DragonBoss.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 AReflector::AReflector()
@@ -20,6 +21,16 @@ void AReflector::BeginPlay()
 {
 	Super::BeginPlay();
 
+    TArray<AActor*> Dragons;
+
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), ADragonBoss::StaticClass(), Dragons);
+
+    if (Dragons.Num() > 0)
+    {
+        DragonBoss = Cast<ADragonBoss>(Dragons[0]);
+
+        UE_LOG(LogTemp, Warning, TEXT("Dragon Found"));
+    }
 }
 
 // Called every frame

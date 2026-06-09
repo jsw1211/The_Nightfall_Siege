@@ -179,6 +179,8 @@ public:
 
 	FTimerHandle CenterFailHandle;
 
+	FTimerHandle StunTimerHandle;
+
 	void Die();
 
 	UPROPERTY(EditAnywhere)
