@@ -200,4 +200,15 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<ADangerZone> DangerZoneClass;
+
+	FTimerHandle CenterBreathHandle;
+
+	bool bCenterBreathStarted = false;
+
+	FTimerHandle CenterTrackingHandle;
+
+	bool bCenterTracking = false;
+
+	UPROPERTY()
+	ADangerZone* CurrentBreathZone = nullptr;
 };

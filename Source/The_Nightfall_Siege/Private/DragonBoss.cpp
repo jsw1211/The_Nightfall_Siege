@@ -42,6 +42,31 @@ void ADragonBoss::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (bCenterTracking && TargetPlayer)
+	{
+		FVector Direction = TargetPlayer->GetActorLocation() - GetActorLocation();
+
+		Direction.Z = 0.f;
+
+		FRotator TargetRotation = Direction.Rotation();
+
+		SetActorRotation(TargetRotation);
+
+		if (CurrentBreathZone)
+		{
+			FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+
+			FVector Forward =
+				GetActorForwardVector();
+
+			FVector SpawnLocation = MouthLocation + Forward * 500.f;
+
+			CurrentBreathZone->SetActorLocation(SpawnLocation);
+
+			CurrentBreathZone->SetActorRotation(TargetRotation);
+		}
+	}
+
 	if (bCenterMechanicActive)
 	{
 		float Distance =
@@ -49,14 +74,17 @@ void ADragonBoss::Tick(float DeltaTime)
 				GetActorLocation(),
 				ArenaCenter);
 
-		if (Distance <= 200.f)
+		if (Distance <= 200.f && !bCenterBreathStarted)
 		{
-			UE_LOG(LogTemp, Error,
-				TEXT("CENTER BREATH START"));
+			bCenterBreathStarted = true;
 
-			BreathAttack();
+			UE_LOG(LogTemp, Warning,
+				TEXT("Center Arrived"));
 
-			bCenterMechanicActive = false;
+			bCenterTracking = true;
+
+			StartAttackTelegraph(
+				EDragonAttackType::Breath);
 
 			return;
 		}
@@ -872,11 +900,11 @@ void ADragonBoss::StartAttackTelegraph(
 
 		FRotator Rot = (TargetPlayer->GetActorLocation() - MouthLocation).Rotation();
 
-		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, Rot);
+		CurrentBreathZone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, Rot);
 
-		if (Zone)
+		if (CurrentBreathZone)
 		{
-			Zone->SetLineShape();
+			CurrentBreathZone->SetLineShape();
 		}
 
 		break;
@@ -922,6 +950,19 @@ void ADragonBoss::ExecuteTelegraphedAttack(
 		break;
 
 	case EDragonAttackType::Breath:
+		if (CurrentBreathZone)
+		{
+			CurrentBreathZone = nullptr;
+		}
+
+		if (bCenterMechanicActive)
+		{
+			bCenterTracking = false;
+
+			bCenterMechanicActive = false;
+			bCenterBreathStarted = false;
+		}
+
 		BreathAttack();
 		break;
 
