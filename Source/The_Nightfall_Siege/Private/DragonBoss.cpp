@@ -10,6 +10,7 @@
 #include "Components/CapsuleComponent.h"
 #include "DungeonPrism.h"
 #include "DragonBreathProjectile.h"
+#include "DangerZone.h"
 
 // Sets default values
 ADragonBoss::ADragonBoss()
@@ -726,6 +727,20 @@ void ADragonBoss::StartAttackTelegraph(
 	if (AIController)
 	{
 		AIController->StopMovement();
+	}
+
+	if (DangerZoneClass &&
+		TargetPlayer)
+	{
+		FVector SpawnLocation =
+			TargetPlayer->GetActorLocation();
+
+		SpawnLocation.Z -= 90.f;
+
+		GetWorld()->SpawnActor<ADangerZone>(
+			DangerZoneClass,
+			SpawnLocation,
+			FRotator(-90.f, 0.f, 0.f));
 	}
 
 	switch (AttackType)

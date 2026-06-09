@@ -9,6 +9,7 @@
 #include "DragonBoss.generated.h"
 
 class ADragonBreathProjectile;
+class ADangerZone;
 
 UENUM(BlueprintType)
 enum class EDragonState : uint8
@@ -196,4 +197,7 @@ public:
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsTelegraphing = false;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<ADangerZone> DangerZoneClass;
 };
