@@ -125,7 +125,7 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 	}
 
 	return EDragonAttackType::Bite;*/
-	return EDragonAttackType::Bite;
+	return EDragonAttackType::Breath;
 }
 
 void ADragonBoss::ExecuteRandomAttack()
@@ -307,15 +307,6 @@ void ADragonBoss::BreathAttack()
 		FRotator SpawnRotation = GetActorRotation();
 
 		GetWorld()->SpawnActor<ADragonBreathProjectile>(BreathProjectileClass, SpawnLocation, SpawnRotation);
-	}
-
-	ABaseCharacter* Player = Cast<ABaseCharacter>(TargetPlayer);
-
-	if (Player)
-	{
-		float Damage = Player->MaxHP * 0.8f;
-
-		Player->TakePlayerDamage(Damage);
 	}
 
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();

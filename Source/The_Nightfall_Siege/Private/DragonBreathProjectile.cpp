@@ -91,7 +91,7 @@ void ADragonBreathProjectile::OnOverlapBegin(
 
         float Damage = Player->MaxHP * 0.8f;
 
-        Player->TakeDamage(Damage, FDamageEvent(), nullptr, this);
+        Player->TakePlayerDamage(Damage);
 
         Destroy();
 
