@@ -51,7 +51,7 @@ void ADragonBoss::Tick(float DeltaTime)
 		ChooseRandomTarget();
 	}
 
-	if (TargetPlayer && !bIsAttacking && !bStunned)
+	if (TargetPlayer && !bIsAttacking && !bStunned && !bIsTelegraphing)
 	{
 		float Distance = FVector::Dist(GetActorLocation(), TargetPlayer->GetActorLocation());
 
@@ -76,6 +76,9 @@ void ADragonBoss::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 
 void ADragonBoss::StartAttackCycle()
 {
+	GetWorldTimerManager().ClearTimer(
+		AttackTimerHandle);
+
 	if (bStunned)
 	{
 		return;
@@ -126,28 +129,12 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 
 void ADragonBoss::ExecuteRandomAttack()
 {
-	UE_LOG(LogTemp, Warning, TEXT("ExecuteRandomAttack"));
+	UE_LOG(LogTemp, Warning,
+		TEXT("ExecuteRandomAttack"));
 
 	EDragonAttackType AttackType = ChooseRandomAttack();
 
-	switch (AttackType)
-	{
-	case EDragonAttackType::Bite:
-		BiteAttack();
-		break;
-
-	case EDragonAttackType::CloseBreath:
-		CloseBreathAttack();
-		break;
-
-	case EDragonAttackType::Breath:
-		BreathAttack();
-		break;
-
-	case EDragonAttackType::Debuff:
-		DebuffAttack();
-		break;
-	}
+	StartAttackTelegraph(AttackType);
 }
 
 void ADragonBoss::BiteAttack()
@@ -716,5 +703,92 @@ void ADragonBoss::Die()
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("Dragon Dead"));
+
+	GetWorldTimerManager().ClearTimer(
+		TelegraphHandle);
+
+	GetWorldTimerManager().ClearTimer(
+		StunTimerHandle);
+
+	GetWorldTimerManager().ClearTimer(
+		CenterFailHandle);
+}
+
+void ADragonBoss::StartAttackTelegraph(
+	EDragonAttackType AttackType)
+{
+	bIsTelegraphing = true;
+
+	bIsAttacking = true;
+
+	AAIController* AIController = Cast<AAIController>(GetController());
+
+	if (AIController)
+	{
+		AIController->StopMovement();
+	}
+
+	switch (AttackType)
+	{
+	case EDragonAttackType::Bite:
+		UE_LOG(LogTemp, Warning,
+			TEXT("Bite Danger Area"));
+		break;
+
+	case EDragonAttackType::CloseBreath:
+		UE_LOG(LogTemp, Warning,
+			TEXT("Close Breath Danger Area"));
+		break;
+
+	case EDragonAttackType::Breath:
+		UE_LOG(LogTemp, Warning,
+			TEXT("Breath Danger Area"));
+		break;
+
+	case EDragonAttackType::Debuff:
+		UE_LOG(LogTemp, Warning,
+			TEXT("Debuff Warning"));
+		break;
+	}
+
+	FTimerDelegate Delegate;
+
+	Delegate.BindLambda(
+		[this, AttackType]()
+		{
+			ExecuteTelegraphedAttack(
+				AttackType);
+		});
+
+	GetWorldTimerManager().SetTimer(
+		TelegraphHandle,
+		Delegate,
+		3.f,
+		false);
+}
+
+void ADragonBoss::ExecuteTelegraphedAttack(
+	EDragonAttackType AttackType)
+{
+	bIsTelegraphing = false;
+
+	switch (AttackType)
+	{
+	case EDragonAttackType::Bite:
+		BiteAttack();
+		break;
+
+	case EDragonAttackType::CloseBreath:
+		CloseBreathAttack();
+		break;
+
+	case EDragonAttackType::Breath:
+		BreathAttack();
+		break;
+
+	case EDragonAttackType::Debuff:
+		DebuffAttack();
+		break;
+	}
 }
 

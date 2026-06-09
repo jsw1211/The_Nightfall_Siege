@@ -185,4 +185,15 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<ADragonBreathProjectile> BreathProjectileClass;
+
+	FTimerHandle TelegraphHandle;
+
+	void StartAttackTelegraph(
+		EDragonAttackType AttackType);
+
+	void ExecuteTelegraphedAttack(
+		EDragonAttackType AttackType);
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsTelegraphing = false;
 };
