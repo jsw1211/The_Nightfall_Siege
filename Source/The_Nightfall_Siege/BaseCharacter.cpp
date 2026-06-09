@@ -263,7 +263,10 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
         if (QMontage)
         {
-            PlayAnimMontage(QMontage);
+            PlayAnimMontage(
+                QMontage,
+                AttackSpeed
+            );
         }
 
         bCanUseQ = false;
@@ -467,7 +470,10 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
         if (EMontage)
         {
-            PlayAnimMontage(EMontage);
+            PlayAnimMontage(
+                EMontage,
+                AttackSpeed
+            );
         }
 
         bCanUseE = false;
@@ -569,7 +575,10 @@ void ABaseCharacter::R(const FInputActionValue& Value)
 
         if (RMontage)
         {
-            PlayAnimMontage(RMontage);
+            PlayAnimMontage(
+                RMontage,
+                AttackSpeed
+            );
         }
 
         bCanUseR = false;
