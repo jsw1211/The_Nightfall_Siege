@@ -9,6 +9,7 @@
 #include "AIController.h"
 #include "Components/CapsuleComponent.h"
 #include "DungeonPrism.h"
+#include "DragonBreathProjectile.h"
 
 // Sets default values
 ADragonBoss::ADragonBoss()
@@ -115,7 +116,7 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 	}
 
 	return EDragonAttackType::Bite;*/
-	return EDragonAttackType::Debuff;
+	return EDragonAttackType::Breath;
 }
 
 void ADragonBoss::ExecuteRandomAttack()
@@ -261,6 +262,15 @@ void ADragonBoss::BreathAttack()
 	CurrentState = EDragonState::Flying;
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Breath"));
+
+	if (BreathProjectileClass)
+	{
+		FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 200.f;
+
+		FRotator SpawnRotation = GetActorRotation();
+
+		GetWorld()->SpawnActor<ADragonBreathProjectile>(BreathProjectileClass, SpawnLocation, SpawnRotation);
+	}
 
 	ABaseCharacter* Player = Cast<ABaseCharacter>(TargetPlayer);
 

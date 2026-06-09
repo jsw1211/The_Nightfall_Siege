@@ -8,6 +8,8 @@
 #include "BaseCharacter.h"
 #include "DragonBoss.generated.h"
 
+class ADragonBreathProjectile;
+
 UENUM(BlueprintType)
 enum class EDragonState : uint8
 {
@@ -178,4 +180,7 @@ public:
 	FTimerHandle CenterFailHandle;
 
 	void Die();
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<ADragonBreathProjectile> BreathProjectileClass;
 };
