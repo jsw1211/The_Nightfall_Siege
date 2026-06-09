@@ -268,6 +268,11 @@ public:
 
 	void EndAttackSpeedBuff();
 
+	void RotateToMouseCursor();
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsAttacking = false;
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;

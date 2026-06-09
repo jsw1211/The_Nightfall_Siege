@@ -37,7 +37,7 @@ ABaseCharacter::ABaseCharacter()
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationRoll = false;
 
-	GetCharacterMovement()->bOrientRotationToMovement = true;
+	GetCharacterMovement()->bOrientRotationToMovement = false;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f);
 
     SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
@@ -225,6 +225,8 @@ void ABaseCharacter::Tick(float DeltaTime)
     ERemainingCooldown = FMath::Max(0.f, ERemainingCooldown - DeltaTime);
 
     RRemainingCooldown = FMath::Max(0.f, RRemainingCooldown - DeltaTime);
+
+    RotateToMouseCursor();
 }
 
 // Called to bind functionality to input
@@ -287,14 +289,27 @@ void ABaseCharacter::Attack(
         return;
     }
 
-    bIsUsingSkill = true;
+    if (bIsAttacking)
+    {
+        return;
+    }
+
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AAIController* AICon = Cast<AAIController>(GetController()))
+    {
+        AICon->StopMovement();
+    }
+
+    RotateToMouseCursor();
+
+    bIsAttacking = true;
 
     if (AttackMontage)
     {
         PlayAnimMontage(
             AttackMontage,
-            AttackSpeed
-        );
+            AttackSpeed);
     }
 }
 
@@ -309,6 +324,15 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
     if (CharacterType == ECharacterType::Archer)
     {
+        GetCharacterMovement()->StopMovementImmediately();
+
+        if (AAIController* AICon = Cast<AAIController>(GetController()))
+        {
+            AICon->StopMovement();
+        }
+
+        RotateToMouseCursor();
+
         bIsUsingSkill = true;
 
         if (QMontage)
@@ -333,6 +357,8 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
         return;
     }
+
+    RotateToMouseCursor();
 
     bIsUsingSkill = true;
 
@@ -462,6 +488,8 @@ void ABaseCharacter::W(const FInputActionValue& Value)
     if (!bCanUseW || bIsUsingSkill)
         return;
 
+    RotateToMouseCursor();
+
     bIsUsingSkill = true;
 
     GetCharacterMovement()->StopMovementImmediately();
@@ -548,6 +576,15 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
     if (CharacterType == ECharacterType::Archer)
     {
+        GetCharacterMovement()->StopMovementImmediately();
+
+        if (AAIController* AICon = Cast<AAIController>(GetController()))
+        {
+            AICon->StopMovement();
+        }
+
+        RotateToMouseCursor();
+
         bIsUsingSkill = true;
 
         if (EMontage)
@@ -566,6 +603,8 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
         return;
     }
+
+    RotateToMouseCursor();
 
     bIsUsingSkill = true;
 
@@ -653,6 +692,15 @@ void ABaseCharacter::R(const FInputActionValue& Value)
 
     if (CharacterType == ECharacterType::Archer)
     {
+        GetCharacterMovement()->StopMovementImmediately();
+
+        if (AAIController* AICon = Cast<AAIController>(GetController()))
+        {
+            AICon->StopMovement();
+        }
+
+        RotateToMouseCursor();
+
         bIsUsingSkill = true;
 
         if (RMontage)
@@ -677,6 +725,8 @@ void ABaseCharacter::R(const FInputActionValue& Value)
 
         return;
     }
+
+    RotateToMouseCursor();
 
     bIsUsingSkill = true;
 
@@ -853,6 +903,7 @@ void ABaseCharacter::TakePlayerDamage(float Damage)
 void ABaseCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
     bIsUsingSkill = false;
+    bIsAttacking = false;
 }
 
 void ABaseCharacter::EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketName, AActor*& OutWeapon)
@@ -1495,5 +1546,44 @@ void ABaseCharacter::EndAttackSpeedBuff()
 
     UE_LOG(LogTemp, Warning,
         TEXT("Attack Speed Buff End"));
+}
+
+void ABaseCharacter::RotateToMouseCursor()
+{
+    if (bIsUsingSkill || bIsAttacking)
+    {
+        return;
+    }
+
+    if (GetVelocity().Length() > 10.f)
+    {
+        return;
+    }
+
+    APlayerController* PC =
+        Cast<APlayerController>(GetController());
+
+    if (!PC)
+    {
+        return;
+    }
+
+    FHitResult Hit;
+
+    PC->GetHitResultUnderCursor(
+        ECC_Visibility,
+        false,
+        Hit);
+
+    FVector Direction =
+        Hit.Location - GetActorLocation();
+
+    Direction.Z = 0.f;
+
+    if (!Direction.IsNearlyZero())
+    {
+        SetActorRotation(
+            Direction.Rotation());
+    }
 }
 
