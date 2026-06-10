@@ -101,7 +101,7 @@ void ADragonBoss::Tick(float DeltaTime)
 		return;
 	}
 
-	if (TargetPlayer == nullptr)
+	if (!TargetPlayer || TargetPlayer->IsDead())
 	{
 		ChooseRandomTarget();
 	}
@@ -117,34 +117,27 @@ void ADragonBoss::Tick(float DeltaTime)
 
 		const float CombatRange = 700.f;
 
-		if (Distance > 2000.f)
+		if (bIsFlying)
 		{
 			FlyToTarget();
 		}
-		else if (Distance > 1000.f)
-		{
-			WalkToTarget();
-		}
 		else
 		{
-			AAIController* AIController =
-				Cast<AAIController>(GetController());
-
-			if (AIController)
+			if (Distance > 2000.f)
 			{
-				AIController->StopMovement();
+				FlyToTarget();
 			}
-
-			GetCharacterMovement()->StopMovementImmediately();
-
-			FVector Direction =
-				TargetPlayer->GetActorLocation()
-				- GetActorLocation();
-
-			Direction.Z = 0.f;
-
-			SetActorRotation(
-				Direction.Rotation());
+			else if (Distance > AttackRange)
+			{
+				WalkToTarget();
+			}
+			else
+			{
+				if (!GetWorldTimerManager().IsTimerActive(AttackTimerHandle))
+				{
+					StartAttackCycle();
+				}
+			}
 		}
 	}
 }
@@ -173,9 +166,15 @@ void ADragonBoss::StartAttackCycle()
 
 	UE_LOG(LogTemp, Warning, TEXT("StartAttackCycle"));
 
-	ChooseRandomTarget();
+	UpdatePlayerList();
 
-	float RandomDelay = FMath::RandRange(5.f, 7.f);
+	if (AlivePlayers.Num() == 0)
+	{
+		return;
+	}
+	//ChooseRandomTarget();
+
+	float RandomDelay = FMath::RandRange(1.f, 2.f); // 디버그용으로 1~2초
 
 	GetWorldTimerManager().SetTimer(
 		AttackTimerHandle,
@@ -475,25 +474,14 @@ void ADragonBoss::DebuffAttack()
 
 void ADragonBoss::WalkToTarget()
 {
-	if (bIsFlying)
-	{
-		bIsFlying = false;
-
-		CurrentState = EDragonState::Landing;
-
-		if (LandMontage)
-		{
-			PlayAnimMontage(LandMontage);
-		}
-
-		return;
-	}
-
-	AAIController* AIController = Cast<AAIController>(GetController());
+	AAIController* AIController =
+		Cast<AAIController>(GetController());
 
 	if (AIController && TargetPlayer)
 	{
-		AIController->MoveToActor(TargetPlayer, 150.f);
+		AIController->MoveToActor(
+			TargetPlayer,
+			AttackRange);
 	}
 }
 
@@ -501,29 +489,55 @@ void ADragonBoss::FlyToTarget()
 {
 	if (!bIsFlying)
 	{
+		if (bIsLeaping)
+		{
+			return;
+		}
+
+		bIsLeaping = true;
+
 		CurrentState = EDragonState::Leap;
 
-		if (LeapMontage)
-		{
-			PlayAnimMontage(LeapMontage);
-		}
+		PlayAnimMontage(LeapMontage);
 
 		return;
 	}
 
-	FVector FlyLocation =
+	float Distance =
+		FVector::Dist(
+			GetActorLocation(),
+			TargetPlayer->GetActorLocation());
+
+	if (Distance <= AttackRange)
+	{
+		bIsFlying = false;
+
+		CurrentState =
+			EDragonState::Landing;
+
+		PlayAnimMontage(
+			LandMontage);
+
+		return;
+	}
+
+	FVector TargetLoc =
 		TargetPlayer->GetActorLocation();
 
-	FlyLocation.Z += 300.f;
+	TargetLoc.Z += 300.f;
 
-	AAIController* AIController = Cast<AAIController>(GetController());
+	FVector NewLocation =
+		FMath::VInterpConstantTo(
+			GetActorLocation(),
+			TargetLoc,
+			GetWorld()->GetDeltaSeconds(),
+			1200.f);
 
-	if (AIController && TargetPlayer)
-	{
-		AIController->MoveToLocation(
-			FlyLocation,
-			300.f);
-	}
+	SetActorLocation(NewLocation);
+
+	SetActorRotation(
+		(TargetLoc - GetActorLocation())
+		.Rotation());
 }
 
 void ADragonBoss::FlyToCenter()
@@ -682,12 +696,17 @@ void ADragonBoss::ChooseRandomTarget()
 			AlivePlayers.Num() - 1
 		);
 
-	TargetPlayer =
-		AlivePlayers[RandomIndex];
+	TargetPlayer = AlivePlayers[RandomIndex];
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("New Target : %s"),
 		*TargetPlayer->GetName());
+
+	bIsLeaping = false;
+	bIsFlying = false;
+	bIsAttacking = false;
+
+	CurrentState = EDragonState::Walking;
 }
 
 EDragonPatternType ADragonBoss::ChoosePattern()
@@ -709,13 +728,46 @@ EDragonPatternType ADragonBoss::ChoosePattern()
 
 void ADragonBoss::ExecutePattern()
 {
+	if (!TargetPlayer || TargetPlayer->IsDead())
+	{
+		ChooseRandomTarget();
+
+		if (!TargetPlayer)
+		{
+			return;
+		}
+	}
+
+	if (CurrentState == EDragonState::Flying ||
+		CurrentState == EDragonState::Leap ||
+		CurrentState == EDragonState::Landing)
+	{
+		return;
+	}
+
 	float Distance =
 		FVector::Dist(
 			GetActorLocation(),
 			TargetPlayer->GetActorLocation());
 
-	if (Distance > 1000.f)
+	UE_LOG(LogTemp, Warning,
+		TEXT("ExecutePattern Distance = %f"),
+		Distance);
+
+	if (Distance > AttackRange)
 	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("Target Out Of Range : %f"), Distance);
+
+		if (Distance > 2000.f)
+		{
+			FlyToTarget();
+		}
+		else
+		{
+			WalkToTarget();
+		}
+
 		StartAttackCycle();
 		return;
 	}
@@ -732,7 +784,7 @@ void ADragonBoss::ExecutePattern()
 
 	UE_LOG(LogTemp, Warning, TEXT("ExecutePattern"));
 
-	EDragonPatternType Pattern = ChoosePattern();
+	EDragonPatternType Pattern = EDragonPatternType::TargetChange;
 
 	switch (Pattern)
 	{
@@ -757,35 +809,15 @@ void ADragonBoss::TargetChangePattern()
 
 	ChooseRandomTarget();
 
-	if (!TargetPlayer)
-	{
-		StartAttackCycle();
-		return;
-	}
+	UE_LOG(LogTemp, Warning,
+		TEXT("TargetChange Distance=%f"),
+		FVector::Dist(
+			GetActorLocation(),
+			TargetPlayer->GetActorLocation()));
 
-	float Distance = FVector::Dist(
-		GetActorLocation(),
-		TargetPlayer->GetActorLocation()
-	);
+	bIsAttacking = false;
 
-	if (Distance > 1500.f)
-	{
-		int32 Rand = FMath::RandRange(0, 1);
-
-		if (Rand == 0)
-		{
-			BreathAttack();
-			return;
-		}
-		else
-		{
-			FlyToTarget();
-		}
-	}
-	else
-	{
-		WalkToTarget();
-	}
+	CurrentState = EDragonState::Walking;
 
 	StartAttackCycle();
 }
@@ -847,18 +879,11 @@ void ADragonBoss::OnCenterMechanicSuccess()
 
 void ADragonBoss::OnAttackFinished()
 {
-	if (CurrentState == EDragonState::Dead)
+	UpdatePlayerList();
+
+	if (!TargetPlayer || TargetPlayer->IsDead())
 	{
-		return;
-	}
-
-	if (TargetPlayer)
-	{
-		FVector Direction = TargetPlayer->GetActorLocation() - GetActorLocation();
-
-		Direction.Z = 0.f;
-
-		SetActorRotation(Direction.Rotation());
+		ChooseRandomTarget();
 	}
 
 	bIsAttacking = false;
@@ -1054,13 +1079,22 @@ void ADragonBoss::ExecuteTelegraphedAttack(
 
 void ADragonBoss::OnLeapFinished()
 {
+	UE_LOG(LogTemp, Error,
+		TEXT("===== LEAP FINISHED ====="));
+
+	bIsLeaping = false;
 	bIsFlying = true;
 
 	CurrentState = EDragonState::Flying;
 
-	GetCharacterMovement()
-		->SetMovementMode(
-			MOVE_Flying);
+	GetCharacterMovement()->SetMovementMode(
+		MOVE_Flying);
+
+	UE_LOG(LogTemp, Error,
+		TEXT("Target = %s"),
+		*TargetPlayer->GetName());
+
+	FlyToTarget();
 }
 
 void ADragonBoss::OnLandFinished()
@@ -1069,10 +1103,12 @@ void ADragonBoss::OnLandFinished()
 
 	CurrentState = EDragonState::Walking;
 
-	GetCharacterMovement()
-		->SetMovementMode(
-			MOVE_Walking);
+	GetCharacterMovement()->SetMovementMode(
+		MOVE_Walking);
 
-	GetCharacterMovement()->Velocity = FVector::ZeroVector;
+	UE_LOG(LogTemp, Error,
+		TEXT("===== LAND FINISHED ====="));
+
+	StartAttackCycle();
 }
 

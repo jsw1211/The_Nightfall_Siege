@@ -88,7 +88,7 @@ public:
 	// =========================
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
-	AActor* TargetPlayer;
+	ABaseCharacter* TargetPlayer;
 
 	UPROPERTY()
 	TArray<ABaseCharacter*> AlivePlayers;
@@ -229,4 +229,10 @@ public:
 
 	UPROPERTY()
 	FRotator TelegraphRotation;
+
+	UPROPERTY()
+	bool bIsLeaping = false;
+
+	UPROPERTY(EditAnywhere)
+	float AttackRange = 1000.f;
 };
