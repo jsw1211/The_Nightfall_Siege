@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "Animation/AnimMontage.h"
 #include "BaseCharacter.h"
+#include "NiagaraSystem.h"
 #include "DragonBoss.generated.h"
 
 class ADragonBreathProjectile;
@@ -247,4 +248,7 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	float AttackRange = 1000.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
+	TObjectPtr<UNiagaraSystem> BiteFX;
 };

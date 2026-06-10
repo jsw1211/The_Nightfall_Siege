@@ -11,6 +11,7 @@
 #include "DungeonPrism.h"
 #include "DragonBreathProjectile.h"
 #include "DangerZone.h"
+#include "NiagaraFunctionLibrary.h"
 
 // Sets default values
 ADragonBoss::ADragonBoss()
@@ -187,7 +188,7 @@ void ADragonBoss::StartAttackCycle()
 
 EDragonAttackType ADragonBoss::ChooseRandomAttack()
 {
-	int32 Rand = FMath::RandRange(1, 100);
+	/*int32 Rand = FMath::RandRange(1, 100);
 
 	if (Rand <= 50)
 	{
@@ -199,7 +200,8 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 		return EDragonAttackType::CloseBreath;
 	}
 
-	return EDragonAttackType::Debuff;
+	return EDragonAttackType::Debuff;*/
+	return EDragonAttackType::Bite;
 }
 
 void ADragonBoss::ExecuteRandomAttack()
@@ -249,6 +251,17 @@ void ADragonBoss::BiteAttack()
 	FVector Forward = GetActorForwardVector();
 
 	FVector BiteCenter = MouthLocation + Forward * 500.f;
+
+	if (BiteFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			BiteFX,
+			BiteCenter,
+			FRotator::ZeroRotator,
+			FVector(3.f)
+		);
+	}
 
 	TArray<AActor*> Players;
 
