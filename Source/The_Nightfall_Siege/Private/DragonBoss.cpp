@@ -213,6 +213,15 @@ void ADragonBoss::ExecuteRandomAttack()
 
 void ADragonBoss::BiteAttack()
 {
+	///////////////////////////////////// Debug Log
+	BiteCount++;
+	TotalPatternCount++;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[Pattern] Bite (%d / Total:%d)"),
+		BiteCount,
+		TotalPatternCount);
+	/////////////////////////////////////
 	SetActorRotation(TelegraphRotation);
 
 	if (CurrentState == EDragonState::Dead)
@@ -286,6 +295,15 @@ void ADragonBoss::BiteAttack()
 
 void ADragonBoss::CloseBreathAttack()
 {
+	////////////////////////////////
+	CloseBreathCount++;
+	TotalPatternCount++;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[Pattern] CloseBreath (%d / Total:%d)"),
+		CloseBreathCount,
+		TotalPatternCount);
+	/////////////////////////////////
 	SetActorRotation(TelegraphRotation);
 
 	if (CurrentState == EDragonState::Dead)
@@ -359,6 +377,13 @@ void ADragonBoss::CloseBreathAttack()
 
 void ADragonBoss::BreathAttack()
 {
+	/////////////////////////////////////////
+	TargetChangeBreathCount++;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[TargetChange] Breath (%d)"),
+		TargetChangeBreathCount);
+	//////////////////////////////////////////
 	if (CurrentState == EDragonState::Dead)
 	{
 		return;
@@ -408,6 +433,15 @@ void ADragonBoss::BreathAttack()
 
 void ADragonBoss::DebuffAttack()
 {
+	/////////////////////////////////
+	DebuffCount++;
+	TotalPatternCount++;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[Pattern] Debuff (%d / Total:%d)"),
+		DebuffCount,
+		TotalPatternCount);
+	//////////////////////////////////
 	if (CurrentState == EDragonState::Dead)
 	{
 		return;
@@ -493,6 +527,14 @@ void ADragonBoss::FlyToTarget()
 		{
 			return;
 		}
+
+		//////////////////////////////////////
+		TargetChangeFlyCount++;
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("[TargetChange] Fly (%d)"),
+			TargetChangeFlyCount);
+		//////////////////////////////////////
 
 		bIsLeaping = true;
 
@@ -645,6 +687,7 @@ void ADragonBoss::EndStun()
 		TEXT("EndStun Called"));
 
 	bStunned = false;
+	bIsAttacking = false;
 
 	GetCharacterMovement()->SetMovementMode(
 		MOVE_Walking
@@ -800,10 +843,56 @@ void ADragonBoss::ExecutePattern()
 		CenterMechanicPattern();
 		break;
 	}
+	///////////////////////////////////////////////
+	UE_LOG(LogTemp, Warning,
+		TEXT("===== Dragon Pattern Statistics ====="));
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Bite             : %d"),
+		BiteCount);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Close Breath     : %d"),
+		CloseBreathCount);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Debuff           : %d"),
+		DebuffCount);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Target Change    : %d"),
+		TargetChangeCount);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Target Fly       : %d"),
+		TargetChangeFlyCount);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Target Breath    : %d"),
+		TargetChangeBreathCount);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Center Mechanic  : %d"),
+		CenterMechanicCount);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Total            : %d"),
+		TotalPatternCount);
+	
+	///////////////////////////////////////////
 }
 
 void ADragonBoss::TargetChangePattern()
 {
+	/////////////////////////////////
+	TargetChangeCount++;
+	TotalPatternCount++;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[Pattern] TargetChange (%d / Total:%d)"),
+		TargetChangeCount,
+		TotalPatternCount);
+	//////////////////////////////////
 	UE_LOG(LogTemp, Warning,
 		TEXT("Target Change Pattern"));
 
@@ -824,6 +913,15 @@ void ADragonBoss::TargetChangePattern()
 
 void ADragonBoss::CenterMechanicPattern()
 {
+	//////////////////////////////////////////
+	CenterMechanicCount++;
+	TotalPatternCount++;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[Pattern] CenterMechanic (%d / Total:%d)"),
+		CenterMechanicCount,
+		TotalPatternCount);
+	//////////////////////////////////////////
 	UE_LOG(LogTemp, Warning,
 		TEXT("Center Mechanic"));
 

@@ -53,6 +53,18 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	int32 BiteCount = 0;
+	int32 CloseBreathCount = 0;
+	int32 DebuffCount = 0;
+
+	int32 TargetChangeCount = 0;
+	int32 TargetChangeFlyCount = 0;
+	int32 TargetChangeBreathCount = 0;
+
+	int32 CenterMechanicCount = 0;
+
+	int32 TotalPatternCount = 0;
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

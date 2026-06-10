@@ -93,7 +93,7 @@ void ABaseCharacter::BeginPlay()
     {
     case ECharacterType::Paladin:
 
-        MaxHP = 500.f;
+        MaxHP = 1000000.f;
         AttackPower = 100.f;
 
         // Q
@@ -114,7 +114,7 @@ void ABaseCharacter::BeginPlay()
 
     case ECharacterType::Archer:
 
-        MaxHP = 300.f;
+        MaxHP = 1000000.f;
         AttackPower = 200.f;
 
         QMultiplier = 1.5f;
