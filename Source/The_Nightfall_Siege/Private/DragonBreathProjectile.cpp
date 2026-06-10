@@ -9,6 +9,8 @@
 #include "DragonBoss.h"
 #include "BaseCharacter.h"
 #include "Engine/DamageEvents.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 
 // Sets default values
 ADragonBreathProjectile::ADragonBreathProjectile()
@@ -42,6 +44,18 @@ void ADragonBreathProjectile::BeginPlay()
 {
 	Super::BeginPlay();
 	
+    if (ProjectileFX)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            ProjectileFX,
+            RootComponent,
+            NAME_None,
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::KeepRelativeOffset,
+            true
+        );
+    }
 }
 
 // Called every frame
@@ -77,6 +91,15 @@ void ADragonBreathProjectile::OnOverlapBegin(
 
         Reflector->ReflectBreath();
 
+        if (ExplosionFX)
+        {
+            UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+                GetWorld(),
+                ExplosionFX,
+                GetActorLocation()
+            );
+        }
+
         Destroy();
 
         return;
@@ -92,6 +115,15 @@ void ADragonBreathProjectile::OnOverlapBegin(
         float Damage = Player->MaxHP * 0.8f;
 
         Player->TakePlayerDamage(Damage);
+
+        if (ExplosionFX)
+        {
+            UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+                GetWorld(),
+                ExplosionFX,
+                GetActorLocation()
+            );
+        }
 
         Destroy();
 

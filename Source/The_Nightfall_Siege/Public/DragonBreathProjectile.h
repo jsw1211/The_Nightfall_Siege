@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "NiagaraSystem.h"
 #include "DragonBreathProjectile.generated.h"
 
 class USphereComponent;
@@ -40,6 +41,12 @@ protected:
         bool bFromSweep,
         const FHitResult& SweepResult
     );
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
+    TObjectPtr<UNiagaraSystem> ProjectileFX;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
+    TObjectPtr<UNiagaraSystem> ExplosionFX;
 
 public:	
 	// Called every frame

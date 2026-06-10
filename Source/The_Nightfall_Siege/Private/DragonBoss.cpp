@@ -201,7 +201,7 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 	}
 
 	return EDragonAttackType::Debuff;*/
-	return EDragonAttackType::CloseBreath;
+	return EDragonAttackType::Breath;
 }
 
 void ADragonBoss::ExecuteRandomAttack()
