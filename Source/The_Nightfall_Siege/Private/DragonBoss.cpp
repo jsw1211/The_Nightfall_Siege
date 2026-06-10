@@ -201,7 +201,7 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 	}
 
 	return EDragonAttackType::Debuff;*/
-	return EDragonAttackType::Bite;
+	return EDragonAttackType::CloseBreath;
 }
 
 void ADragonBoss::ExecuteRandomAttack()
@@ -344,6 +344,15 @@ void ADragonBoss::CloseBreathAttack()
 	FVector Forward = GetActorForwardVector();
 
 	FVector BreathCenter = MouthLocation + Forward * 700.f;
+
+	if (CloseBreathFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			CloseBreathFX,
+			BreathCenter
+		);
+	}
 
 	TArray<AActor*> Players;
 

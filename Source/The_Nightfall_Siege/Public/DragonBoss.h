@@ -251,4 +251,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
 	TObjectPtr<UNiagaraSystem> BiteFX;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
+	TObjectPtr<UNiagaraSystem> CloseBreathFX;
+
 };
