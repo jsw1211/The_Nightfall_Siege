@@ -784,7 +784,7 @@ void ADragonBoss::ExecutePattern()
 
 	UE_LOG(LogTemp, Warning, TEXT("ExecutePattern"));
 
-	EDragonPatternType Pattern = EDragonPatternType::TargetChange;
+	EDragonPatternType Pattern = ChoosePattern();
 
 	switch (Pattern)
 	{
