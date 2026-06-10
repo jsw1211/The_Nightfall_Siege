@@ -5,7 +5,7 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 
-#include "RaidGameInstance.h"
+#include "TheNightfallSiegeInstance.h"
 
 #include "Kismet/GameplayStatics.h"
 

@@ -19,4 +19,21 @@ class THE_NIGHTFALL_SIEGE_API UTheNightfallSiegeInstance : public UGameInstance
 public:
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     ECharacterType SelectedCharacter = ECharacterType::Paladin;
+
+	UPROPERTY(BlueprintReadWrite)
+	TArray<FName> RemainingDungeons;
+
+	UPROPERTY(BlueprintReadWrite)
+	FName CurrentDungeon;
+
+	UPROPERTY(BlueprintReadWrite)
+	int32 ClearedDungeonCount;
+
+	void StartRaid();
+
+	FName SelectNextDungeon();
+
+	bool ClearCurrentDungeon();
+
+	virtual void Init() override;
 };
