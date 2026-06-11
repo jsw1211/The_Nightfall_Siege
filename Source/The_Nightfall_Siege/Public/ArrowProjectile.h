@@ -17,6 +17,7 @@ UENUM(BlueprintType)
 enum class EArrowType : uint8
 {
 	Normal,
+	QExplosive,
 	Explosive,
 	Pierce
 };
@@ -58,11 +59,23 @@ public:
 
 	void Explode();
 
+	UPROPERTY(EditAnywhere)
+	float QExplosionRadius = 120.f;
+
+	UPROPERTY(EditAnywhere)
+	float EExplosionRadius = 300.f;
+
 	UFUNCTION()
 	void OnProjectileStop(const FHitResult& ImpactResult);
 
 	UPROPERTY(EditAnywhere, Category = "VFX")
 	TObjectPtr<UNiagaraSystem> TrailFX;
+
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	TObjectPtr<UNiagaraSystem> QImpactFX;
+
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	TObjectPtr<UNiagaraSystem> EImpactFX;
 
 protected:
 	// Called when the game starts or when spawned

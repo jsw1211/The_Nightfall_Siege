@@ -1535,7 +1535,7 @@ void ABaseCharacter::SpawnQArrow()
         if (Arrow)
         {
             Arrow->OwnerCharacter = this;
-            Arrow->ArrowType = EArrowType::Normal;
+            Arrow->ArrowType = EArrowType::QExplosive;
 
             Arrow->DamageMultiplier = QMultiplier;
         }

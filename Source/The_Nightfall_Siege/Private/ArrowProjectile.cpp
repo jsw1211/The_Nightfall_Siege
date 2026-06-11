@@ -89,7 +89,8 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 
 		Monster->TakeMonsterDamage(Damage);
 
-		if (ArrowType == EArrowType::Explosive)
+		if (ArrowType == EArrowType::Explosive ||
+			ArrowType == EArrowType::QExplosive)
 		{
 			Explode();
 			return;
@@ -120,7 +121,8 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 
 		UE_LOG(LogTemp, Warning, TEXT("Arrow Hit Dragon"));
 
-		if (ArrowType == EArrowType::Explosive)
+		if (ArrowType == EArrowType::Explosive ||
+			ArrowType == EArrowType::QExplosive)
 		{
 			Explode();
 			return;
@@ -138,9 +140,38 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 
 void AArrowProjectile::Explode()
 {
+	if (ArrowType == EArrowType::QExplosive)
+	{
+		if (QImpactFX)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+				GetWorld(),
+				QImpactFX,
+				GetActorLocation());
+		}
+	}
+	else
+	{
+		if (EImpactFX)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+				GetWorld(),
+				EImpactFX,
+				GetActorLocation());
+		}
+	}
+
 	TArray<FOverlapResult> Overlaps;
 
-	FCollisionShape Sphere = FCollisionShape::MakeSphere(300.f);
+	float Radius = EExplosionRadius;
+
+	if (ArrowType == EArrowType::QExplosive)
+	{
+		Radius = QExplosionRadius;
+	}
+
+	FCollisionShape Sphere =
+		FCollisionShape::MakeSphere(Radius);
 
 	bool bHit =
 		GetWorld()->OverlapMultiByChannel(Overlaps, GetActorLocation(), FQuat::Identity, ECC_Pawn, Sphere);
@@ -180,7 +211,8 @@ void AArrowProjectile::Explode()
 void AArrowProjectile::OnProjectileStop(
 	const FHitResult& ImpactResult)
 {
-	if (ArrowType == EArrowType::Explosive)
+	if (ArrowType == EArrowType::Explosive ||
+		ArrowType == EArrowType::QExplosive)
 	{
 		Explode();
 	}
