@@ -14,6 +14,7 @@
 #include "CharacterType.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
+#include "NiagaraComponent.h"
 #include "BaseCharacter.generated.h"
 
 class USkillTreeWidget;
@@ -455,6 +456,11 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "VFX")
 	UNiagaraSystem* RSkillEffect;
 
+	UPROPERTY()
+	UNiagaraComponent* WAreaComponent;
+
+	UFUNCTION()
+	void EndArcherWBuff();
 
 	// Weapon & Socket
 	UPROPERTY(EditDefaultsOnly, Category = "Socket")

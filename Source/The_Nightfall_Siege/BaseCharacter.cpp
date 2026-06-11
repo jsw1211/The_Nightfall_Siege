@@ -501,6 +501,20 @@ void ABaseCharacter::W(const FInputActionValue& Value)
     {
         AttackSpeed = BuffAttackSpeed;
 
+        if (WSkillEffect)
+        {
+            WAreaComponent =
+                UNiagaraFunctionLibrary::SpawnSystemAttached(
+                    WSkillEffect,
+                    GetRootComponent(),
+                    NAME_None,
+                    FVector::ZeroVector,
+                    FRotator::ZeroRotator,
+                    EAttachLocation::KeepRelativeOffset,
+                    true
+                );
+        }
+
         UE_LOG(LogTemp, Warning,
             TEXT("Attack Speed Buff Start : %f"),
             AttackSpeed);
@@ -511,7 +525,7 @@ void ABaseCharacter::W(const FInputActionValue& Value)
         GetWorldTimerManager().SetTimer(
             AttackSpeedBuffHandle,
             this,
-            &ABaseCharacter::EndAttackSpeedBuff,
+            &ABaseCharacter::EndArcherWBuff,
             5.f,
             false);
 
@@ -1721,5 +1735,16 @@ void ABaseCharacter::OnPrismUnequipFinished()
 
     GetCharacterMovement()->SetMovementMode(
         MOVE_Walking);
+}
+
+void ABaseCharacter::EndArcherWBuff()
+{
+    AttackSpeed = DefaultAttackSpeed;
+
+    if (WAreaComponent)
+    {
+        WAreaComponent->DestroyComponent();
+        WAreaComponent = nullptr;
+    }
 }
 
