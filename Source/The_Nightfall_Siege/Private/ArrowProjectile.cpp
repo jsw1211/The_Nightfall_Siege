@@ -8,6 +8,8 @@
 #include "BaseCharacter.h"
 #include "Engine/OverlapResult.h"
 #include "DragonBoss.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 
 // Sets default values
 AArrowProjectile::AArrowProjectile()
@@ -48,6 +50,19 @@ void AArrowProjectile::BeginPlay()
 	Collision->OnComponentBeginOverlap.AddDynamic(this, &AArrowProjectile::OnArrowOverlap);
 
 	ProjectileMovement->OnProjectileStop.AddDynamic(this,&AArrowProjectile::OnProjectileStop);
+
+	if (TrailFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAttached(
+			TrailFX,
+			RootComponent,
+			NAME_None,
+			FVector::ZeroVector,
+			FRotator::ZeroRotator,
+			EAttachLocation::KeepRelativeOffset,
+			true
+		);
+	}
 }
 
 // Called every frame

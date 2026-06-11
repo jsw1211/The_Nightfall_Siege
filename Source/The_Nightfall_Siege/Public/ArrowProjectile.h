@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "NiagaraSystem.h"
 #include "ArrowProjectile.generated.h"
 
 class USphereComponent;
@@ -59,6 +60,9 @@ public:
 
 	UFUNCTION()
 	void OnProjectileStop(const FHitResult& ImpactResult);
+
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	TObjectPtr<UNiagaraSystem> TrailFX;
 
 protected:
 	// Called when the game starts or when spawned
