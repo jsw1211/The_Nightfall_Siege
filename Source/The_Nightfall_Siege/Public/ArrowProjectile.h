@@ -69,13 +69,21 @@ public:
 	void OnProjectileStop(const FHitResult& ImpactResult);
 
 	UPROPERTY(EditAnywhere, Category = "VFX")
-	TObjectPtr<UNiagaraSystem> TrailFX;
+	TObjectPtr<UNiagaraSystem> ArcherTrailFX;
+
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	TObjectPtr<UNiagaraSystem> ArcherRTrailFX;
 
 	UPROPERTY(EditAnywhere, Category = "VFX")
 	TObjectPtr<UNiagaraSystem> QImpactFX;
 
 	UPROPERTY(EditAnywhere, Category = "VFX")
 	TObjectPtr<UNiagaraSystem> EImpactFX;
+
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	TObjectPtr<UNiagaraSystem> RImpactFX;
+
+	void SetupTrail();
 
 protected:
 	// Called when the game starts or when spawned

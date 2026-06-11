@@ -51,18 +51,6 @@ void AArrowProjectile::BeginPlay()
 
 	ProjectileMovement->OnProjectileStop.AddDynamic(this,&AArrowProjectile::OnProjectileStop);
 
-	if (TrailFX)
-	{
-		UNiagaraFunctionLibrary::SpawnSystemAttached(
-			TrailFX,
-			RootComponent,
-			NAME_None,
-			FVector::ZeroVector,
-			FRotator::ZeroRotator,
-			EAttachLocation::KeepRelativeOffset,
-			true
-		);
-	}
 }
 
 // Called every frame
@@ -88,6 +76,18 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 		float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
 
 		Monster->TakeMonsterDamage(Damage);
+
+		if (ArrowType == EArrowType::Pierce)
+		{
+			if (RImpactFX)
+			{
+				UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+					GetWorld(),
+					RImpactFX,
+					SweepResult.ImpactPoint
+				);
+			}
+		}
 
 		if (ArrowType == EArrowType::Explosive ||
 			ArrowType == EArrowType::QExplosive)
@@ -116,6 +116,18 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 			Damage += Dragon->MaxHP * 0.05f;
 		}
 		Dragon->TakeBossDamage(Damage);
+
+		if (ArrowType == EArrowType::Pierce)
+		{
+			if (RImpactFX)
+			{
+				UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+					GetWorld(),
+					RImpactFX,
+					SweepResult.ImpactPoint
+				);
+			}
+		}
 
 		UE_LOG(LogTemp, Warning, TEXT("Arrow Damage : %f"),	Damage);
 
@@ -219,6 +231,40 @@ void AArrowProjectile::OnProjectileStop(
 	else
 	{
 		Destroy();
+	}
+}
+
+void AArrowProjectile::SetupTrail()
+{
+	if (ArrowType == EArrowType::Pierce)
+	{
+		if (ArcherRTrailFX)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAttached(
+				ArcherRTrailFX,
+				RootComponent,
+				NAME_None,
+				FVector::ZeroVector,
+				FRotator::ZeroRotator,
+				EAttachLocation::KeepRelativeOffset,
+				true
+			);
+		}
+	}
+	else
+	{
+		if (ArcherTrailFX)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAttached(
+				ArcherTrailFX,
+				RootComponent,
+				NAME_None,
+				FVector::ZeroVector,
+				FRotator::ZeroRotator,
+				EAttachLocation::KeepRelativeOffset,
+				true
+			);
+		}
 	}
 }
 

@@ -1512,6 +1512,7 @@ void ABaseCharacter::SpawnArrow()
     {
         Arrow->OwnerCharacter = this;
         Arrow->DamageMultiplier = 1.f;
+        Arrow->SetupTrail();
     }
 }
 
@@ -1550,6 +1551,7 @@ void ABaseCharacter::SpawnQArrow()
         {
             Arrow->OwnerCharacter = this;
             Arrow->ArrowType = EArrowType::QExplosive;
+            Arrow->SetupTrail();
 
             Arrow->DamageMultiplier = QMultiplier;
         }
@@ -1579,8 +1581,12 @@ void ABaseCharacter::SpawnRArrow()
     if (Arrow)
     {
         Arrow->OwnerCharacter = this;
+
         Arrow->ArrowType = EArrowType::Pierce;
+
         Arrow->DamageMultiplier = RMultiplier;
+
+        Arrow->SetupTrail();
 
         Arrow->SetActorScale3D(FVector(3.f, 3.f, 3.f));
     }
@@ -1611,6 +1617,7 @@ void ABaseCharacter::SpawnEArrow()
         Arrow->OwnerCharacter = this;
 
         Arrow->ArrowType = EArrowType::Explosive;
+        Arrow->SetupTrail();
 
         Arrow->DamageMultiplier = EMultiplier;
 
