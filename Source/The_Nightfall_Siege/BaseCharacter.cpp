@@ -424,13 +424,13 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
         UNiagaraFunctionLibrary::SpawnSystemAttached(
             QSkillEffect,
             GetMesh(),
-            TEXT("LeftHandSocket"), // 规菩 率
-            FVector::ZeroVector,
+            TEXT("SwordSocket"), // 规菩 率
+            FVector(0, 0, 50),
             FRotator::ZeroRotator,
             EAttachLocation::SnapToTarget,
             true
         );
-    } // VFX
+    } // VFX    
 
     bCanUseQ = false;
 
@@ -470,6 +470,13 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
             {
                 Monster->TakeMonsterDamage(
                     AttackPower * QMultiplier);
+                if (QImpactEffect)
+                {
+                    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+                        GetWorld(),
+                        QImpactEffect,
+                        Monster->GetActorLocation() + FVector(0, 0, 80));
+                }
             }
 
             ADragonBoss* Dragon = Cast<ADragonBoss>(Result.GetActor());
@@ -477,6 +484,14 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
             if (Dragon)
             {
                 Dragon->TakeBossDamage(AttackPower * QMultiplier);
+
+                if (QImpactEffect)
+                {
+                    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+                        GetWorld(),
+                        QImpactEffect,
+                        Dragon->GetActorLocation() + FVector(0, 0, 120));
+                }
 
                 UE_LOG(LogTemp, Warning,
                     TEXT("Dragon Hit By Q"));

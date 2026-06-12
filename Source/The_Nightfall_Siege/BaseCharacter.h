@@ -449,6 +449,10 @@ protected:
 	//VFX
 	UPROPERTY(EditAnywhere, Category = "VFX")
 	UNiagaraSystem* QSkillEffect;
+
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	UNiagaraSystem* QImpactEffect;
+
 	UPROPERTY(EditAnywhere, Category = "VFX")
 	UNiagaraSystem* WSkillEffect;
 	UPROPERTY(EditAnywhere, Category = "VFX")
