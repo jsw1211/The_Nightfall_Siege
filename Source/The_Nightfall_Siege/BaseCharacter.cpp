@@ -425,7 +425,7 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
             QSkillEffect,
             GetMesh(),
             TEXT("SwordSocket"), // ¹æÆÐ ÂÊ
-            FVector(0, 0, 50),
+            FVector::ZeroVector,
             FRotator::ZeroRotator,
             EAttachLocation::SnapToTarget,
             true
