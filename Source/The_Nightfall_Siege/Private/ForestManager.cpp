@@ -3,7 +3,7 @@
 
 #include "ForestManager.h"
 #include "DungeonPortal.h"
-#include "RaidGameInstance.h"
+#include "TheNightfallSiegeInstance.h"
 
 // Sets default values
 AForestManager::AForestManager()
@@ -31,8 +31,8 @@ void AForestManager::Tick(float DeltaTime)
 
 void AForestManager::SpawnDungeonPortal()
 {
-	URaidGameInstance* GI =
-		Cast<URaidGameInstance>(GetGameInstance());
+	UTheNightfallSiegeInstance* GI =
+		Cast<UTheNightfallSiegeInstance>(GetGameInstance());
 
 	if (!GI)
 	{

@@ -20,6 +20,17 @@ public:
 
 	/** Constructor */
 	AThe_Nightfall_SiegeGameMode();
+
+	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character")
+	TSubclassOf<APawn> PaladinClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character")
+	TSubclassOf<APawn> ArcherClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character")
+	TSubclassOf<APawn> WarriorClass;
 };
 
 

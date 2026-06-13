@@ -2,12 +2,16 @@
 
 
 #include "DragonBoss.h"
-
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Animation/AnimInstance.h"
 #include "TimerManager.h"
 #include "AIController.h"
+#include "Components/CapsuleComponent.h"
+#include "DungeonPrism.h"
+#include "DragonBreathProjectile.h"
+#include "DangerZone.h"
+#include "NiagaraFunctionLibrary.h"
 
 // Sets default values
 ADragonBoss::ADragonBoss()
@@ -21,8 +25,21 @@ ADragonBoss::ADragonBoss()
 void ADragonBoss::BeginPlay()
 {
 	Super::BeginPlay();
+
+	ArenaCenter = FVector(0.f, 0.f, 0.f);
 	
-	StartAttackCycle();
+	bShielded = true;
+	bCanTakeDamage = false;
+
+	CurrentState = EDragonState::Idle;
+
+	UpdatePlayerList();
+
+	ChooseRandomTarget();
+
+	StartAttackTelegraph(EDragonAttackType::Breath);
+
+	bFirstBreathDone = true;
 }
 
 // Called every frame
@@ -30,28 +47,100 @@ void ADragonBoss::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (TargetPlayer == nullptr)
+	if (bCenterTracking && TargetPlayer)
 	{
-		TargetPlayer = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
+		FVector Direction = TargetPlayer->GetActorLocation() - GetActorLocation();
+
+		Direction.Z = 0.f;
+
+		FRotator TargetRotation = Direction.Rotation();
+
+		SetActorRotation(TargetRotation);
+
+		if (CurrentBreathZone)
+		{
+			FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+
+			FVector Forward =
+				GetActorForwardVector();
+
+			FVector SpawnLocation = MouthLocation + Forward * 500.f;
+
+			CurrentBreathZone->SetActorLocation(SpawnLocation);
+
+			CurrentBreathZone->SetActorRotation(TargetRotation);
+		}
 	}
 
-	if (TargetPlayer && !bIsAttacking)
+	if (bCenterMechanicActive)
 	{
-		float Distance = FVector::Dist(
-			GetActorLocation(),
-			TargetPlayer->GetActorLocation()
-		);
+		float Distance =
+			FVector::Dist(
+				GetActorLocation(),
+				ArenaCenter);
 
-		if (Distance < 1200.f)
+		if (Distance <= 200.f && !bCenterBreathStarted)
 		{
-			WalkToTarget();
+			bCenterBreathStarted = true;
+
+			UE_LOG(LogTemp, Warning,
+				TEXT("Center Arrived"));
+
+			bCenterTracking = true;
+
+			StartAttackTelegraph(
+				EDragonAttackType::Breath);
+
+			return;
 		}
-		else
+
+		return;
+	}
+
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
+	if (!TargetPlayer || TargetPlayer->IsDead())
+	{
+		ChooseRandomTarget();
+	}
+
+	if (bCenterMechanicActive)
+	{
+		return;
+	}
+
+	if (TargetPlayer && !bIsAttacking && !bStunned && !bIsTelegraphing)
+	{
+		float Distance = FVector::Dist(GetActorLocation(), TargetPlayer->GetActorLocation());
+
+		const float CombatRange = 700.f;
+
+		if (bIsFlying)
 		{
 			FlyToTarget();
 		}
+		else
+		{
+			if (Distance > 2000.f)
+			{
+				FlyToTarget();
+			}
+			else if (Distance > AttackRange)
+			{
+				WalkToTarget();
+			}
+			else
+			{
+				if (!GetWorldTimerManager().IsTimerActive(AttackTimerHandle))
+				{
+					StartAttackCycle();
+				}
+			}
+		}
 	}
-
 }
 
 // Called to bind functionality to input
@@ -63,12 +152,35 @@ void ADragonBoss::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 
 void ADragonBoss::StartAttackCycle()
 {
-	float RandomDelay = FMath::RandRange(5.f, 7.f);
+	GetWorldTimerManager().ClearTimer(
+		AttackTimerHandle);
+
+	if (bStunned)
+	{
+		return;
+	}
+
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("StartAttackCycle"));
+
+	UpdatePlayerList();
+
+	if (AlivePlayers.Num() == 0)
+	{
+		return;
+	}
+	//ChooseRandomTarget();
+
+	float RandomDelay = FMath::RandRange(1.f, 2.f); // 디버그용으로 1~2초
 
 	GetWorldTimerManager().SetTimer(
 		AttackTimerHandle,
 		this,
-		&ADragonBoss::ExecuteRandomAttack,
+		&ADragonBoss::ExecutePattern,
 		RandomDelay,
 		false
 	);
@@ -76,58 +188,49 @@ void ADragonBoss::StartAttackCycle()
 
 EDragonAttackType ADragonBoss::ChooseRandomAttack()
 {
-	int32 Rand = FMath::RandRange(1, 100);
+	/*int32 Rand = FMath::RandRange(1, 100);
 
-	// Bite 35%
-	if (Rand <= 35)
+	if (Rand <= 50)
 	{
 		return EDragonAttackType::Bite;
 	}
 
-	// Close Breath 35%
-	else if (Rand <= 70)
+	if (Rand <= 90)
 	{
 		return EDragonAttackType::CloseBreath;
 	}
 
-	// Breath 20%
-	else if (Rand <= 90)
-	{
-		return EDragonAttackType::Breath;
-	}
-
-	// Debuff 10%
-	return EDragonAttackType::Debuff;
+	return EDragonAttackType::Debuff;*/
+	return EDragonAttackType::Breath;
 }
 
 void ADragonBoss::ExecuteRandomAttack()
 {
-	EDragonAttackType AttackType = ChooseRandomAttack();
+	EDragonAttackType AttackType =
+		ChooseRandomAttack();
 
-	switch (AttackType)
-	{
-	case EDragonAttackType::Bite:
-		BiteAttack();
-		break;
-
-	case EDragonAttackType::CloseBreath:
-		CloseBreathAttack();
-		break;
-
-	case EDragonAttackType::Breath:
-		BreathAttack();
-		break;
-
-	case EDragonAttackType::Debuff:
-		DebuffAttack();
-		break;
-	}
-
-	StartAttackCycle();
+	StartAttackTelegraph(
+		AttackType);
 }
 
 void ADragonBoss::BiteAttack()
 {
+	///////////////////////////////////// Debug Log
+	BiteCount++;
+	TotalPatternCount++;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[Pattern] Bite (%d / Total:%d)"),
+		BiteCount,
+		TotalPatternCount);
+	/////////////////////////////////////
+	SetActorRotation(TelegraphRotation);
+
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
 	bIsAttacking = true;
 
 	AAIController* AIController = Cast<AAIController>(GetController());
@@ -143,6 +246,46 @@ void ADragonBoss::BiteAttack()
 
 	float Damage = AttackPower * 1.0f;
 
+	FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+
+	FVector Forward = GetActorForwardVector();
+
+	FVector BiteCenter = MouthLocation + Forward * 500.f;
+
+	if (BiteFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			BiteFX,
+			BiteCenter,
+			FRotator::ZeroRotator,
+			FVector(3.f)
+		);
+	}
+
+	TArray<AActor*> Players;
+
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+
+	for (AActor* Actor : Players)
+	{
+		ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
+
+		if (!Player)
+		{
+			continue;
+		}
+
+		float Distance = FVector::Dist(Player->GetActorLocation(), BiteCenter);
+
+		if (Distance <= 350.f)
+		{
+			Player->TakePlayerDamage(Damage);
+
+			UE_LOG(LogTemp, Warning, TEXT("Bite Hit : %s"), *Player->GetName());
+		}
+	}
+
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 
 	if (AnimInstance && BiteMontage)
@@ -156,7 +299,7 @@ void ADragonBoss::BiteAttack()
 		AttackEndHandle,
 		[this]()
 		{
-			bIsAttacking = false;
+			OnAttackFinished();
 		},
 		2.0f,
 		false
@@ -165,6 +308,22 @@ void ADragonBoss::BiteAttack()
 
 void ADragonBoss::CloseBreathAttack()
 {
+	////////////////////////////////
+	CloseBreathCount++;
+	TotalPatternCount++;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[Pattern] CloseBreath (%d / Total:%d)"),
+		CloseBreathCount,
+		TotalPatternCount);
+	/////////////////////////////////
+	SetActorRotation(TelegraphRotation);
+
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
 	bIsAttacking = true;
 
 	AAIController* AIController = Cast<AAIController>(GetController());
@@ -180,6 +339,44 @@ void ADragonBoss::CloseBreathAttack()
 
 	float Damage = AttackPower * 2.0f;
 
+	FVector MouthLocation = GetMesh()->GetSocketLocation( TEXT("MouthSocket"));
+
+	FVector Forward = GetActorForwardVector();
+
+	FVector BreathCenter = MouthLocation + Forward * 700.f;
+
+	if (CloseBreathFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			CloseBreathFX,
+			BreathCenter
+		);
+	}
+
+	TArray<AActor*> Players;
+
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+
+	for (AActor* Actor : Players)
+	{
+		ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
+
+		if (!Player)
+		{
+			continue;
+		}
+
+		float Distance = FVector::Dist( Player->GetActorLocation(), BreathCenter);
+
+		if (Distance <= 350.f)
+		{
+			Player->TakePlayerDamage(Damage);
+
+			UE_LOG(LogTemp, Warning, TEXT("Close Breath Hit : %s"), *Player->GetName());
+		}
+	}
+
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 
 	if (AnimInstance && CloseBreathMontage)
@@ -193,7 +390,7 @@ void ADragonBoss::CloseBreathAttack()
 		AttackEndHandle,
 		[this]()
 		{
-			bIsAttacking = false;
+			OnAttackFinished();
 		},
 		3.0f,
 		false
@@ -202,6 +399,18 @@ void ADragonBoss::CloseBreathAttack()
 
 void ADragonBoss::BreathAttack()
 {
+	/////////////////////////////////////////
+	TargetChangeBreathCount++;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[TargetChange] Breath (%d)"),
+		TargetChangeBreathCount);
+	//////////////////////////////////////////
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
 	bIsAttacking = true;
 
 	AAIController* AIController = Cast<AAIController>(GetController());
@@ -214,6 +423,15 @@ void ADragonBoss::BreathAttack()
 	CurrentState = EDragonState::Flying;
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Breath"));
+
+	if (BreathProjectileClass)
+	{
+		FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 200.f;
+
+		FRotator SpawnRotation = GetActorRotation();
+
+		GetWorld()->SpawnActor<ADragonBreathProjectile>(BreathProjectileClass, SpawnLocation, SpawnRotation);
+	}
 
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 
@@ -228,7 +446,7 @@ void ADragonBoss::BreathAttack()
 		AttackEndHandle,
 		[this]()
 		{
-			bIsAttacking = false;
+			OnAttackFinished();
 		},
 		4.0f,
 		false
@@ -237,6 +455,20 @@ void ADragonBoss::BreathAttack()
 
 void ADragonBoss::DebuffAttack()
 {
+	/////////////////////////////////
+	DebuffCount++;
+	TotalPatternCount++;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[Pattern] Debuff (%d / Total:%d)"),
+		DebuffCount,
+		TotalPatternCount);
+	//////////////////////////////////
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
 	bIsAttacking = true;
 
 	AAIController* AIController = Cast<AAIController>(GetController());
@@ -248,11 +480,40 @@ void ADragonBoss::DebuffAttack()
 
 	CurrentState = EDragonState::Attacking;
 
-	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Debuff"));
+	UE_LOG(LogTemp, Warning,
+		TEXT("Dragon Used Debuff"));
 
-	// TODO:
-	// 시야 제한
-	// HP 감소 디버프
+	TArray<AActor*> Prisms;
+
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(),
+		ADungeonPrism::StaticClass(),
+		Prisms);
+
+	for (AActor* Actor : Prisms)
+	{
+		ADungeonPrism* Prism =
+			Cast<ADungeonPrism>(Actor);
+
+		if (Prism)
+		{
+			Prism->ActivatePrism();
+		}
+	}
+
+	UpdatePlayerList();
+
+	for (ABaseCharacter* Player : AlivePlayers)
+	{
+		if (Player)
+		{
+			Player->bDarknessDebuff = true;
+
+			UE_LOG(LogTemp, Warning,
+				TEXT("%s Darkness Debuff"),
+				*Player->GetName());
+		}
+	}
 
 	FTimerHandle AttackEndHandle;
 
@@ -260,7 +521,7 @@ void ADragonBoss::DebuffAttack()
 		AttackEndHandle,
 		[this]()
 		{
-			bIsAttacking = false;
+			OnAttackFinished();
 		},
 		2.5f,
 		false
@@ -269,22 +530,14 @@ void ADragonBoss::DebuffAttack()
 
 void ADragonBoss::WalkToTarget()
 {
-	if (bIsFlying)
-	{
-		bIsFlying = false;
-
-		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
-
-		CurrentState = EDragonState::Walking;
-
-		UE_LOG(LogTemp, Warning, TEXT("Dragon Walking"));
-	}
-
-	AAIController* AIController = Cast<AAIController>(GetController());
+	AAIController* AIController =
+		Cast<AAIController>(GetController());
 
 	if (AIController && TargetPlayer)
 	{
-		AIController->MoveToActor(TargetPlayer, 150.f);
+		AIController->MoveToActor(
+			TargetPlayer,
+			AttackRange);
 	}
 }
 
@@ -292,21 +545,63 @@ void ADragonBoss::FlyToTarget()
 {
 	if (!bIsFlying)
 	{
-		bIsFlying = true;
+		if (bIsLeaping)
+		{
+			return;
+		}
 
-		GetCharacterMovement()->SetMovementMode(MOVE_Flying);
+		//////////////////////////////////////
+		TargetChangeFlyCount++;
 
-		CurrentState = EDragonState::Flying;
+		UE_LOG(LogTemp, Warning,
+			TEXT("[TargetChange] Fly (%d)"),
+			TargetChangeFlyCount);
+		//////////////////////////////////////
 
-		UE_LOG(LogTemp, Warning, TEXT("Dragon Flying"));
+		bIsLeaping = true;
+
+		CurrentState = EDragonState::Leap;
+
+		PlayAnimMontage(LeapMontage);
+
+		return;
 	}
 
-	AAIController* AIController = Cast<AAIController>(GetController());
+	float Distance =
+		FVector::Dist(
+			GetActorLocation(),
+			TargetPlayer->GetActorLocation());
 
-	if (AIController && TargetPlayer)
+	if (Distance <= AttackRange)
 	{
-		AIController->MoveToActor(TargetPlayer, 300.f);
+		bIsFlying = false;
+
+		CurrentState =
+			EDragonState::Landing;
+
+		PlayAnimMontage(
+			LandMontage);
+
+		return;
 	}
+
+	FVector TargetLoc =
+		TargetPlayer->GetActorLocation();
+
+	TargetLoc.Z += 300.f;
+
+	FVector NewLocation =
+		FMath::VInterpConstantTo(
+			GetActorLocation(),
+			TargetLoc,
+			GetWorld()->GetDeltaSeconds(),
+			1200.f);
+
+	SetActorLocation(NewLocation);
+
+	SetActorRotation(
+		(TargetLoc - GetActorLocation())
+		.Rotation());
 }
 
 void ADragonBoss::FlyToCenter()
@@ -317,9 +612,623 @@ void ADragonBoss::FlyToCenter()
 
 	CurrentState = EDragonState::Flying;
 
-	UE_LOG(LogTemp, Warning, TEXT("Dragon Flying To Center"));
+	UE_LOG(LogTemp, Warning,
+		TEXT("Dragon Flying To Center"));
 
-	// TODO:
-	// AI Move To ArenaCenter
+	AAIController* AIController =
+		Cast<AAIController>(GetController());
+
+	if (AIController)
+	{
+		AIController->MoveToLocation(
+			ArenaCenter,
+			100.f
+		);
+	}
+
+	UE_LOG(LogTemp, Error,
+		TEXT("Moving To Center : %s"),
+		*ArenaCenter.ToString());
+}
+
+void ADragonBoss::TakeBossDamage(float Damage)
+{
+	if (!bCanTakeDamage)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("Dragon Is Invincible"));
+		return;
+	}
+
+	CurrentHP -= Damage;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Dragon HP : %f"),
+		CurrentHP);
+
+	if (CurrentHP <= 0.f)
+	{
+		Die();
+	}
+}
+
+void ADragonBoss::OnBreathReflected()
+{
+	if (bCenterMechanicActive)
+	{
+		OnCenterMechanicSuccess();
+		return;
+	}
+
+	if (!bShielded)
+	{
+		float Damage = MaxHP * 0.1f;
+
+		CurrentHP -= Damage;
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("Reflect Damage : %f"),
+			Damage);
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("Boss HP : %f"),
+			CurrentHP);
+
+		if (CurrentHP <= 0.f)
+		{
+			Die();
+		}
+
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Shield Broken"));
+
+	bShielded = false;
+	bCanTakeDamage = true;
+
+	bStunned = true;
+
+	CurrentState = EDragonState::Attacking;
+
+	GetCharacterMovement()->DisableMovement();
+
+	GetWorldTimerManager().SetTimer(
+		StunTimerHandle,
+		this,
+		&ADragonBoss::EndStun,
+		5.f,
+		false
+	);
+}
+
+void ADragonBoss::EndStun()
+{
+	UE_LOG(LogTemp, Error,
+		TEXT("EndStun Called"));
+
+	bStunned = false;
+	bIsAttacking = false;
+
+	GetCharacterMovement()->SetMovementMode(
+		MOVE_Walking
+	);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Stun End"));
+
+	StartAttackCycle();
+}
+
+void ADragonBoss::UpdatePlayerList()
+{
+	AlivePlayers.Empty();
+
+	TArray<AActor*> FoundPlayers;
+
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(),
+		ABaseCharacter::StaticClass(),
+		FoundPlayers
+	);
+
+	for (AActor* Actor : FoundPlayers)
+	{
+		ABaseCharacter* Player =
+			Cast<ABaseCharacter>(Actor);
+
+		if (Player && !Player->IsDead())
+		{
+			AlivePlayers.Add(Player);
+		}
+	}
+}
+
+void ADragonBoss::ChooseRandomTarget()
+{
+	UpdatePlayerList();
+
+	if (AlivePlayers.Num() == 0)
+	{
+		TargetPlayer = nullptr;
+		return;
+	}
+
+	int32 RandomIndex =
+		FMath::RandRange(
+			0,
+			AlivePlayers.Num() - 1
+		);
+
+	TargetPlayer = AlivePlayers[RandomIndex];
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("New Target : %s"),
+		*TargetPlayer->GetName());
+
+	bIsLeaping = false;
+	bIsFlying = false;
+	bIsAttacking = false;
+
+	CurrentState = EDragonState::Walking;
+}
+
+EDragonPatternType ADragonBoss::ChoosePattern()
+{
+	int32 Rand = FMath::RandRange(1, 100);
+
+	if (Rand <= 70)
+	{
+		return EDragonPatternType::NormalAttack;
+	}
+
+	if (Rand <= 90)
+	{
+		return EDragonPatternType::TargetChange;
+	}
+
+	return EDragonPatternType::CenterMechanic;
+}
+
+void ADragonBoss::ExecutePattern()
+{
+	if (!TargetPlayer || TargetPlayer->IsDead())
+	{
+		ChooseRandomTarget();
+
+		if (!TargetPlayer)
+		{
+			return;
+		}
+	}
+
+	if (CurrentState == EDragonState::Flying ||
+		CurrentState == EDragonState::Leap ||
+		CurrentState == EDragonState::Landing)
+	{
+		return;
+	}
+
+	float Distance =
+		FVector::Dist(
+			GetActorLocation(),
+			TargetPlayer->GetActorLocation());
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("ExecutePattern Distance = %f"),
+		Distance);
+
+	if (Distance > AttackRange)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("Target Out Of Range : %f"), Distance);
+
+		if (Distance > 2000.f)
+		{
+			FlyToTarget();
+		}
+		else
+		{
+			WalkToTarget();
+		}
+
+		StartAttackCycle();
+		return;
+	}
+
+	if (bStunned)
+	{
+		return;
+	}
+
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("ExecutePattern"));
+
+	EDragonPatternType Pattern = ChoosePattern();
+
+	switch (Pattern)
+	{
+	case EDragonPatternType::NormalAttack:
+		ExecuteRandomAttack();
+		break;
+
+	case EDragonPatternType::TargetChange:
+		TargetChangePattern();
+		break;
+
+	case EDragonPatternType::CenterMechanic:
+		CenterMechanicPattern();
+		break;
+	}
+	///////////////////////////////////////////////
+	UE_LOG(LogTemp, Warning,
+		TEXT("===== Dragon Pattern Statistics ====="));
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Bite             : %d"),
+		BiteCount);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Close Breath     : %d"),
+		CloseBreathCount);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Debuff           : %d"),
+		DebuffCount);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Target Change    : %d"),
+		TargetChangeCount);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Target Fly       : %d"),
+		TargetChangeFlyCount);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Target Breath    : %d"),
+		TargetChangeBreathCount);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Center Mechanic  : %d"),
+		CenterMechanicCount);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Total            : %d"),
+		TotalPatternCount);
+	
+	///////////////////////////////////////////
+}
+
+void ADragonBoss::TargetChangePattern()
+{
+	/////////////////////////////////
+	TargetChangeCount++;
+	TotalPatternCount++;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[Pattern] TargetChange (%d / Total:%d)"),
+		TargetChangeCount,
+		TotalPatternCount);
+	//////////////////////////////////
+	UE_LOG(LogTemp, Warning,
+		TEXT("Target Change Pattern"));
+
+	ChooseRandomTarget();
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("TargetChange Distance=%f"),
+		FVector::Dist(
+			GetActorLocation(),
+			TargetPlayer->GetActorLocation()));
+
+	bIsAttacking = false;
+
+	CurrentState = EDragonState::Walking;
+
+	StartAttackCycle();
+}
+
+void ADragonBoss::CenterMechanicPattern()
+{
+	//////////////////////////////////////////
+	CenterMechanicCount++;
+	TotalPatternCount++;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[Pattern] CenterMechanic (%d / Total:%d)"),
+		CenterMechanicCount,
+		TotalPatternCount);
+	//////////////////////////////////////////
+	UE_LOG(LogTemp, Warning,
+		TEXT("Center Mechanic"));
+
+	bCenterMechanicActive = true;
+
+	FlyToCenter();
+
+	ChooseRandomTarget();
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Center Target : %s"),
+		*TargetPlayer->GetName());
+
+	GetWorldTimerManager().SetTimer(
+		CenterFailHandle,
+		this,
+		&ADragonBoss::StartAttackCycle,
+		8.f,
+		false
+	);
+}
+
+void ADragonBoss::OnCenterMechanicSuccess()
+{
+	if (!bCenterMechanicActive)
+	{
+		return;
+	}
+
+	float Damage = MaxHP * 0.1f;
+
+	CurrentHP -= Damage;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Center Mechanic Success"));
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Damage : %f"),
+		Damage);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Boss HP : %f"),
+		CurrentHP);
+
+	bCenterMechanicActive = false;
+
+	StartAttackCycle();
+
+	GetWorldTimerManager().ClearTimer(
+		CenterFailHandle
+	);
+}
+
+void ADragonBoss::OnAttackFinished()
+{
+	UpdatePlayerList();
+
+	if (!TargetPlayer || TargetPlayer->IsDead())
+	{
+		ChooseRandomTarget();
+	}
+
+	bIsAttacking = false;
+
+	StartAttackCycle();
+}
+
+void ADragonBoss::Die()
+{
+	CurrentState = EDragonState::Dead;
+
+	bIsAttacking = false;
+
+	GetCharacterMovement()->DisableMovement();
+
+	GetWorldTimerManager().ClearTimer(
+		AttackTimerHandle
+	);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Dragon Dead"));
+
+	GetWorldTimerManager().ClearTimer(
+		TelegraphHandle);
+
+	GetWorldTimerManager().ClearTimer(
+		StunTimerHandle);
+
+	GetWorldTimerManager().ClearTimer(
+		CenterFailHandle);
+}
+
+void ADragonBoss::StartAttackTelegraph(
+	EDragonAttackType AttackType)
+{
+	AAIController* AIController =
+		Cast<AAIController>(GetController());
+
+	if (AIController)
+	{
+		AIController->StopMovement();
+	}
+
+	GetCharacterMovement()
+		->StopMovementImmediately();
+
+	bIsTelegraphing = true;
+
+	bIsAttacking = true;
+
+	if (TargetPlayer)
+	{
+		FVector Direction =
+			TargetPlayer->GetActorLocation()
+			- GetActorLocation();
+
+		Direction.Z = 0.f;
+
+		TelegraphRotation =
+			Direction.Rotation();
+
+		SetActorRotation(
+			TelegraphRotation);
+	}
+
+	switch (AttackType)
+	{
+	case EDragonAttackType::Bite:
+	{
+		FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+
+		FVector Forward = GetActorForwardVector();
+
+		FVector SpawnLocation = MouthLocation + Forward * 500.f;
+
+		FRotator ZoneRotation = TelegraphRotation;
+
+		ZoneRotation.Pitch = -90.f;
+
+		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, ZoneRotation);
+
+		if (Zone)
+		{
+			Zone->SetBiteShape();
+		}
+
+		break;
+	}
+
+	case EDragonAttackType::CloseBreath:
+	{
+		FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+
+		FVector Forward = GetActorForwardVector();
+
+		FVector SpawnLocation = MouthLocation + Forward * 700.f;
+
+		FRotator ZoneRotation = TelegraphRotation;
+
+		ZoneRotation.Pitch = -90.f;
+
+		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, ZoneRotation);
+
+		if (Zone)
+		{
+			Zone->SetCloseBreathShape();
+		}
+
+		break;
+	}
+
+	case EDragonAttackType::Breath:
+	{
+		FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+
+		FVector Forward = GetActorForwardVector();
+
+		FVector SpawnLocation = MouthLocation + Forward * 500.f;
+
+		FRotator Rot = (TargetPlayer->GetActorLocation() - MouthLocation).Rotation();
+
+		CurrentBreathZone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, Rot);
+
+		if (CurrentBreathZone)
+		{
+			CurrentBreathZone->SetLineShape();
+		}
+
+		break;
+	}
+
+	case EDragonAttackType::Debuff:
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("Debuff Warning"));
+		break;
+	}
+	}
+
+	FTimerDelegate Delegate;
+
+	Delegate.BindLambda(
+		[this, AttackType]()
+		{
+			ExecuteTelegraphedAttack(
+				AttackType);
+		});
+
+	GetWorldTimerManager().SetTimer(
+		TelegraphHandle,
+		Delegate,
+		3.f,
+		false);
+}
+
+void ADragonBoss::ExecuteTelegraphedAttack(
+	EDragonAttackType AttackType)
+{
+	bIsTelegraphing = false;
+
+	switch (AttackType)
+	{
+	case EDragonAttackType::Bite:
+		BiteAttack();
+		break;
+
+	case EDragonAttackType::CloseBreath:
+		CloseBreathAttack();
+		break;
+
+	case EDragonAttackType::Breath:
+		if (CurrentBreathZone)
+		{
+			CurrentBreathZone = nullptr;
+		}
+
+		if (bCenterMechanicActive)
+		{
+			bCenterTracking = false;
+
+			bCenterMechanicActive = false;
+			bCenterBreathStarted = false;
+		}
+
+		BreathAttack();
+		break;
+
+	case EDragonAttackType::Debuff:
+		DebuffAttack();
+		break;
+	}
+}
+
+void ADragonBoss::OnLeapFinished()
+{
+	UE_LOG(LogTemp, Error,
+		TEXT("===== LEAP FINISHED ====="));
+
+	bIsLeaping = false;
+	bIsFlying = true;
+
+	CurrentState = EDragonState::Flying;
+
+	GetCharacterMovement()->SetMovementMode(
+		MOVE_Flying);
+
+	UE_LOG(LogTemp, Error,
+		TEXT("Target = %s"),
+		*TargetPlayer->GetName());
+
+	FlyToTarget();
+}
+
+void ADragonBoss::OnLandFinished()
+{
+	bIsFlying = false;
+
+	CurrentState = EDragonState::Walking;
+
+	GetCharacterMovement()->SetMovementMode(
+		MOVE_Walking);
+
+	UE_LOG(LogTemp, Error,
+		TEXT("===== LAND FINISHED ====="));
+
+	StartAttackCycle();
 }
 

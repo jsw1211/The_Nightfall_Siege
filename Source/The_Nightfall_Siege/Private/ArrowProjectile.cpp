@@ -6,6 +6,10 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Monster.h"
 #include "BaseCharacter.h"
+#include "Engine/OverlapResult.h"
+#include "DragonBoss.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 
 // Sets default values
 AArrowProjectile::AArrowProjectile()
@@ -35,6 +39,7 @@ AArrowProjectile::AArrowProjectile()
 
 	Collision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 
+	Collision->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
 }
 
 // Called when the game starts or when spawned
@@ -43,6 +48,8 @@ void AArrowProjectile::BeginPlay()
 	Super::BeginPlay();
 	
 	Collision->OnComponentBeginOverlap.AddDynamic(this, &AArrowProjectile::OnArrowOverlap);
+
+	ProjectileMovement->OnProjectileStop.AddDynamic(this,&AArrowProjectile::OnProjectileStop);
 
 }
 
@@ -66,11 +73,197 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 
 		HitMonsters.Add(Monster);
 
-		Monster->TakeMonsterDamage(OwnerCharacter->GetAttackPower());
+		float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
 
-		if (ArrowType != EArrowType::Pierce)
+		Monster->TakeMonsterDamage(Damage);
+
+		if (ArrowType == EArrowType::Pierce)
+		{
+			if (RImpactFX)
+			{
+				UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+					GetWorld(),
+					RImpactFX,
+					SweepResult.ImpactPoint
+				);
+			}
+		}
+
+		if (ArrowType == EArrowType::Explosive ||
+			ArrowType == EArrowType::QExplosive)
+		{
+			Explode();
+			return;
+		}
+		else if (ArrowType == EArrowType::Pierce)
+		{
+		}
+		else
 		{
 			Destroy();
+			return;
+		}
+	}
+
+	ADragonBoss* Dragon = Cast<ADragonBoss>(OtherActor);
+
+	if (Dragon && OwnerCharacter)
+	{
+		float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
+		if (ArrowType == EArrowType::Pierce &&
+			OwnerCharacter->bRBonusDamage)
+		{
+			Damage += Dragon->MaxHP * 0.05f;
+		}
+		Dragon->TakeBossDamage(Damage);
+
+		if (ArrowType == EArrowType::Pierce)
+		{
+			if (RImpactFX)
+			{
+				UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+					GetWorld(),
+					RImpactFX,
+					SweepResult.ImpactPoint
+				);
+			}
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("Arrow Damage : %f"),	Damage);
+
+		UE_LOG(LogTemp, Warning, TEXT("Arrow Hit Dragon"));
+
+		if (ArrowType == EArrowType::Explosive ||
+			ArrowType == EArrowType::QExplosive)
+		{
+			Explode();
+			return;
+		}
+		else if (ArrowType == EArrowType::Pierce)
+		{
+		}
+		else
+		{
+			Destroy();
+			return;
+		}
+	}
+}
+
+void AArrowProjectile::Explode()
+{
+	if (ArrowType == EArrowType::QExplosive)
+	{
+		if (QImpactFX)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+				GetWorld(),
+				QImpactFX,
+				GetActorLocation());
+		}
+	}
+	else
+	{
+		if (EImpactFX)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+				GetWorld(),
+				EImpactFX,
+				GetActorLocation());
+		}
+	}
+
+	TArray<FOverlapResult> Overlaps;
+
+	float Radius = EExplosionRadius;
+
+	if (ArrowType == EArrowType::QExplosive)
+	{
+		Radius = QExplosionRadius;
+	}
+
+	FCollisionShape Sphere =
+		FCollisionShape::MakeSphere(Radius);
+
+	bool bHit =
+		GetWorld()->OverlapMultiByChannel(Overlaps, GetActorLocation(), FQuat::Identity, ECC_Pawn, Sphere);
+
+	if (bHit)
+	{
+		for (auto& Result : Overlaps)
+		{
+			AMonster* Monster = Cast<AMonster>(Result.GetActor());
+
+			if (Monster && OwnerCharacter)
+			{
+				float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
+
+				Monster->TakeMonsterDamage(Damage);
+			}
+
+			ADragonBoss* Dragon = Cast<ADragonBoss>(Result.GetActor());
+
+			if (Dragon && OwnerCharacter)
+			{
+				float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
+
+				if (ArrowType == EArrowType::Pierce &&
+					OwnerCharacter->bRBonusDamage)
+				{
+					Damage += Dragon->MaxHP * 0.05f;
+				}
+				Dragon->TakeBossDamage(Damage);
+			}
+		}
+	}
+
+	Destroy();
+}
+
+void AArrowProjectile::OnProjectileStop(
+	const FHitResult& ImpactResult)
+{
+	if (ArrowType == EArrowType::Explosive ||
+		ArrowType == EArrowType::QExplosive)
+	{
+		Explode();
+	}
+	else
+	{
+		Destroy();
+	}
+}
+
+void AArrowProjectile::SetupTrail()
+{
+	if (ArrowType == EArrowType::Pierce)
+	{
+		if (ArcherRTrailFX)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAttached(
+				ArcherRTrailFX,
+				RootComponent,
+				NAME_None,
+				FVector::ZeroVector,
+				FRotator::ZeroRotator,
+				EAttachLocation::KeepRelativeOffset,
+				true
+			);
+		}
+	}
+	else
+	{
+		if (ArcherTrailFX)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAttached(
+				ArcherTrailFX,
+				RootComponent,
+				NAME_None,
+				FVector::ZeroVector,
+				FRotator::ZeroRotator,
+				EAttachLocation::KeepRelativeOffset,
+				true
+			);
 		}
 	}
 }

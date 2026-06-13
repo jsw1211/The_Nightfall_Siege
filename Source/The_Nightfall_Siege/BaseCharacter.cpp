@@ -22,6 +22,9 @@
 #include "PlayerHUDWidget.h"
 #include "WeaponBase.h"
 #include "ArrowProjectile.h"
+#include "GameFramework/ProjectileMovementComponent.h"
+#include "DungeonPrism.h"
+#include "DragonBoss.h"
 
 
 // Sets default values
@@ -34,7 +37,7 @@ ABaseCharacter::ABaseCharacter()
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationRoll = false;
 
-	GetCharacterMovement()->bOrientRotationToMovement = true;
+	GetCharacterMovement()->bOrientRotationToMovement = false;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f);
 
     SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
@@ -64,6 +67,12 @@ ABaseCharacter::ABaseCharacter()
 
     EquippedLanternMesh->SetVisibility(false);
 
+    EquippedPrismMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EquippedPrismMesh"));
+
+    EquippedPrismMesh->SetupAttachment(GetMesh(), TEXT("PrismSocket"));
+
+    EquippedPrismMesh->SetVisibility(false);
+
     LanternLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("LanternLight"));
 
     LanternLight->SetupAttachment(EquippedLanternMesh);
@@ -84,7 +93,7 @@ void ABaseCharacter::BeginPlay()
     {
     case ECharacterType::Paladin:
 
-        MaxHP = 500.f;
+        MaxHP = 1000000.f;
         AttackPower = 100.f;
 
         // Q
@@ -105,14 +114,16 @@ void ABaseCharacter::BeginPlay()
 
     case ECharacterType::Archer:
 
-        MaxHP = 300.f;
+        MaxHP = 1000000.f;
         AttackPower = 200.f;
 
         QMultiplier = 1.5f;
         EMultiplier = 1.5f;
         RMultiplier = 3.0f;
 
-        AttackSpeed = 1.5f;
+        AttackSpeed = 1.0f;
+
+        DefaultAttackSpeed = 1.0f;
 
         break;
 
@@ -214,6 +225,8 @@ void ABaseCharacter::Tick(float DeltaTime)
     ERemainingCooldown = FMath::Max(0.f, ERemainingCooldown - DeltaTime);
 
     RRemainingCooldown = FMath::Max(0.f, RRemainingCooldown - DeltaTime);
+
+    RotateToMouseCursor();
 }
 
 // Called to bind functionality to input
@@ -223,6 +236,7 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
     if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent))
     {
+        EnhancedInput->BindAction(IA_Attack, ETriggerEvent::Started, this, &ABaseCharacter::Attack);
         EnhancedInput->BindAction(IA_Q, ETriggerEvent::Started, this, &ABaseCharacter::Q);
         EnhancedInput->BindAction(IA_W, ETriggerEvent::Started, this, &ABaseCharacter::W);
         EnhancedInput->BindAction(IA_E, ETriggerEvent::Started, this, &ABaseCharacter::E);
@@ -231,27 +245,140 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         EnhancedInput->BindAction(IA_SkillTree, ETriggerEvent::Started, this, &ABaseCharacter::ToggleSkillTree);
         EnhancedInput->BindAction(IA_Interact, ETriggerEvent::Started, this, &ABaseCharacter::Interact);
         EnhancedInput->BindAction(IA_Slot1, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot1);
+        //EnhancedInput->BindAction(IA_Slot2, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot2);
+        EnhancedInput->BindAction(IA_Slot3, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot3);
+        //EnhancedInput->BindAction(IA_Slot4, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot4);
     }
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
 }
 
+void ABaseCharacter::Attack(
+    const FInputActionValue& Value)
+{
+    if (!CanUseCombatAction())
+    {
+        return;
+    }
+
+    APlayerController* PC =
+        Cast<APlayerController>(GetController());
+
+    if (PC)
+    {
+        FHitResult Hit;
+
+        PC->GetHitResultUnderCursor(
+            ECC_Visibility,
+            false,
+            Hit);
+
+        FVector LookDirection =
+            Hit.Location - GetActorLocation();
+
+        LookDirection.Z = 0.f;
+
+        FRotator TargetRotation =
+            LookDirection.Rotation();
+
+        SetActorRotation(TargetRotation);
+    }
+
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AAIController* AICon = Cast<AAIController>(GetController()))
+    {
+        AICon->StopMovement();
+    }
+
+    RotateToMouseCursor();
+
+    bIsAttacking = true;
+
+    if (AttackMontage)
+    {
+        PlayAnimMontage(
+            AttackMontage,
+            AttackSpeed);
+    }
+
+    FVector Start = GetActorLocation();
+
+    TArray<FOverlapResult> Overlaps;
+
+    FCollisionShape Sphere =
+        FCollisionShape::MakeSphere(150.f);
+
+    bool bHit =
+        GetWorld()->OverlapMultiByChannel(
+            Overlaps,
+            Start,
+            FQuat::Identity,
+            ECC_Pawn,
+            Sphere);
+
+    if (bHit)
+    {
+        for (auto& Result : Overlaps)
+        {
+            AMonster* Monster =
+                Cast<AMonster>(Result.GetActor());
+
+            if (Monster)
+            {
+                Monster->TakeMonsterDamage(
+                    AttackPower);
+
+                UE_LOG(LogTemp, Warning,
+                    TEXT("Basic Attack Hit"));
+            }
+
+            ADragonBoss* Dragon =
+                Cast<ADragonBoss>(Result.GetActor());
+
+            if (Dragon)
+            {
+                Dragon->TakeBossDamage(
+                    AttackPower);
+
+                UE_LOG(LogTemp, Warning,
+                    TEXT("Basic Attack Hit Dragon"));
+            }
+        }
+    }
+}
+
 void ABaseCharacter::Q(const FInputActionValue& Value)
 {
-    if (bLanternEquipped) return;
-
-    if (bIsDead) return;
-
-    if (!bCanUseQ || bIsUsingSkill)
+    if (!bCanUseQ)
+    {
         return;
+    }
+
+    if (!CanUseCombatAction())
+    {
+        return;
+    }
 
     if (CharacterType == ECharacterType::Archer)
     {
+        GetCharacterMovement()->StopMovementImmediately();
+
+        if (AAIController* AICon = Cast<AAIController>(GetController()))
+        {
+            AICon->StopMovement();
+        }
+
+        RotateToMouseCursor();
+
         bIsUsingSkill = true;
 
         if (QMontage)
         {
-            PlayAnimMontage(QMontage);
+            PlayAnimMontage(
+                QMontage,
+                AttackSpeed
+            );
         }
 
         bCanUseQ = false;
@@ -268,6 +395,8 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
         return;
     }
+
+    RotateToMouseCursor();
 
     bIsUsingSkill = true;
 
@@ -334,11 +463,23 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
     {
         for (auto& Result : Overlaps)
         {
-            AMonster* Monster = Cast<AMonster>(Result.GetActor());
+            AMonster* Monster =
+                Cast<AMonster>(Result.GetActor());
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(AttackPower * QMultiplier); // Q 데미지
+                Monster->TakeMonsterDamage(
+                    AttackPower * QMultiplier);
+            }
+
+            ADragonBoss* Dragon = Cast<ADragonBoss>(Result.GetActor());
+
+            if (Dragon)
+            {
+                Dragon->TakeBossDamage(AttackPower * QMultiplier);
+
+                UE_LOG(LogTemp, Warning,
+                    TEXT("Dragon Hit By Q"));
             }
         }
     }
@@ -346,12 +487,70 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
 void ABaseCharacter::W(const FInputActionValue& Value)
 {
+    if (!bCanUseW)
+    {
+        return;
+    }
+
+    if (!CanUseCombatAction())
+    {
+        return;
+    }
+
+    if (CharacterType == ECharacterType::Archer)
+    {
+        AttackSpeed = BuffAttackSpeed;
+
+        if (WSkillEffect)
+        {
+            WAreaComponent =
+                UNiagaraFunctionLibrary::SpawnSystemAttached(
+                    WSkillEffect,
+                    GetRootComponent(),
+                    NAME_None,
+                    FVector::ZeroVector,
+                    FRotator::ZeroRotator,
+                    EAttachLocation::KeepRelativeOffset,
+                    true
+                );
+        }
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Attack Speed Buff Start : %f"),
+            AttackSpeed);
+
+        GetWorldTimerManager().ClearTimer(
+            AttackSpeedBuffHandle);
+
+        GetWorldTimerManager().SetTimer(
+            AttackSpeedBuffHandle,
+            this,
+            &ABaseCharacter::EndArcherWBuff,
+            5.f,
+            false);
+
+        bCanUseW = false;
+
+        WRemainingCooldown = WCooldown;
+
+        GetWorldTimerManager().SetTimer(
+            WCooldownTimer,
+            this,
+            &ABaseCharacter::ResetWCooldown,
+            WCooldown,
+            false);
+
+        return;
+    }
+
     if (bLanternEquipped) return;
 
     if (bIsDead) return;
 
     if (!bCanUseW || bIsUsingSkill)
         return;
+
+    RotateToMouseCursor();
 
     bIsUsingSkill = true;
 
@@ -430,12 +629,47 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
 void ABaseCharacter::E(const FInputActionValue& Value)
 {
-    if (bLanternEquipped) return;
-
-    if (bIsDead) return;
-
-    if (!bCanUseE || bIsUsingSkill)
+    if (!bCanUseE)
+    {
         return;
+    }
+
+    if (!CanUseCombatAction())
+    {
+        return;
+    }
+
+    if (CharacterType == ECharacterType::Archer)
+    {
+        GetCharacterMovement()->StopMovementImmediately();
+
+        if (AAIController* AICon = Cast<AAIController>(GetController()))
+        {
+            AICon->StopMovement();
+        }
+
+        RotateToMouseCursor();
+
+        bIsUsingSkill = true;
+
+        if (EMontage)
+        {
+            PlayAnimMontage(
+                EMontage,
+                AttackSpeed
+            );
+        }
+
+        bCanUseE = false;
+
+        ERemainingCooldown = ECooldown;
+
+        GetWorldTimerManager().SetTimer(ECooldownTimer, this, &ABaseCharacter::ResetECooldown, ECooldown, false);
+
+        return;
+    }
+
+    RotateToMouseCursor();
 
     bIsUsingSkill = true;
 
@@ -514,20 +748,35 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
 void ABaseCharacter::R(const FInputActionValue& Value)
 {
-    if (bLanternEquipped) return;
-
-    if (bIsDead) return;
-
-    if (!bCanUseR || bIsUsingSkill)
+    if (!bCanUseR)
+    {
         return;
+    }
+
+    if (!CanUseCombatAction())
+    {
+        return;
+    }
 
     if (CharacterType == ECharacterType::Archer)
     {
+        GetCharacterMovement()->StopMovementImmediately();
+
+        if (AAIController* AICon = Cast<AAIController>(GetController()))
+        {
+            AICon->StopMovement();
+        }
+
+        RotateToMouseCursor();
+
         bIsUsingSkill = true;
 
         if (RMontage)
         {
-            PlayAnimMontage(RMontage);
+            PlayAnimMontage(
+                RMontage,
+                AttackSpeed
+            );
         }
 
         bCanUseR = false;
@@ -544,6 +793,8 @@ void ABaseCharacter::R(const FInputActionValue& Value)
 
         return;
     }
+
+    RotateToMouseCursor();
 
     bIsUsingSkill = true;
 
@@ -720,6 +971,7 @@ void ABaseCharacter::TakePlayerDamage(float Damage)
 void ABaseCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
     bIsUsingSkill = false;
+    bIsAttacking = false;
 }
 
 void ABaseCharacter::EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketName, AActor*& OutWeapon)
@@ -898,15 +1150,15 @@ void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
 
             if (SkillLevel == 2)
             {
-                AttackSpeed = 1.5f;
+                BuffAttackSpeed = 1.5f;
             }
             else if (SkillLevel == 3)
             {
-                AttackSpeed = 2.0f;
+                BuffAttackSpeed = 2.0f;
             }
             else if (SkillLevel == 4)
             {
-                AttackSpeed = 2.5f;
+                BuffAttackSpeed = 2.5f;
             }
 
             break;
@@ -938,10 +1190,12 @@ void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
             else if (SkillLevel == 3)
             {
                 RMultiplier = 3.0f;
+                bRBonusDamage = true;
             }
             else if (SkillLevel == 4)
             {
                 RMultiplier = 4.0f;
+                bRBonusDamage = true;
             }
 
             break;
@@ -1039,6 +1293,16 @@ void ABaseCharacter::SetNearbyLantern(ALantern* Lantern)
 
 void ABaseCharacter::Interact(const FInputActionValue& Value)
 {
+    if (bDarknessDebuff && bPrismEquipped)
+    {
+        bDarknessDebuff = false;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Darkness Cleared"));
+
+        return;
+    }
+
     if (NearbyLantern)
     {
         bHasLantern = true;
@@ -1051,10 +1315,29 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 
         NearbyLantern = nullptr;
     }
+
+    if (NearbyPrism)
+    {
+        bHasPrism = true;
+
+        Slot3Icon = PrismIcon;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Prism Picked Up"));
+
+        NearbyPrism->Destroy();
+
+        NearbyPrism = nullptr;
+    }
 }
 
 void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
 {
+    if (bPrismEquipped)
+    {
+        return;
+    }
+
     if (!bHasLantern)
         return;
 
@@ -1067,8 +1350,6 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
     {
         if (LanternEquipMontage)
         {
-            GetCharacterMovement()->DisableMovement();
-
             PlayAnimMontage(LanternEquipMontage);
         }
     }
@@ -1076,8 +1357,6 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
     {
         if (LanternUnequipMontage)
         {
-            GetCharacterMovement()->DisableMovement();
-            
             bLanternPoseActive = false;
 
             PlayAnimMontage(LanternUnequipMontage);
@@ -1085,9 +1364,51 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
     }
 }
 
+void ABaseCharacter::UseSlot3(
+    const FInputActionValue& Value)
+{
+    if (bLanternEquipped)
+    {
+        return;
+    }
+
+    if (!bHasPrism)
+        return;
+
+    if (bIsEquippingPrism)
+        return;
+
+    bIsEquippingPrism = true;
+
+    if (!bPrismEquipped)
+    {
+        if (PrismEquipMontage)
+        {
+            PlayAnimMontage(PrismEquipMontage);
+        }
+    }
+    else
+    {
+        if (PrismUnequipMontage)
+        {
+            bPrismPoseActive = false;
+
+            PlayAnimMontage(PrismUnequipMontage);
+        }
+    }
+}
+
 void ABaseCharacter::OnLanternEquipped()
 {
+    EquippedPrismMesh->SetVisibility(false);
+
+    bPrismEquipped = false;
+
     bLanternEquipped = true;
+
+    bPrismPoseActive = false;
+
+    bIsEquippingLantern = false;
 
     bLanternPoseActive = true;
 
@@ -1112,6 +1433,12 @@ void ABaseCharacter::OnLanternEquipped()
 void ABaseCharacter::OnLanternUnequipped()
 {
     UE_LOG(LogTemp, Warning, TEXT("UNEQUIP"));
+
+    bLanternEquipped = false;
+
+    bLanternPoseActive = false;
+
+    bIsEquippingLantern = false;
 
     EquippedLanternMesh->SetVisibility(false);
 
@@ -1184,10 +1511,12 @@ void ABaseCharacter::SpawnArrow()
     if (Arrow)
     {
         Arrow->OwnerCharacter = this;
+        Arrow->DamageMultiplier = 1.f;
+        Arrow->SetupTrail();
     }
 }
 
-void ABaseCharacter::SpawnArrowFan()
+void ABaseCharacter::SpawnQArrow()
 {
     if (CharacterType != ECharacterType::Archer)
     {
@@ -1221,7 +1550,10 @@ void ABaseCharacter::SpawnArrowFan()
         if (Arrow)
         {
             Arrow->OwnerCharacter = this;
-            Arrow->ArrowType = EArrowType::Normal;
+            Arrow->ArrowType = EArrowType::QExplosive;
+            Arrow->SetupTrail();
+
+            Arrow->DamageMultiplier = QMultiplier;
         }
     }
 }
@@ -1249,9 +1581,177 @@ void ABaseCharacter::SpawnRArrow()
     if (Arrow)
     {
         Arrow->OwnerCharacter = this;
+
         Arrow->ArrowType = EArrowType::Pierce;
 
+        Arrow->DamageMultiplier = RMultiplier;
+
+        Arrow->SetupTrail();
+
         Arrow->SetActorScale3D(FVector(3.f, 3.f, 3.f));
+    }
+}
+
+void ABaseCharacter::SpawnEArrow()
+{
+    if (CharacterType != ECharacterType::Archer)
+    {
+        return;
+    }
+
+    AWeaponBase* Bow = Cast<AWeaponBase>(LeftHandWeapon);
+
+    if (!Bow || !ArrowClass)
+    {
+        return;
+    }
+
+    FVector SpawnLocation = Bow->Mesh->GetSocketLocation(TEXT("ArrowSocket"));
+
+    FRotator SpawnRotation = GetActorForwardVector().Rotation();
+
+    AArrowProjectile* Arrow = GetWorld()->SpawnActor<AArrowProjectile>(ArrowClass, SpawnLocation, SpawnRotation);
+
+    if (Arrow)
+    {
+        Arrow->OwnerCharacter = this;
+
+        Arrow->ArrowType = EArrowType::Explosive;
+        Arrow->SetupTrail();
+
+        Arrow->DamageMultiplier = EMultiplier;
+
+        FVector TargetLocation = GetActorLocation() + GetActorForwardVector() * 300.f;
+
+        FVector LaunchVelocity;
+
+        bool bSuccess = UGameplayStatics::SuggestProjectileVelocity(this, LaunchVelocity, SpawnLocation, TargetLocation, 1200.f, false, 0.f, 0.f, ESuggestProjVelocityTraceOption::DoNotTrace);
+
+        if (bSuccess)
+        {
+            Arrow->ProjectileMovement->ProjectileGravityScale = 1.f;
+            Arrow->ProjectileMovement->Velocity = LaunchVelocity;
+        }
+    }
+}
+
+bool ABaseCharacter::IsDead() const
+{
+    return bIsDead;
+}
+
+void ABaseCharacter::SetNearbyPrism(
+    ADungeonPrism* Prism)
+{
+    NearbyPrism = Prism;
+}
+
+void ABaseCharacter::EndAttackSpeedBuff()
+{
+    AttackSpeed = DefaultAttackSpeed;
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Attack Speed Buff End"));
+}
+
+void ABaseCharacter::RotateToMouseCursor()
+{
+    if (bIsDead)
+    {
+        return;
+    }
+
+    if (bIsUsingSkill || bIsAttacking)
+    {
+        return;
+    }
+
+    APlayerController* PC =
+        Cast<APlayerController>(GetController());
+
+    if (!PC)
+    {
+        return;
+    }
+
+    FHitResult Hit;
+
+    PC->GetHitResultUnderCursor(
+        ECC_Visibility,
+        false,
+        Hit);
+
+    FVector Direction =
+        Hit.Location - GetActorLocation();
+
+    Direction.Z = 0.f;
+
+    if (!Direction.IsNearlyZero())
+    {
+        SetActorRotation(
+            Direction.Rotation());
+    }
+}
+
+bool ABaseCharacter::CanUseCombatAction() const
+{
+    return
+        !bLanternEquipped &&
+        !bPrismEquipped &&
+        !bIsEquippingLantern &&
+        !bIsEquippingPrism &&
+        !bIsDead &&
+        !bIsUsingSkill &&
+        !bIsAttacking;
+}
+
+void ABaseCharacter::OnPrismEquipped()
+{
+    EquippedLanternMesh->SetVisibility(false);
+    LanternLight->SetVisibility(false);
+
+    bLanternEquipped = false;
+    bLanternPoseActive = false;
+
+    bPrismEquipped = true;
+
+    bPrismPoseActive = true;
+
+    bLanternPoseActive = false;
+
+    EquippedPrismMesh->SetVisibility(true);
+
+    bIsEquippingPrism = false;
+
+    GetCharacterMovement()->SetMovementMode(
+        MOVE_Walking);
+}
+
+void ABaseCharacter::OnPrismUnequipped()
+{
+    EquippedPrismMesh->SetVisibility(false);
+}
+
+void ABaseCharacter::OnPrismUnequipFinished()
+{
+    bPrismEquipped = false;
+
+    bIsEquippingPrism = false;
+
+    bPrismPoseActive = false;
+
+    GetCharacterMovement()->SetMovementMode(
+        MOVE_Walking);
+}
+
+void ABaseCharacter::EndArcherWBuff()
+{
+    AttackSpeed = DefaultAttackSpeed;
+
+    if (WAreaComponent)
+    {
+        WAreaComponent->DestroyComponent();
+        WAreaComponent = nullptr;
     }
 }
 

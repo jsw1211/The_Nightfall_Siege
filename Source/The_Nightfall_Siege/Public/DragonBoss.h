@@ -5,13 +5,19 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Animation/AnimMontage.h"
+#include "BaseCharacter.h"
+#include "NiagaraSystem.h"
 #include "DragonBoss.generated.h"
+
+class ADragonBreathProjectile;
+class ADangerZone;
 
 UENUM(BlueprintType)
 enum class EDragonState : uint8
 {
 	Idle,
 	Walking,
+	Leap,
 	Flying,
 	Landing,
 	Attacking,
@@ -27,6 +33,14 @@ enum class EDragonAttackType : uint8
 	Debuff
 };
 
+UENUM(BlueprintType)
+enum class EDragonPatternType : uint8
+{
+	NormalAttack,
+	TargetChange,
+	CenterMechanic
+};
+
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ADragonBoss : public ACharacter
 {
@@ -39,6 +53,18 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	int32 BiteCount = 0;
+	int32 CloseBreathCount = 0;
+	int32 DebuffCount = 0;
+
+	int32 TargetChangeCount = 0;
+	int32 TargetChangeFlyCount = 0;
+	int32 TargetChangeBreathCount = 0;
+
+	int32 CenterMechanicCount = 0;
+
+	int32 TotalPatternCount = 0;
 
 public:	
 	// Called every frame
@@ -75,7 +101,10 @@ public:
 	// =========================
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
-	AActor* TargetPlayer;
+	ABaseCharacter* TargetPlayer;
+
+	UPROPERTY()
+	TArray<ABaseCharacter*> AlivePlayers;
 
 	// =========================
 	// Arena
@@ -128,4 +157,102 @@ public:
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsAttacking = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
+	bool bShielded = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
+	bool bCanTakeDamage = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
+	bool bStunned = false;
+
+	void OnBreathReflected();
+
+	void EndStun();
+
+	void TakeBossDamage(float Damage);
+
+	void UpdatePlayerList();
+
+	void ChooseRandomTarget();
+
+	EDragonPatternType ChoosePattern();
+
+	void ExecutePattern();
+
+	void TargetChangePattern();
+
+	void CenterMechanicPattern();
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bCenterMechanicActive = false;
+
+	void OnCenterMechanicSuccess();
+
+	void OnAttackFinished();
+
+	FTimerHandle CenterFailHandle;
+
+	FTimerHandle StunTimerHandle;
+
+	void Die();
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<ADragonBreathProjectile> BreathProjectileClass;
+
+	FTimerHandle TelegraphHandle;
+
+	void StartAttackTelegraph(
+		EDragonAttackType AttackType);
+
+	void ExecuteTelegraphedAttack(
+		EDragonAttackType AttackType);
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsTelegraphing = false;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<ADangerZone> DangerZoneClass;
+
+	FTimerHandle CenterBreathHandle;
+
+	bool bCenterBreathStarted = false;
+
+	FTimerHandle CenterTrackingHandle;
+
+	bool bCenterTracking = false;
+
+	UPROPERTY()
+	ADangerZone* CurrentBreathZone = nullptr;
+
+	bool bFirstBreathDone = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UAnimMontage* LeapMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UAnimMontage* LandMontage;
+
+	UFUNCTION(BlueprintCallable)
+	void OnLeapFinished();
+
+	UFUNCTION(BlueprintCallable)
+	void OnLandFinished();
+
+	UPROPERTY()
+	FRotator TelegraphRotation;
+
+	UPROPERTY()
+	bool bIsLeaping = false;
+
+	UPROPERTY(EditAnywhere)
+	float AttackRange = 1000.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
+	TObjectPtr<UNiagaraSystem> BiteFX;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
+	TObjectPtr<UNiagaraSystem> CloseBreathFX;
+
 };

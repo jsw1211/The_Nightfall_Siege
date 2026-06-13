@@ -14,6 +14,7 @@
 #include "CharacterType.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
+#include "NiagaraComponent.h"
 #include "BaseCharacter.generated.h"
 
 class USkillTreeWidget;
@@ -46,6 +47,7 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	void Attack(const FInputActionValue& Value);
 	void Q(const FInputActionValue& Value);
 	void W(const FInputActionValue& Value);
 	void E(const FInputActionValue& Value);
@@ -78,6 +80,14 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	float RHealAmount = 0.2f;	
+
+	bool bRBonusDamage = false;
+
+	FTimerHandle AttackSpeedBuffHandle;
+
+	float DefaultAttackSpeed = 1.0f;
+
+	float BuffAttackSpeed = 1.5f;
 
 	// 현재 보유 스킬 포인트
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
@@ -125,7 +135,19 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	bool bLanternEquipped = false;
 
+	UPROPERTY(BlueprintReadOnly)
+	bool bHasPrism = false;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bPrismEquipped = false;
+
+	UPROPERTY()
+	class ADungeonPrism* NearbyPrism = nullptr;
+
 	void UseSlot1(const FInputActionValue& Value);
+	void SetNearbyPrism(class ADungeonPrism* Prism);
+
+	void UseSlot3(const FInputActionValue& Value);
 
 	UPROPERTY(VisibleAnywhere)
 	UStaticMeshComponent* EquippedLanternMesh;
@@ -133,11 +155,17 @@ public:
 	UPROPERTY(VisibleAnywhere)
 	UPointLightComponent* LanternLight;
 
+	UPROPERTY(VisibleAnywhere)
+	UStaticMeshComponent* EquippedPrismMesh;
+
 	UFUNCTION(BlueprintCallable)
 	void OnLanternEquipped();
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsEquippingLantern = false;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsEquippingPrism = false;
 
 	UFUNCTION(BlueprintCallable)
 	void OnLanternUnequipped();
@@ -145,8 +173,20 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void OnLanternUnequipFinished();
 
+	UFUNCTION(BlueprintCallable)
+	void OnPrismEquipped();
+
+	UFUNCTION(BlueprintCallable)
+	void OnPrismUnequipped();
+
+	UFUNCTION(BlueprintCallable)
+	void OnPrismUnequipFinished();
+
 	UPROPERTY(BlueprintReadOnly)
 	bool bLanternPoseActive = false;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bPrismPoseActive = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSubclassOf<UPlayerHUDWidget> HUDWidgetClass;
@@ -204,6 +244,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Item")
 	UTexture2D* PotionIcon;
 
+	UPROPERTY(EditAnywhere, Category = "Item")
+	UTexture2D* PrismIcon;
+
 	UPROPERTY(EditAnywhere)
 	UTexture2D* EmptySlotIcon;
 
@@ -225,10 +268,32 @@ public:
 	void SpawnArrow();
 
 	UFUNCTION(BlueprintCallable)
-	void SpawnArrowFan();
+	void SpawnQArrow();
 
 	UFUNCTION(BlueprintCallable)
 	void SpawnRArrow();
+
+	UFUNCTION(BlueprintCallable)
+	void SpawnEArrow();
+
+	UFUNCTION(BlueprintCallable)
+	bool IsDead() const;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bDarknessDebuff = false;
+
+	void EndAttackSpeedBuff();
+
+	void RotateToMouseCursor();
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsAttacking = false;
+
+	bool CanUseCombatAction() const;
+
+	// 상태
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
+	bool bIsDead = false;
 
 protected:
 	UPROPERTY(VisibleAnywhere)
@@ -236,6 +301,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere)
 	class UCameraComponent* Camera;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+	UAnimMontage* AttackMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
 	UAnimMontage* QMontage;
@@ -253,8 +321,17 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lantern")
 	UAnimMontage* LanternUnequipMontage;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UAnimMontage* PrismEquipMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UAnimMontage* PrismUnequipMontage;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputMappingContext* IMC_BaseCharacter;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UInputAction* IA_Attack;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_Q;
@@ -277,6 +354,15 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	UInputAction* IA_Slot1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UInputAction* IA_Slot2;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UInputAction* IA_Slot3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UInputAction* IA_Slot4;
 
 	UPROPERTY(EditAnywhere, Category = "UI")
 	TSubclassOf<USkillTreeWidget> SkillTreeWidgetClass;
@@ -350,10 +436,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float AttackSpeed = 1.f;
 
-	// 상태
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
-	bool bIsDead = false;
-
 	// 애니메이션 상태 전달용
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	bool bIsHit = false;
@@ -374,6 +456,11 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "VFX")
 	UNiagaraSystem* RSkillEffect;
 
+	UPROPERTY()
+	UNiagaraComponent* WAreaComponent;
+
+	UFUNCTION()
+	void EndArcherWBuff();
 
 	// Weapon & Socket
 	UPROPERTY(EditDefaultsOnly, Category = "Socket")

@@ -5,7 +5,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "RaidGameInstance.h"
+#include "TheNightfallSiegeInstance.h"
 
 // Sets default values
 ADungeonPortal::ADungeonPortal()
@@ -95,8 +95,8 @@ void ADungeonPortal::OnOverlapEnd(
 
 void ADungeonPortal::EnterDungeon()
 {
-	URaidGameInstance* GI =
-		Cast<URaidGameInstance>(GetGameInstance());
+	UTheNightfallSiegeInstance* GI =
+		Cast<UTheNightfallSiegeInstance>(GetGameInstance());
 
 	if (!GI)
 	{

@@ -25,18 +25,41 @@ void ABaseController::OnRightClick()
 
 void ABaseController::MoveToMouse()
 {
-    ABaseCharacter* MyCharacter = Cast<ABaseCharacter>(GetPawn());
-    if (MyCharacter && MyCharacter->bIsUsingSkill)
+    ABaseCharacter* MyCharacter =
+        Cast<ABaseCharacter>(GetPawn());
+
+    if (!MyCharacter)
     {
-        return; // 스킬 중이면 이동 막기
+        return;
+    }
+
+    if (MyCharacter->bIsDead)
+    {
+        return;
+    }
+
+    if (MyCharacter->bIsUsingSkill)
+    {
+        return;
+    }
+
+    if (MyCharacter->bIsAttacking)
+    {
+        return;
     }
 
     FHitResult Hit;
-    GetHitResultUnderCursor(ECC_Visibility, false, Hit);
+
+    GetHitResultUnderCursor(
+        ECC_Visibility,
+        false,
+        Hit);
 
     if (Hit.bBlockingHit)
     {
-        UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, Hit.Location);
+        UAIBlueprintHelperLibrary::SimpleMoveToLocation(
+            this,
+            Hit.Location);
     }
 }
 

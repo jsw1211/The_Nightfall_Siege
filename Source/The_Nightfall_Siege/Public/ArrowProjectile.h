@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "NiagaraSystem.h"
 #include "ArrowProjectile.generated.h"
 
 class USphereComponent;
@@ -16,6 +17,7 @@ UENUM(BlueprintType)
 enum class EArrowType : uint8
 {
 	Normal,
+	QExplosive,
 	Explosive,
 	Pierce
 };
@@ -48,6 +50,40 @@ public:
 	EArrowType ArrowType = EArrowType::Normal;
 
 	TSet<AMonster*> HitMonsters;
+
+	UPROPERTY()
+	FVector TargetLocation;
+
+	UPROPERTY()
+	float DamageMultiplier = 1.f;
+
+	void Explode();
+
+	UPROPERTY(EditAnywhere)
+	float QExplosionRadius = 120.f;
+
+	UPROPERTY(EditAnywhere)
+	float EExplosionRadius = 300.f;
+
+	UFUNCTION()
+	void OnProjectileStop(const FHitResult& ImpactResult);
+
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	TObjectPtr<UNiagaraSystem> ArcherTrailFX;
+
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	TObjectPtr<UNiagaraSystem> ArcherRTrailFX;
+
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	TObjectPtr<UNiagaraSystem> QImpactFX;
+
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	TObjectPtr<UNiagaraSystem> EImpactFX;
+
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	TObjectPtr<UNiagaraSystem> RImpactFX;
+
+	void SetupTrail();
 
 protected:
 	// Called when the game starts or when spawned

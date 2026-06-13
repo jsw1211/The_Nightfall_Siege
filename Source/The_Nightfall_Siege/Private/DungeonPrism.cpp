@@ -5,7 +5,7 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 
-#include "RaidGameInstance.h"
+#include "TheNightfallSiegeInstance.h"
 
 #include "Kismet/GameplayStatics.h"
 
@@ -31,6 +31,12 @@ ADungeonPrism::ADungeonPrism()
 		this,
 		&ADungeonPrism::OnOverlapBegin);
 
+	SphereCollision->SetCollisionEnabled(
+		ECollisionEnabled::QueryOnly);
+
+	SphereCollision->SetCollisionResponseToAllChannels(
+		ECR_Overlap);
+
 	bActivated = false;
 }
 
@@ -39,10 +45,6 @@ void ADungeonPrism::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	// Ã³À½¿£ ¼û±è
-	SetActorHiddenInGame(true);
-
-	SetActorEnableCollision(false);
 }
 
 // Called every frame
@@ -75,33 +77,43 @@ void ADungeonPrism::OnOverlapBegin(
 	bool bFromSweep,
 	const FHitResult& SweepResult)
 {
-	if (!bActivated)
+	ABaseCharacter* Player =
+		Cast<ABaseCharacter>(OtherActor);
+
+	if (!Player)
 	{
 		return;
 	}
 
-	URaidGameInstance* GI =
-		Cast<URaidGameInstance>(GetGameInstance());
+	Player->SetNearbyPrism(this);
 
-	if (!GI)
+	UE_LOG(LogTemp, Warning,
+		TEXT("Prism Nearby"));
+}
+
+void ADungeonPrism::RemoveDarknessDebuff()
+{
+	TArray<AActor*> Players;
+
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(),
+		ABaseCharacter::StaticClass(),
+		Players);
+
+	for (AActor* Actor : Players)
 	{
-		return;
+		ABaseCharacter* Player =
+			Cast<ABaseCharacter>(Actor);
+
+		if (Player)
+		{
+			Player->bDarknessDebuff = false;
+		}
 	}
 
-	bool bAllClear =
-		GI->ClearCurrentDungeon();
+	ActivatedPlayers.Empty();
 
-	if (bAllClear)
-	{
-		UGameplayStatics::OpenLevel(
-			this,
-			"DragonBossMap");
-	}
-	else
-	{
-		UGameplayStatics::OpenLevel(
-			this,
-			"ForestLevel");
-	}
+	UE_LOG(LogTemp, Warning,
+		TEXT("Darkness Removed"));
 }
 
