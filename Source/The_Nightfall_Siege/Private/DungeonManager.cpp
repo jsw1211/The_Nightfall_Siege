@@ -5,6 +5,7 @@
 #include "Altar.h"
 #include "Monster.h"
 #include "Kismet/GameplayStatics.h"
+#include "DrawDebugHelpers.h"
 
 // Sets default values
 ADungeonManager::ADungeonManager()
@@ -67,13 +68,18 @@ void ADungeonManager::SpawnMonsters()
 		// 力窜寸 5付府 积己
 		for (int32 i = 0; i < MonstersPerAltar; i++)
 		{
+			float Angle = FMath::FRandRange(0.f, 360.f);
+
+			float Distance = FMath::FRandRange(300.f, 800.f);
+
+			FVector Offset;
+
+			Offset.X = FMath::Cos(FMath::DegreesToRadians(Angle)) * Distance;
+			Offset.Y = FMath::Sin(FMath::DegreesToRadians(Angle)) * Distance;
+			Offset.Z = 50.f;
+
 			FVector SpawnLocation =
-				Altar->GetActorLocation() +
-				FVector(
-					FMath::RandRange(-300.f, 300.f),
-					FMath::RandRange(-300.f, 300.f),
-					50.f
-				);
+				Altar->GetActorLocation() + Offset;
 
 			FRotator SpawnRotation = FRotator::ZeroRotator;
 
