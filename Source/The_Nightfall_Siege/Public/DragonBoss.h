@@ -255,4 +255,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
 	TObjectPtr<UNiagaraSystem> CloseBreathFX;
 
+	UFUNCTION(BlueprintCallable)
+	void BiteHit();
+
+	UFUNCTION(BlueprintCallable)
+	void CloseBreathFire();
+
+	UFUNCTION(BlueprintCallable)
+	void BreathFire();
+
 };

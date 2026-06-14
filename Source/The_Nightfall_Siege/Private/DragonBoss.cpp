@@ -188,7 +188,7 @@ void ADragonBoss::StartAttackCycle()
 
 EDragonAttackType ADragonBoss::ChooseRandomAttack()
 {
-	/*int32 Rand = FMath::RandRange(1, 100);
+	int32 Rand = FMath::RandRange(1, 100);
 
 	if (Rand <= 50)
 	{
@@ -200,8 +200,7 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 		return EDragonAttackType::CloseBreath;
 	}
 
-	return EDragonAttackType::Debuff;*/
-	return EDragonAttackType::Breath;
+	return EDragonAttackType::Debuff;
 }
 
 void ADragonBoss::ExecuteRandomAttack()
@@ -243,48 +242,6 @@ void ADragonBoss::BiteAttack()
 	CurrentState = EDragonState::Attacking;
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Bite"));
-
-	float Damage = AttackPower * 1.0f;
-
-	FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
-
-	FVector Forward = GetActorForwardVector();
-
-	FVector BiteCenter = MouthLocation + Forward * 500.f;
-
-	if (BiteFX)
-	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			GetWorld(),
-			BiteFX,
-			BiteCenter,
-			FRotator::ZeroRotator,
-			FVector(3.f)
-		);
-	}
-
-	TArray<AActor*> Players;
-
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
-
-	for (AActor* Actor : Players)
-	{
-		ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
-
-		if (!Player)
-		{
-			continue;
-		}
-
-		float Distance = FVector::Dist(Player->GetActorLocation(), BiteCenter);
-
-		if (Distance <= 350.f)
-		{
-			Player->TakePlayerDamage(Damage);
-
-			UE_LOG(LogTemp, Warning, TEXT("Bite Hit : %s"), *Player->GetName());
-		}
-	}
 
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 
@@ -337,46 +294,6 @@ void ADragonBoss::CloseBreathAttack()
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Close Breath"));
 
-	float Damage = AttackPower * 2.0f;
-
-	FVector MouthLocation = GetMesh()->GetSocketLocation( TEXT("MouthSocket"));
-
-	FVector Forward = GetActorForwardVector();
-
-	FVector BreathCenter = MouthLocation + Forward * 700.f;
-
-	if (CloseBreathFX)
-	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			GetWorld(),
-			CloseBreathFX,
-			BreathCenter
-		);
-	}
-
-	TArray<AActor*> Players;
-
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
-
-	for (AActor* Actor : Players)
-	{
-		ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
-
-		if (!Player)
-		{
-			continue;
-		}
-
-		float Distance = FVector::Dist( Player->GetActorLocation(), BreathCenter);
-
-		if (Distance <= 350.f)
-		{
-			Player->TakePlayerDamage(Damage);
-
-			UE_LOG(LogTemp, Warning, TEXT("Close Breath Hit : %s"), *Player->GetName());
-		}
-	}
-
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 
 	if (AnimInstance && CloseBreathMontage)
@@ -423,15 +340,6 @@ void ADragonBoss::BreathAttack()
 	CurrentState = EDragonState::Flying;
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Breath"));
-
-	if (BreathProjectileClass)
-	{
-		FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 200.f;
-
-		FRotator SpawnRotation = GetActorRotation();
-
-		GetWorld()->SpawnActor<ADragonBreathProjectile>(BreathProjectileClass, SpawnLocation, SpawnRotation);
-	}
 
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 
@@ -1230,5 +1138,109 @@ void ADragonBoss::OnLandFinished()
 		TEXT("===== LAND FINISHED ====="));
 
 	StartAttackCycle();
+}
+
+void ADragonBoss::BiteHit()
+{
+	float Damage = AttackPower * 1.0f;
+
+	FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+
+	FVector Forward = GetActorForwardVector();
+
+	FVector BiteCenter = MouthLocation + Forward * 500.f;
+
+	if (BiteFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			BiteFX,
+			BiteCenter,
+			FRotator::ZeroRotator,
+			FVector(3.f)
+		);
+	}
+
+	TArray<AActor*> Players;
+
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+
+	for (AActor* Actor : Players)
+	{
+		ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
+
+		if (!Player)
+		{
+			continue;
+		}
+
+		float Distance = FVector::Dist(Player->GetActorLocation(), BiteCenter);
+
+		if (Distance <= 350.f)
+		{
+			Player->TakePlayerDamage(Damage);
+
+			UE_LOG(LogTemp, Warning, TEXT("Bite Hit : %s"), *Player->GetName());
+		}
+	}
+}
+
+void ADragonBoss::CloseBreathFire()
+{
+	float Damage = AttackPower * 2.0f;
+
+	FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+
+	FVector Forward = GetActorForwardVector();
+
+	FVector BreathCenter = MouthLocation + Forward * 700.f;
+
+	BreathCenter.Z = GetActorLocation().Z;
+
+	if (CloseBreathFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			CloseBreathFX,
+			BreathCenter
+		);
+	}
+
+	TArray<AActor*> Players;
+
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+
+	for (AActor* Actor : Players)
+	{
+		ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
+
+		if (!Player)
+		{
+			continue;
+		}
+
+		float Distance = FVector::Dist(Player->GetActorLocation(), BreathCenter);
+
+		if (Distance <= 350.f)
+		{
+			Player->TakePlayerDamage(Damage);
+
+			UE_LOG(LogTemp, Warning, TEXT("Close Breath Hit : %s"), *Player->GetName());
+		}
+	}
+}
+
+void ADragonBoss::BreathFire()
+{
+	if (!BreathProjectileClass)
+	{
+		return;
+	}
+
+	FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+
+	FRotator SpawnRotation = GetActorRotation();
+
+	GetWorld()->SpawnActor<ADragonBreathProjectile>(BreathProjectileClass, MouthLocation, SpawnRotation);
 }
 
