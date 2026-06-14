@@ -188,7 +188,7 @@ void ADragonBoss::StartAttackCycle()
 
 EDragonAttackType ADragonBoss::ChooseRandomAttack()
 {
-	/*int32 Rand = FMath::RandRange(1, 100);
+	int32 Rand = FMath::RandRange(1, 100);
 
 	if (Rand <= 50)
 	{
@@ -200,7 +200,6 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 		return EDragonAttackType::CloseBreath;
 	}
 
-	return EDragonAttackType::Debuff;*/
 	return EDragonAttackType::Debuff;
 }
 
