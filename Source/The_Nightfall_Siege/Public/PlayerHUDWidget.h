@@ -66,4 +66,10 @@ public:
 
     UPROPERTY(meta = (BindWidget))
     UImage* Item4;
+
+    UPROPERTY(meta = (BindWidget))
+    UTextBlock* CoinText;
+
+    UFUNCTION(BlueprintCallable)
+    void UpdateCoin(int32 Coin);
 };

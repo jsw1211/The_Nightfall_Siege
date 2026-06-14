@@ -125,4 +125,16 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
         Item4->SetBrushFromTexture(Player->Slot4Icon);
     }
 
+    UpdateCoin(Player->Coin);
 }
+
+void UPlayerHUDWidget::UpdateCoin(int32 Coin)
+{
+    if (!CoinText)
+    {
+        return;
+    }
+
+    CoinText->SetText(FText::AsNumber(Coin));
+}
+
