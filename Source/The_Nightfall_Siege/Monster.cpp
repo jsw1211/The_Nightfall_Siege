@@ -113,6 +113,18 @@ void AMonster::Tick(float DeltaTime)
 
     if (!Player)
     {
+        if (AAIController* AI = Cast<AAIController>(GetController()))
+        {
+            AI->StopMovement();
+        }
+
+        GetCharacterMovement()->StopMovementImmediately();
+
+        GetCharacterMovement()->Velocity = FVector::ZeroVector;
+
+        bIsAttacking = false;
+        bIsChasing = false;
+
         return;
     }
 
@@ -120,8 +132,10 @@ void AMonster::Tick(float DeltaTime)
         GetActorLocation(),
         Player->GetActorLocation());
 
-    if (Distance <= 200.f)
+    if (Distance <= 250.f)
     {
+        bIsChasing = false;
+
         GetCharacterMovement()->StopMovementImmediately();
 
         if (bCanAttack)
@@ -144,9 +158,21 @@ void AMonster::Tick(float DeltaTime)
     }
     else
     {
-        UAIBlueprintHelperLibrary::SimpleMoveToActor(
-            GetController(),
-            Player);
+        AAIController* AI = Cast<AAIController>(GetController());
+
+        if (AI)
+        {
+            AI->MoveToActor(
+                Player,
+                100.f,
+                true,
+                true,
+                true,
+                nullptr,
+                true);
+
+            bIsChasing = true;
+        }
 
         bIsAttacking = false;
     }
@@ -319,6 +345,25 @@ bool AMonster::CanSeePlayer(ABaseCharacter* Player)
     {
         return false;
     }
+
+    /*FHitResult Hit;
+
+    FCollisionQueryParams Params;
+    Params.AddIgnoredActor(this);
+
+    bool bHit = GetWorld()->LineTraceSingleByChannel(
+        Hit,
+        GetActorLocation() + FVector(0, 0, 50),
+        Player->GetActorLocation() + FVector(0, 0, 50),
+        ECC_Visibility,
+        Params);
+
+    if (!bHit)
+    {
+        return false;
+    }
+
+    return Hit.GetActor() == Player;*/
 
     return true;
 }

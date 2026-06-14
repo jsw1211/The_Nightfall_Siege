@@ -103,4 +103,7 @@ public:
 	float SightAngle = 90.f;
 
 	bool CanSeePlayer(ABaseCharacter* Player);
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsChasing = false;
 };
