@@ -948,6 +948,16 @@ void ABaseCharacter::R(const FInputActionValue& Value)
             continue;
         }
 
+        if (Monster->bIsDead)
+        {
+            continue;
+        }
+
+        if (!Monster->bIsChasing)
+        {
+            continue;
+        }
+
         Monster->ApplyTaunt(this);
     }
 }
