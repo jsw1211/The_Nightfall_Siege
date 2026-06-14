@@ -21,6 +21,7 @@ class USkillTreeWidget;
 class ALantern;
 class UPlayerHUDWidget;
 class AArrowProjectile;
+class APortal;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABaseCharacter : public ACharacter
@@ -145,6 +146,11 @@ public:
 
 	UPROPERTY()
 	class ADungeonPrism* NearbyPrism = nullptr;
+
+	UPROPERTY()
+	APortal* NearbyPortal = nullptr;
+
+	void SetNearbyPortal(APortal* Portal);
 
 	void UseSlot1(const FInputActionValue& Value);
 	void SetNearbyPrism(class ADungeonPrism* Prism);

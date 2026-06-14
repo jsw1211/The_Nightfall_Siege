@@ -27,6 +27,7 @@
 #include "DragonBoss.h"
 #include "TheNightfallSiegeInstance.h"
 #include "DrawDebugHelpers.h"
+#include "Portal.h"
 
 
 // Sets default values
@@ -1407,6 +1408,13 @@ void ABaseCharacter::SetNearbyLantern(ALantern* Lantern)
 
 void ABaseCharacter::Interact(const FInputActionValue& Value)
 {
+    if (NearbyPortal)
+    {
+        NearbyPortal->Interact(this);
+
+        return;
+    }
+
     if (bDarknessDebuff && bPrismEquipped)
     {
         bDarknessDebuff = false;
@@ -1445,6 +1453,8 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
         {
             GI->bHasPrism = true;
         }
+
+        NearbyPrism->SpawnReturnPortal();
 
         NearbyPrism->Destroy();
 
@@ -1953,5 +1963,10 @@ void ABaseCharacter::RestoreSkillUpgrades()
             ApplySkillUpgrade(Data);
         }
     }
+}
+
+void ABaseCharacter::SetNearbyPortal(APortal* Portal)
+{
+    NearbyPortal = Portal;
 }
 

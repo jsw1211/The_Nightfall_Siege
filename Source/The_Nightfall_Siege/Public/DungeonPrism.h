@@ -9,6 +9,7 @@
 
 class UStaticMeshComponent;
 class USphereComponent;
+class APortal;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ADungeonPrism : public AActor
@@ -47,6 +48,9 @@ protected:
 		const FHitResult& SweepResult
 	);
 
+	UPROPERTY(EditAnywhere, Category = "Portal")
+	TSubclassOf<APortal> ReturnPortalClass;
+
 public:
 
 	void ActivatePrism();
@@ -55,4 +59,7 @@ public:
 	TArray<ABaseCharacter*> ActivatedPlayers;
 
 	void RemoveDarknessDebuff();
+
+	UFUNCTION()
+	void SpawnReturnPortal();
 };

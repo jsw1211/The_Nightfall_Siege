@@ -4,10 +4,9 @@
 #include "DungeonPrism.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
-
 #include "TheNightfallSiegeInstance.h"
-
 #include "Kismet/GameplayStatics.h"
+#include "Portal.h"
 
 // Sets default values
 ADungeonPrism::ADungeonPrism()
@@ -115,5 +114,24 @@ void ADungeonPrism::RemoveDarknessDebuff()
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("Darkness Removed"));
+}
+
+void ADungeonPrism::SpawnReturnPortal()
+{
+	if (!ReturnPortalClass)
+	{
+		return;
+	}
+
+	APortal* Portal =
+		GetWorld()->SpawnActor<APortal>(
+			ReturnPortalClass,
+			GetActorLocation(),
+			FRotator::ZeroRotator);
+
+	if (Portal)
+	{
+		Portal->PortalType = EPortalType::ReturnVillage;
+	}
 }
 
