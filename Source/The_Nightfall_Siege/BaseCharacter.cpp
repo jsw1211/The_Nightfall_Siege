@@ -1452,6 +1452,9 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
             Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
         {
             GI->bHasPrism = true;
+
+            bool bAllDungeonCleared =
+                GI->ClearCurrentDungeon();
         }
 
         NearbyPrism->SpawnReturnPortal();

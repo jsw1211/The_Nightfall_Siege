@@ -43,9 +43,13 @@ FName UTheNightfallSiegeInstance::SelectNextDungeon()
 
 bool UTheNightfallSiegeInstance::ClearCurrentDungeon()
 {
+    UE_LOG(LogTemp, Warning, TEXT("CurrentDungeon : %s"), *CurrentDungeon.ToString());
+
     RemainingDungeons.Remove(CurrentDungeon);
+
+    UE_LOG(LogTemp, Warning, TEXT("Remaining : %d"), RemainingDungeons.Num());
 
     ClearedDungeonCount++;
 
-    return ClearedDungeonCount >= 3;
+    return ClearedDungeonCount >= 1;
 }

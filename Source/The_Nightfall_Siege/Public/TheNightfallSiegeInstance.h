@@ -55,4 +55,7 @@ public:
 
 	UPROPERTY(BlueprintReadWrite)
 	TMap<ESkillType, int32> SkillLevels;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bBossPortalSpawned = false;
 };
