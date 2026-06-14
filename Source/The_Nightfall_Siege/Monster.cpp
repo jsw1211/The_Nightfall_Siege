@@ -98,6 +98,11 @@ void AMonster::Tick(float DeltaTime)
                 GetActorLocation(),
                 Character->GetActorLocation());
 
+            if (!CanSeePlayer(Character))
+            {
+                continue;
+            }
+
             if (Distance < ClosestDistance)
             {
                 ClosestDistance = Distance;
@@ -115,7 +120,7 @@ void AMonster::Tick(float DeltaTime)
         GetActorLocation(),
         Player->GetActorLocation());
 
-    if (Distance <= 150.f)
+    if (Distance <= 200.f)
     {
         GetCharacterMovement()->StopMovementImmediately();
 
@@ -280,3 +285,41 @@ void AMonster::TakeMonsterDamage(float Damage)
         }
     }
 }
+
+bool AMonster::CanSeePlayer(ABaseCharacter* Player)
+{
+    if (!Player)
+    {
+        return false;
+    }
+
+    FVector ToPlayer =
+        Player->GetActorLocation() - GetActorLocation();
+
+    float Distance = ToPlayer.Length();
+
+    if (Distance > SightRange)
+    {
+        return false;
+    }
+
+    ToPlayer.Normalize();
+
+    FVector Forward = GetActorForwardVector();
+
+    float Dot = FVector::DotProduct(
+        Forward,
+        ToPlayer);
+
+    float Angle =
+        FMath::RadiansToDegrees(
+            FMath::Acos(Dot));
+
+    if (Angle > SightAngle * 0.5f)
+    {
+        return false;
+    }
+
+    return true;
+}
+

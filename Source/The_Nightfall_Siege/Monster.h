@@ -95,4 +95,12 @@ public:
 
 	UFUNCTION()
 	void DestroyMonsterDelay();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+	float SightRange = 1000.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+	float SightAngle = 90.f;
+
+	bool CanSeePlayer(ABaseCharacter* Player);
 };
