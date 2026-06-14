@@ -15,6 +15,7 @@
 #include "AIController.h"
 #include "Coin.h"
 #include "DungeonPrism.h"
+#include "TheNightfallSiegeInstance.h"
 
 // Sets default values
 AMonster::AMonster()
@@ -295,6 +296,33 @@ void AMonster::TakeMonsterDamage(float Damage)
         if (bLastMonster)
         {
             SpawnPrism();
+
+            UTheNightfallSiegeInstance* GI =
+                Cast<UTheNightfallSiegeInstance>(GetGameInstance());
+
+            if (GI)
+            {
+                GI->SkillPoints += 2;
+
+                TArray<AActor*> Players;
+
+                UGameplayStatics::GetAllActorsOfClass(
+                    GetWorld(),
+                    ABaseCharacter::StaticClass(),
+                    Players);
+
+                for (AActor* Actor : Players)
+                {
+                    ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
+
+                    if (!Player)
+                    {
+                        continue;
+                    }
+
+                    Player->SkillPoints = GI->SkillPoints;
+                }
+            }
         }
 
         // 이동 정지
@@ -320,8 +348,6 @@ void AMonster::TakeMonsterDamage(float Damage)
             GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
             PlayAnimMontage(DeathMontage);
         }
-
-        SpawnCoin();
     }
 }
 

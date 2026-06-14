@@ -7,6 +7,11 @@ void UTheNightfallSiegeInstance::Init()
 {
     Super::Init();
 
+    SkillLevels.Add(ESkillType::Q, 1);
+    SkillLevels.Add(ESkillType::W, 1);
+    SkillLevels.Add(ESkillType::E, 1);
+    SkillLevels.Add(ESkillType::R, 1);
+
     StartRaid();
 
     SelectNextDungeon();

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
 #include "CharacterType.h"
+#include "SkillUpgradeData.h"
 #include "TheNightfallSiegeInstance.generated.h"
 
 /**
@@ -48,4 +49,10 @@ public:
 
 	UPROPERTY(BlueprintReadWrite)
 	bool bPrismEquipped = false;
+
+	UPROPERTY(BlueprintReadWrite)
+	int32 SkillPoints = 5;
+
+	UPROPERTY(BlueprintReadWrite)
+	TMap<ESkillType, int32> SkillLevels;
 };

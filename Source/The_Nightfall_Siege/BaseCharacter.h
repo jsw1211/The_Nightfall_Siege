@@ -105,6 +105,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void ApplySkillUpgrade(FSkillUpgradeData UpgradeData);
 
+	void RestoreSkillUpgrades();
+
 	void ToggleSkillTree();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")

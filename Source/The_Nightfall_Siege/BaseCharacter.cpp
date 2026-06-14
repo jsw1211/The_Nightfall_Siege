@@ -58,11 +58,6 @@ ABaseCharacter::ABaseCharacter()
     Camera->SetupAttachment(SpringArm);
     Camera->bUsePawnControlRotation = false;
 
-    SkillLevels.Add(ESkillType::Q, 1);
-    SkillLevels.Add(ESkillType::W, 1);
-    SkillLevels.Add(ESkillType::E, 1);
-    SkillLevels.Add(ESkillType::R, 1);
-
     EquippedLanternMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EquippedLanternMesh"));
 
     EquippedLanternMesh->SetupAttachment(GetMesh(), TEXT("LanternSocket"));
@@ -141,8 +136,6 @@ void ABaseCharacter::BeginPlay()
     }
 
     CurrentHP = MaxHP;
-
-    SkillPoints = 5;
 	
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
@@ -192,6 +185,11 @@ void ABaseCharacter::BeginPlay()
 
     if (GI)
     {
+        SkillPoints = GI->SkillPoints;
+        SkillLevels = GI->SkillLevels;
+
+        RestoreSkillUpgrades();
+
         bHasLantern = GI->bHasLantern;
         bLanternEquipped = GI->bLanternEquipped;
 
@@ -1140,6 +1138,13 @@ bool ABaseCharacter::UpgradeSkill(FSkillUpgradeData UpgradeData)
 
     ApplySkillUpgrade(UpgradeData);
 
+    if (UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+    {
+        GI->SkillPoints = SkillPoints;
+        GI->SkillLevels = SkillLevels;
+    }
+
     GEngine->AddOnScreenDebugMessage(
         -1,
         2.f,
@@ -1923,6 +1928,30 @@ void ABaseCharacter::EndArcherWBuff()
     {
         WAreaComponent->DestroyComponent();
         WAreaComponent = nullptr;
+    }
+}
+
+void ABaseCharacter::RestoreSkillUpgrades()
+{
+    for (const auto& Pair : SkillLevels)
+    {
+        ESkillType SkillType = Pair.Key;
+        int32 Level = Pair.Value;
+
+        if (Level <= 1)
+        {
+            continue;
+        }
+
+        for (int32 i = 2; i <= Level; i++)
+        {
+            FSkillUpgradeData Data;
+            Data.SkillType = SkillType;
+
+            SkillLevels[SkillType] = i;
+
+            ApplySkillUpgrade(Data);
+        }
     }
 }
 
