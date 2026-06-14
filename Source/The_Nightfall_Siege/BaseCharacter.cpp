@@ -25,6 +25,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "DungeonPrism.h"
 #include "DragonBoss.h"
+#include "TheNightfallSiegeInstance.h"
 
 
 // Sets default values
@@ -181,6 +182,38 @@ void ABaseCharacter::BeginPlay()
     Slot2Icon = EmptySlotIcon;
     Slot3Icon = EmptySlotIcon;
     Slot4Icon = EmptySlotIcon;
+
+    UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance());
+
+    if (GI)
+    {
+        bHasLantern = GI->bHasLantern;
+        bLanternEquipped = GI->bLanternEquipped;
+
+        bHasPrism = GI->bHasPrism;
+        bPrismEquipped = GI->bPrismEquipped;
+
+        if (bHasLantern)
+        {
+            Slot1Icon = LanternIcon;
+        }
+
+        if (bHasPrism)
+        {
+            Slot3Icon = PrismIcon;
+        }
+
+        if (bLanternEquipped)
+        {
+            OnLanternEquipped();
+        }
+
+        if (bPrismEquipped)
+        {
+            OnPrismEquipped();
+        }
+    }
 }
 
 void ABaseCharacter::Die()
@@ -1324,7 +1357,11 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 
         Slot1Icon = LanternIcon;
 
-        UE_LOG(LogTemp, Warning, TEXT("Lantern Picked Up"));
+        if (UTheNightfallSiegeInstance* GI =
+            Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+        {
+            GI->bHasLantern = true;
+        }
 
         NearbyLantern->Destroy();
 
@@ -1337,8 +1374,11 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 
         Slot3Icon = PrismIcon;
 
-        UE_LOG(LogTemp, Warning,
-            TEXT("Prism Picked Up"));
+        if (UTheNightfallSiegeInstance* GI =
+            Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+        {
+            GI->bHasPrism = true;
+        }
 
         NearbyPrism->Destroy();
 
@@ -1421,6 +1461,12 @@ void ABaseCharacter::OnLanternEquipped()
 
     bLanternEquipped = true;
 
+    if (UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+    {
+        GI->bLanternEquipped = true;
+    }
+
     bPrismPoseActive = false;
 
     bIsEquippingLantern = false;
@@ -1450,6 +1496,12 @@ void ABaseCharacter::OnLanternUnequipped()
     UE_LOG(LogTemp, Warning, TEXT("UNEQUIP"));
 
     bLanternEquipped = false;
+
+    if (UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+    {
+        GI->bLanternEquipped = false;
+    }
 
     bLanternPoseActive = false;
 
@@ -1730,6 +1782,12 @@ void ABaseCharacter::OnPrismEquipped()
 
     bPrismEquipped = true;
 
+    if (UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+    {
+        GI->bPrismEquipped = true;
+    }
+
     bPrismPoseActive = true;
 
     bLanternPoseActive = false;
@@ -1750,6 +1808,12 @@ void ABaseCharacter::OnPrismUnequipped()
 void ABaseCharacter::OnPrismUnequipFinished()
 {
     bPrismEquipped = false;
+
+    if (UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+    {
+        GI->bPrismEquipped = false;
+    }
 
     bIsEquippingPrism = false;
 

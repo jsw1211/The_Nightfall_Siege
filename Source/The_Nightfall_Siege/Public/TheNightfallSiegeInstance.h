@@ -36,4 +36,16 @@ public:
 	bool ClearCurrentDungeon();
 
 	virtual void Init() override;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bHasLantern = false;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bLanternEquipped = false;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bHasPrism = false;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bPrismEquipped = false;
 };
