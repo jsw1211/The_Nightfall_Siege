@@ -202,6 +202,10 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
 	float CurrentHP;
+	
+	// 보호막
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
+	float ShieldHP = 0.f;
 
 	// 쿨타임 시간
 	UPROPERTY(EditAnywhere, Category = "Cooldown")
@@ -404,7 +408,7 @@ protected:
 	float WRadius = 150.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-	float ERadius = 150.f;
+	float ERadius = 700.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	float RRadius = 200.f;

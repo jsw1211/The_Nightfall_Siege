@@ -26,6 +26,7 @@
 #include "DungeonPrism.h"
 #include "DragonBoss.h"
 #include "TheNightfallSiegeInstance.h"
+#include "DrawDebugHelpers.h"
 
 
 // Sets default values
@@ -648,34 +649,6 @@ void ABaseCharacter::W(const FInputActionValue& Value)
         WCooldown,
         false
     );
-
-    FVector Start = GetActorLocation();
-    float Radius = 150.f;
-
-    TArray<FOverlapResult> Overlaps;
-
-    FCollisionShape Sphere = FCollisionShape::MakeSphere(WRadius);
-
-    bool bHit = GetWorld()->OverlapMultiByChannel(
-        Overlaps,
-        Start,
-        FQuat::Identity,
-        ECC_Pawn,
-        Sphere
-    );
-
-    if (bHit)
-    {
-        for (auto& Result : Overlaps)
-        {
-            AMonster* Monster = Cast<AMonster>(Result.GetActor());
-
-            if (Monster)
-            {
-                Monster->TakeMonsterDamage(AttackPower * WMultiplier); // W 데미지
-            }
-        }
-    }
 }
 
 void ABaseCharacter::E(const FInputActionValue& Value)
@@ -768,31 +741,64 @@ void ABaseCharacter::E(const FInputActionValue& Value)
         false
     );
 
+    if (CharacterType == ECharacterType::Paladin)
+    {
+        ShieldHP = MaxHP * 0.1f;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Shield : %f"),
+            ShieldHP);
+    }
+
     FVector Start = GetActorLocation();
-    float Radius = 150.f;
 
     TArray<FOverlapResult> Overlaps;
 
-    FCollisionShape Sphere = FCollisionShape::MakeSphere(ERadius);
+    FCollisionShape Sphere =
+        FCollisionShape::MakeSphere(ERadius);
 
-    bool bHit = GetWorld()->OverlapMultiByChannel(
-        Overlaps,
-        Start,
-        FQuat::Identity,
-        ECC_Pawn,
-        Sphere
-    );
+    bool bHit =
+        GetWorld()->OverlapMultiByChannel(
+            Overlaps,
+            Start,
+            FQuat::Identity,
+            ECC_Pawn,
+            Sphere);
 
     if (bHit)
     {
+        TSet<ABaseCharacter*> HealedPlayers;
+
         for (auto& Result : Overlaps)
         {
-            AMonster* Monster = Cast<AMonster>(Result.GetActor());
+            ABaseCharacter* Player =
+                Cast<ABaseCharacter>(Result.GetActor());
 
-            if (Monster)
+            if (!Player)
             {
-                Monster->TakeMonsterDamage(AttackPower * EMultiplier); // E 데미지
+                continue;
             }
+
+            // 이미 처리한 플레이어면 건너뜀
+            if (HealedPlayers.Contains(Player))
+            {
+                continue;
+            }
+
+            HealedPlayers.Add(Player);
+
+            float Heal = Player->MaxHP * HealAmount;
+
+            UE_LOG(LogTemp, Warning,
+                TEXT("%s HP : %.0f -> %.0f"),
+                *Player->GetName(),
+                Player->CurrentHP,
+                FMath::Min(Player->CurrentHP + Heal, Player->MaxHP));
+
+            Player->CurrentHP =
+                FMath::Min(
+                    Player->CurrentHP + Heal,
+                    Player->MaxHP);
         }
     }
 }
@@ -857,7 +863,6 @@ void ABaseCharacter::R(const FInputActionValue& Value)
     }
 
     UE_LOG(LogTemp, Warning, TEXT("R"));
-    UE_LOG(LogTemp, Warning, TEXT("Damage: %f"), AttackPower * RMultiplier);
 
     if (RMontage)
     {
@@ -893,32 +898,57 @@ void ABaseCharacter::R(const FInputActionValue& Value)
         false
     );
 
-    FVector Start = GetActorLocation();
-    float Radius = 150.f;
+    TArray<AActor*> Players;
 
-    TArray<FOverlapResult> Overlaps;
+    UGameplayStatics::GetAllActorsOfClass(
+        GetWorld(),
+        ABaseCharacter::StaticClass(),
+        Players);
 
-    FCollisionShape Sphere = FCollisionShape::MakeSphere(RRadius);
-
-    bool bHit = GetWorld()->OverlapMultiByChannel(
-        Overlaps,
-        Start,
-        FQuat::Identity,
-        ECC_Pawn,
-        Sphere
-    );
-
-    if (bHit)
+    for (AActor* Actor : Players)
     {
-        for (auto& Result : Overlaps)
-        {
-            AMonster* Monster = Cast<AMonster>(Result.GetActor());
+        ABaseCharacter* Player =
+            Cast<ABaseCharacter>(Actor);
 
-            if (Monster)
-            {
-                Monster->TakeMonsterDamage(AttackPower * RMultiplier); // R 데미지
-            }
+        if (!Player)
+        {
+            continue;
         }
+
+        float Heal = Player->MaxHP * RHealAmount;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("%s HP : %.0f -> %.0f"),
+            *Player->GetName(),
+            Player->CurrentHP,
+            FMath::Min(Player->CurrentHP + Heal, Player->MaxHP));
+
+        Player->CurrentHP = FMath::Min(
+            Player->CurrentHP + Heal,
+            Player->MaxHP);
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("R Heal : %s"),
+            *Player->GetName());
+    }
+
+    TArray<AActor*> Monsters;
+
+    UGameplayStatics::GetAllActorsOfClass(
+        GetWorld(),
+        AMonster::StaticClass(),
+        Monsters);
+
+    for (AActor* Actor : Monsters)
+    {
+        AMonster* Monster = Cast<AMonster>(Actor);
+
+        if (!Monster)
+        {
+            continue;
+        }
+
+        Monster->ApplyTaunt(this);
     }
 }
 
@@ -1012,6 +1042,17 @@ void ABaseCharacter::TakePlayerDamage(float Damage)
         FinalDamage *= (1.f - DefenseRate);
     }
 
+    // 보호막 먼저 감소
+    if (ShieldHP > 0)
+    {
+        float UsedShield = FMath::Min(ShieldHP, FinalDamage);
+
+        ShieldHP -= UsedShield;
+
+        FinalDamage -= UsedShield;
+    }
+
+    // 남은 데미지만 체력 감소
     CurrentHP -= FinalDamage;
 
     if (CurrentHP > 0)
@@ -1149,7 +1190,7 @@ void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
 
             if (SkillLevel == 2)
             {
-                HealAmount = 0.01f;
+                HealAmount = 0.1f;
             }
             else if (SkillLevel == 3)
             {

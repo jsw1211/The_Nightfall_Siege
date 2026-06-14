@@ -56,11 +56,57 @@ void AMonster::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-    APawn* Player = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
+    ABaseCharacter* Player = nullptr;
 
-    if (!Player) return;
+    if (bIsTaunted && TauntTarget)
+    {
+        Player = TauntTarget;
+    }
+    else
+    {
+        TArray<AActor*> Players;
 
-    float Distance = FVector::Dist(GetActorLocation(), Player->GetActorLocation());
+        UGameplayStatics::GetAllActorsOfClass(
+            GetWorld(),
+            ABaseCharacter::StaticClass(),
+            Players);
+
+        float ClosestDistance = FLT_MAX;
+
+        for (AActor* Actor : Players)
+        {
+            ABaseCharacter* Character = Cast<ABaseCharacter>(Actor);
+
+            if (!Character)
+            {
+                continue;
+            }
+
+            if (Character->bIsDead)
+            {
+                continue;
+            }
+
+            float Distance = FVector::Dist(
+                GetActorLocation(),
+                Character->GetActorLocation());
+
+            if (Distance < ClosestDistance)
+            {
+                ClosestDistance = Distance;
+                Player = Character;
+            }
+        }
+    }
+
+    if (!Player)
+    {
+        return;
+    }
+
+    float Distance = FVector::Dist(
+        GetActorLocation(),
+        Player->GetActorLocation());
 
     if (Distance <= 150.f)
     {
@@ -71,10 +117,9 @@ void AMonster::Tick(float DeltaTime)
             bIsAttacking = true;
             bCanAttack = false;
 
-            ABaseCharacter* PlayerChar = Cast<ABaseCharacter>(Player);
-            if (PlayerChar)
+            if (Player)
             {
-                PlayerChar->TakePlayerDamage(10.f); // 몬스터 공격력
+                Player->TakePlayerDamage(10.f);
             }
 
             GetWorldTimerManager().SetTimer(
@@ -82,13 +127,14 @@ void AMonster::Tick(float DeltaTime)
                 this,
                 &AMonster::ResetAttack,
                 AttackCooldown,
-                false
-            );
+                false);
         }
     }
     else
     {
-        UAIBlueprintHelperLibrary::SimpleMoveToActor(GetController(), Player);
+        UAIBlueprintHelperLibrary::SimpleMoveToActor(
+            GetController(),
+            Player);
 
         bIsAttacking = false;
     }
@@ -105,6 +151,38 @@ void AMonster::ResetAttack()
 {
     bIsAttacking = false;
     bCanAttack = true;
+}
+
+void AMonster::ApplyTaunt(ABaseCharacter* Target)
+{
+    if (!Target)
+    {
+        return;
+    }
+
+    bIsTaunted = true;
+    TauntTarget = Target;
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Monster Taunted"));
+
+    GetWorldTimerManager().ClearTimer(TauntTimerHandle);
+
+    GetWorldTimerManager().SetTimer(
+        TauntTimerHandle,
+        this,
+        &AMonster::ClearTaunt,
+        5.f,
+        false);
+}
+
+void AMonster::ClearTaunt()
+{
+    bIsTaunted = false;
+    TauntTarget = nullptr;
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Taunt End"));
 }
 
 void AMonster::TakeMonsterDamage(float Damage)

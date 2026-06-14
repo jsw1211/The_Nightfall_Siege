@@ -10,6 +10,7 @@
 class ADungeonManager;
 class AAltar;
 class UWidgetComponent;
+class ABaseCharacter;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API AMonster : public ACharacter
@@ -50,6 +51,23 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float CurrentHP;
+
+	// 도발 대상
+	UPROPERTY()
+	ABaseCharacter* TauntTarget = nullptr;
+
+	// 도발 여부
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsTaunted = false;
+
+	// 도발 시간
+	FTimerHandle TauntTimerHandle;
+
+	// 도발 적용
+	void ApplyTaunt(ABaseCharacter* Target);
+
+	// 도발 해제
+	void ClearTaunt();
 
 	// 데미지 받는 함수
 	UFUNCTION()
