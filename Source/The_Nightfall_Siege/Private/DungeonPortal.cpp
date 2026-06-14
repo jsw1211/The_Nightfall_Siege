@@ -77,11 +77,6 @@ void ADungeonPortal::OnOverlapBegin(
 {
 	bPlayerInside = true;
 
-	GEngine->AddOnScreenDebugMessage(
-		-1,
-		2.f,
-		FColor::Green,
-		TEXT("Press F to Enter Dungeon"));
 }
 
 void ADungeonPortal::OnOverlapEnd(

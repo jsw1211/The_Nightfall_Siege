@@ -16,7 +16,7 @@ void UTheNightfallSiegeInstance::StartRaid()
 {
     RemainingDungeons.Empty();
 
-    RemainingDungeons.Add("DragonLevelSample");
+    RemainingDungeons.Add("LV_Dungeon1");
 
     ClearedDungeonCount = 0;
 }
