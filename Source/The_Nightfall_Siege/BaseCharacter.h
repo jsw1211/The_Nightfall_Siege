@@ -64,7 +64,7 @@ public:
 
 	// πË¿≤
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-	float QMultiplier = 1.2f;
+	float QMultiplier = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	float WMultiplier = 1.f;

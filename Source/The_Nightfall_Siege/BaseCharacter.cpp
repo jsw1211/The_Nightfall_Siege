@@ -98,18 +98,18 @@ void ABaseCharacter::BeginPlay()
         AttackPower = 100.f;
 
         // Q
-        QMultiplier = 1.2f;
+        QMultiplier = 1.0f;
         QCooldown = 5.f;
         QRadius = 200.f;
 
         // W
-        DefenseRate = 0.2f;
+        DefenseRate = 0.f;
 
         // E
-        HealAmount = 0.1f;
+        HealAmount = 0.f;
 
         // R
-        RHealAmount = 0.2f;
+        RHealAmount = 0.f;
 
         break;
 
@@ -1005,7 +1005,14 @@ void ABaseCharacter::TakePlayerDamage(float Damage)
 {
     if (bIsDead) return;
 
-    CurrentHP -= Damage;
+    float FinalDamage = Damage;
+
+    if (CharacterType == ECharacterType::Paladin)
+    {
+        FinalDamage *= (1.f - DefenseRate);
+    }
+
+    CurrentHP -= FinalDamage;
 
     if (CurrentHP > 0)
     {
