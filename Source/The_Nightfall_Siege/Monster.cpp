@@ -11,6 +11,8 @@
 #include "Components/SphereComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Blueprint/UserWidget.h"
+#include "Components/CapsuleComponent.h"
+#include "AIController.h"
 
 // Sets default values
 AMonster::AMonster()
@@ -55,6 +57,11 @@ void AMonster::BeginPlay()
 void AMonster::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+    if (bIsDead)
+    {
+        return;
+    }
 
     ABaseCharacter* Player = nullptr;
 
@@ -153,6 +160,22 @@ void AMonster::ResetAttack()
     bCanAttack = true;
 }
 
+void AMonster::DestroyMonster()
+{
+    GetWorldTimerManager().SetTimer(
+        DeathTimerHandle,
+        this,
+        &AMonster::DestroyMonsterDelay,
+        3.0f,
+        false
+    );
+}
+
+void AMonster::DestroyMonsterDelay()
+{
+    Destroy();
+}
+
 void AMonster::ApplyTaunt(ABaseCharacter* Target)
 {
     if (!Target)
@@ -223,14 +246,37 @@ void AMonster::TakeMonsterDamage(float Damage)
     {
         bIsDead = true;
 
+        CurrentHP = 0.f;
+
         UE_LOG(LogTemp, Warning, TEXT("Monster Dead"));
 
-        // DungeonManager에 몬스터 사망 알림
         if (DungeonManager)
         {
             DungeonManager->OnMonsterDead();
         }
 
-        Destroy();
+        // 이동 정지
+        GetCharacterMovement()->DisableMovement();
+
+        // 충돌 제거
+        GetCapsuleComponent()->SetCollisionEnabled(
+            ECollisionEnabled::NoCollision);
+
+        // 공격 중지
+        bCanAttack = false;
+        bIsAttacking = false;
+
+        // AI 정지
+        if (AAIController* AI = Cast<AAIController>(GetController()))
+        {
+            AI->StopMovement();
+        }
+
+        // 죽는 애니메이션
+        if (DeathMontage)
+        {
+            GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+            PlayAnimMontage(DeathMontage);
+        }
     }
 }

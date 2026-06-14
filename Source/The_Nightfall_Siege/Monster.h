@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Components/WidgetComponent.h"
+#include "Animation/AnimMontage.h"
 #include "Monster.generated.h"
 
 class ADungeonManager;
@@ -83,4 +84,15 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	UWidgetComponent* HPWidget;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UAnimMontage* DeathMontage;
+
+	UFUNCTION(BlueprintCallable)
+	void DestroyMonster();
+
+	FTimerHandle DeathTimerHandle;
+
+	UFUNCTION()
+	void DestroyMonsterDelay();
 };
