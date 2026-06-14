@@ -183,6 +183,9 @@ void ABaseCharacter::BeginPlay()
     Slot3Icon = EmptySlotIcon;
     Slot4Icon = EmptySlotIcon;
 
+    PotionCount = 5;
+    Slot2Icon = PotionIcon;
+
     UTheNightfallSiegeInstance* GI =
         Cast<UTheNightfallSiegeInstance>(GetGameInstance());
 
@@ -278,7 +281,7 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         EnhancedInput->BindAction(IA_SkillTree, ETriggerEvent::Started, this, &ABaseCharacter::ToggleSkillTree);
         EnhancedInput->BindAction(IA_Interact, ETriggerEvent::Started, this, &ABaseCharacter::Interact);
         EnhancedInput->BindAction(IA_Slot1, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot1);
-        //EnhancedInput->BindAction(IA_Slot2, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot2);
+        EnhancedInput->BindAction(IA_Slot2, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot2);
         EnhancedInput->BindAction(IA_Slot3, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot3);
         //EnhancedInput->BindAction(IA_Slot4, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot4);
     }
@@ -1416,6 +1419,37 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
 
             PlayAnimMontage(LanternUnequipMontage);
         }
+    }
+}
+
+void ABaseCharacter::UseSlot2(const FInputActionValue& Value)
+{
+    if (PotionCount <= 0)
+    {
+        return;
+    }
+
+    if (CurrentHP >= MaxHP)
+    {
+        return;
+    }
+
+    PotionCount--;
+
+    CurrentHP = FMath::Min(
+        CurrentHP + MaxHP * 0.3f,
+        MaxHP);
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Potion Used"));
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Potion Left : %d"),
+        PotionCount);
+
+    if (PotionCount <= 0)
+    {
+        Slot2Icon = EmptySlotIcon;
     }
 }
 

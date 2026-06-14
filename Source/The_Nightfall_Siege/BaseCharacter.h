@@ -147,6 +147,8 @@ public:
 	void UseSlot1(const FInputActionValue& Value);
 	void SetNearbyPrism(class ADungeonPrism* Prism);
 
+	void UseSlot2(const FInputActionValue& Value);
+
 	void UseSlot3(const FInputActionValue& Value);
 
 	UPROPERTY(VisibleAnywhere)
@@ -243,6 +245,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Item")
 	UTexture2D* PotionIcon;
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 PotionCount = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Item")
 	UTexture2D* PrismIcon;
