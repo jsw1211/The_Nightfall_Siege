@@ -7,13 +7,15 @@
 #include "DangerZone.generated.h"
 
 class UDecalComponent;
+class UMaterialInterface;
 
 UENUM(BlueprintType)
 enum class EDangerZoneType : uint8
 {
 	Circle,
 	Cone,
-	Line
+	Line,
+	FullMap
 };
 
 UCLASS()
@@ -33,8 +35,11 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DangerZone")
 	UDecalComponent* Decal;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DangerZone")
+	UMaterialInterface* FullMapMaterial;
 
 	UPROPERTY(EditAnywhere)
 	float LifeTime = 3.f;
@@ -50,4 +55,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetCloseBreathShape();
+
+	UFUNCTION(BlueprintCallable)
+	void SetFullMapShape();
 };

@@ -188,7 +188,7 @@ void ADragonBoss::StartAttackCycle()
 
 EDragonAttackType ADragonBoss::ChooseRandomAttack()
 {
-	int32 Rand = FMath::RandRange(1, 100);
+	/*int32 Rand = FMath::RandRange(1, 100);
 
 	if (Rand <= 50)
 	{
@@ -200,6 +200,7 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 		return EDragonAttackType::CloseBreath;
 	}
 
+	return EDragonAttackType::Debuff;*/
 	return EDragonAttackType::Debuff;
 }
 
@@ -1045,8 +1046,23 @@ void ADragonBoss::StartAttackTelegraph(
 
 	case EDragonAttackType::Debuff:
 	{
-		UE_LOG(LogTemp, Warning,
-			TEXT("Debuff Warning"));
+		FVector SpawnLocation = ArenaCenter;
+
+		SpawnLocation.Z += 5.f;
+
+		FRotator Rotation(-90.f, 0.f, 0.f);
+
+		ADangerZone* Zone =
+			GetWorld()->SpawnActor<ADangerZone>(
+				DangerZoneClass,
+				SpawnLocation,
+				Rotation);
+
+		if (Zone)
+		{
+			Zone->SetFullMapShape();
+		}
+
 		break;
 	}
 	}

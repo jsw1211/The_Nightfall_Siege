@@ -60,3 +60,16 @@ void ADangerZone::SetCloseBreathShape()
 			700.f);
 }
 
+void ADangerZone::SetFullMapShape()
+{
+	Decal->DecalSize =
+		FVector(
+			300.f,
+			10000.f,
+			10000.f);
+
+	if (FullMapMaterial)
+	{
+		Decal->SetDecalMaterial(FullMapMaterial);
+	}
+}
