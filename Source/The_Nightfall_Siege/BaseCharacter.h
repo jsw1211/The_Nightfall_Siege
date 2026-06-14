@@ -304,6 +304,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	bool bIsDead = false;
 
+	UPROPERTY(BlueprintReadOnly)
+	int32 Coin = 0;
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;

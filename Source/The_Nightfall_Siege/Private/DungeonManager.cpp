@@ -2,7 +2,6 @@
 
 
 #include "DungeonManager.h"
-#include "DungeonPrism.h"
 #include "Altar.h"
 #include "Monster.h"
 #include "Kismet/GameplayStatics.h"
@@ -40,22 +39,13 @@ void ADungeonManager::RegisterMonster()
 	UE_LOG(LogTemp, Warning, TEXT("Monster Registered: %d"), AliveMonsterCount);
 }
 
-void ADungeonManager::OnMonsterDead()
+bool ADungeonManager::OnMonsterDead()
 {
 	AliveMonsterCount--;
 
 	UE_LOG(LogTemp, Warning, TEXT("Monster Dead Left: %d"), AliveMonsterCount);
 
-	// ¸ó½ºÅÍ Àü¸ê
-	if (AliveMonsterCount <= 0)
-	{
-		if (DungeonPrism)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Activate Prism"));
-
-			DungeonPrism->ActivatePrism();
-		}
-	}
+	return AliveMonsterCount <= 0;
 }
 
 void ADungeonManager::SpawnMonsters()

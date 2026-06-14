@@ -12,6 +12,8 @@ class ADungeonManager;
 class AAltar;
 class UWidgetComponent;
 class ABaseCharacter;
+class ACoin;
+class ADungeonPrism;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API AMonster : public ACharacter
@@ -106,4 +108,16 @@ public:
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsChasing = false;
+
+	UPROPERTY(EditAnywhere, Category = "Drop")
+	TSubclassOf<class ACoin> CoinClass;
+
+	UPROPERTY(EditAnywhere, Category = "Drop")
+	TSubclassOf<class ADungeonPrism> PrismClass;
+
+	UFUNCTION()
+	void SpawnCoin();
+
+	UFUNCTION()
+	void SpawnPrism();
 };

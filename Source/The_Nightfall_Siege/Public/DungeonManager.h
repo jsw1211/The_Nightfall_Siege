@@ -41,7 +41,7 @@ public:
 	void RegisterMonster();
 
 	// 몬스터 사망
-	void OnMonsterDead();
+	bool OnMonsterDead();
 
 	// 몬스터 클래스
 	UPROPERTY(EditAnywhere, Category = "Monster")

@@ -13,6 +13,8 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/CapsuleComponent.h"
 #include "AIController.h"
+#include "Coin.h"
+#include "DungeonPrism.h"
 
 // Sets default values
 AMonster::AMonster()
@@ -281,9 +283,18 @@ void AMonster::TakeMonsterDamage(float Damage)
 
         UE_LOG(LogTemp, Warning, TEXT("Monster Dead"));
 
+        bool bLastMonster = false;
+
         if (DungeonManager)
         {
-            DungeonManager->OnMonsterDead();
+            bLastMonster = DungeonManager->OnMonsterDead();
+        }
+
+        SpawnCoin();
+
+        if (bLastMonster)
+        {
+            SpawnPrism();
         }
 
         // 이동 정지
@@ -309,6 +320,8 @@ void AMonster::TakeMonsterDamage(float Damage)
             GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
             PlayAnimMontage(DeathMontage);
         }
+
+        SpawnCoin();
     }
 }
 
@@ -366,5 +379,37 @@ bool AMonster::CanSeePlayer(ABaseCharacter* Player)
     return Hit.GetActor() == Player;*/
 
     return true;
+}
+
+void AMonster::SpawnCoin()
+{
+    if (!CoinClass)
+    {
+        return;
+    }
+
+    FVector SpawnLocation =
+        GetActorLocation() + FVector(0, 0, 30);
+
+    GetWorld()->SpawnActor<ACoin>(
+        CoinClass,
+        SpawnLocation,
+        FRotator::ZeroRotator);
+}
+
+void AMonster::SpawnPrism()
+{
+    if (!PrismClass)
+    {
+        return;
+    }
+
+    FVector SpawnLocation =
+        GetActorLocation() + FVector(0.f, 0.f, 30.f);
+
+    GetWorld()->SpawnActor<ADungeonPrism>(
+        PrismClass,
+        SpawnLocation,
+        FRotator::ZeroRotator);
 }
 
