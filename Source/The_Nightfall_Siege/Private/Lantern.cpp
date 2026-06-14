@@ -3,6 +3,7 @@
 
 #include "Lantern.h"
 #include "BaseCharacter.h"
+#include "TheNightfallSiegeInstance.h"
 
 // Sets default values
 ALantern::ALantern()
@@ -29,6 +30,16 @@ void ALantern::BeginPlay()
 	InteractionSphere->OnComponentBeginOverlap.AddDynamic(this, &ALantern::OnOverlapBegin);
 
 	InteractionSphere->OnComponentEndOverlap.AddDynamic(this, &ALantern::OnOverlapEnd);
+
+    UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance());
+
+    if (GI && GI->bHasLantern)
+    {
+        Destroy();
+
+        return;
+    }
 }
 
 // Called every frame
