@@ -166,7 +166,7 @@ void AMonster::DestroyMonster()
         DeathTimerHandle,
         this,
         &AMonster::DestroyMonsterDelay,
-        3.0f,
+        0.4f,
         false
     );
 }
