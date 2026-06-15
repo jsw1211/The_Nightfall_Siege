@@ -4,6 +4,7 @@
 #include "BaseController.h"
 #include "BaseCharacter.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
+#include "Blueprint/UserWidget.h"
 
 void ABaseController::SetupInputComponent()
 {
@@ -84,11 +85,22 @@ void ABaseController::BeginPlay()
 {
     Super::BeginPlay();
 
+    if (!IsLocalController())
+    {
+        return;
+    }
+
     FString MapName = GetWorld()->GetMapName();
+
+    if (MapName.Contains(TEXT("Lvl_Lobby")))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Lobby Controller"));
+    }
 
     UE_LOG(LogTemp, Warning, TEXT("%s"), *MapName);
 
     bShowMouseCursor = true;
+
     DefaultMouseCursor = EMouseCursor::Default;
 
     SetIgnoreLookInput(true); // 🔥 마우스 회전 입력 차단

@@ -24,4 +24,10 @@ protected:
 	void RotateCharacterToCursor();
 
 	virtual void BeginPlay() override;
+
+	UPROPERTY(EditDefaultsOnly, Category = UI)
+	TSubclassOf<class UUserWidget> CharacterSelectWidgetClass;
+
+	UPROPERTY()
+	UUserWidget* CharacterSelectWidget;
 };
