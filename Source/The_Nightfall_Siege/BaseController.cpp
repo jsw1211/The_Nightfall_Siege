@@ -92,9 +92,24 @@ void ABaseController::BeginPlay()
 
     FString MapName = GetWorld()->GetMapName();
 
+    UE_LOG(LogTemp, Warning, TEXT("%s"), *MapName);
+
     if (MapName.Contains(TEXT("Lvl_Lobby")))
     {
         UE_LOG(LogTemp, Warning, TEXT("Lobby Controller"));
+
+        if (LobbyWidgetClass)
+        {
+            LobbyWidget =
+                CreateWidget<UUserWidget>(
+                    this,
+                    LobbyWidgetClass);
+
+            if (LobbyWidget)
+            {
+                LobbyWidget->AddToViewport();
+            }
+        }
     }
 
     UE_LOG(LogTemp, Warning, TEXT("%s"), *MapName);
@@ -103,5 +118,5 @@ void ABaseController::BeginPlay()
 
     DefaultMouseCursor = EMouseCursor::Default;
 
-    SetIgnoreLookInput(true); // 🔥 마우스 회전 입력 차단
+    SetIgnoreLookInput(true);
 }

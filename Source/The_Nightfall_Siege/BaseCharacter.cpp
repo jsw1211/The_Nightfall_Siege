@@ -158,17 +158,22 @@ void ABaseCharacter::BeginPlay()
     EquipWeapon(RightHandWeaponClass, RightHandSocketName, RightHandWeapon);
     EquipWeapon(LeftHandWeaponClass, LeftHandSocketName, LeftHandWeapon);
 
-    if (HUDWidgetClass)
+    FString MapName = GetWorld()->GetMapName();
+
+    if (MapName.Contains(TEXT("Lvl_TopDown")))
     {
-        APlayerController* PC = Cast<APlayerController>(GetController());
-
-        if (PC)
+        if (HUDWidgetClass)
         {
-            HUDWidget = CreateWidget<UPlayerHUDWidget>(PC, HUDWidgetClass);
+            APlayerController* PC = Cast<APlayerController>(GetController());
 
-            if (HUDWidget)
+            if (PC && PC->IsLocalController())
             {
-                HUDWidget->AddToViewport();
+                HUDWidget = CreateWidget<UPlayerHUDWidget>(PC, HUDWidgetClass);
+
+                if (HUDWidget)
+                {
+                    HUDWidget->AddToViewport();
+                }
             }
         }
     }

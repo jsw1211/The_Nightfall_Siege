@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "Blueprint/UserWidget.h"
 #include "BaseController.generated.h"
 
 /**
@@ -30,4 +31,10 @@ protected:
 
 	UPROPERTY()
 	UUserWidget* CharacterSelectWidget;
+
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUserWidget> LobbyWidgetClass;
+
+	UPROPERTY()
+	UUserWidget* LobbyWidget;
 };
