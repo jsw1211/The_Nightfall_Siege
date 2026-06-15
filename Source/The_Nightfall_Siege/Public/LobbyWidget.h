@@ -61,4 +61,8 @@ protected:
     UPROPERTY(meta = (BindWidget))
     UTextBlock* Txt_Status4;
 
+    TArray<UTextBlock*> PlayerTexts;
+    TArray<UTextBlock*> CharacterTexts;
+    TArray<UTextBlock*> StatusTexts;
+
 };

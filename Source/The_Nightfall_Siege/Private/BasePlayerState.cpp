@@ -25,3 +25,13 @@ void ABasePlayerState::OnRep_SelectedCharacter()
     UE_LOG(LogTemp, Warning, TEXT("Rep Character Changed"));
 }
 
+void ABasePlayerState::SetReady(bool bNewReady)
+{
+    bReady = bNewReady;
+}
+
+bool ABasePlayerState::IsReady() const
+{
+    return bReady;
+}
+

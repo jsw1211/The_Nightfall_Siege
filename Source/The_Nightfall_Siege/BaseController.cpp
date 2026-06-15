@@ -186,3 +186,31 @@ void ABaseController::SelectNextCharacter()
     ServerSelectCharacter(NewCharacter);
 }
 
+void ABaseController::ToggleReady()
+{
+    ABasePlayerState* PS = Cast<ABasePlayerState>(PlayerState);
+
+    if (!PS)
+    {
+        return;
+    }
+
+    ServerSetReady(!PS->IsReady());
+}
+
+void ABaseController::ServerSetReady_Implementation(bool bNewReady)
+{
+    ABasePlayerState* PS = Cast<ABasePlayerState>(PlayerState);
+
+    if (!PS)
+    {
+        return;
+    }
+
+    PS->SetReady(bNewReady);
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Ready : %s"),
+        bNewReady ? TEXT("True") : TEXT("False"));
+}
+

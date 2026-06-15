@@ -16,10 +16,6 @@ class THE_NIGHTFALL_SIEGE_API ABaseController : public APlayerController
 {
 	GENERATED_BODY()
 
-public:
-	UFUNCTION(BlueprintCallable)
-	void SelectNextCharacter();
-
 protected:
 	virtual void SetupInputComponent() override;
 
@@ -50,4 +46,15 @@ protected:
 	void SelectCharacter(ECharacterType NewCharacter);
 
 	FTimerHandle LobbyRefreshHandle;
+
+	UFUNCTION(Server, Reliable)
+	void ServerSetReady(bool bNewReady);
+
+public:
+
+	UFUNCTION(BlueprintCallable)
+	void SelectNextCharacter();
+
+	UFUNCTION(BlueprintCallable)
+	void ToggleReady();
 };

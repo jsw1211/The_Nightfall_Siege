@@ -25,6 +25,12 @@ public:
 	UFUNCTION()
 	void OnRep_SelectedCharacter();
 
+	UFUNCTION(BlueprintCallable)
+	void SetReady(bool bNewReady);
+
+	UFUNCTION(BlueprintCallable)
+	bool IsReady() const;
+
 protected:
 
 	virtual void GetLifetimeReplicatedProps(

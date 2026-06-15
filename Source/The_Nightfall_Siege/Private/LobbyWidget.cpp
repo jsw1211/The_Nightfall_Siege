@@ -11,6 +11,30 @@ void ULobbyWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
+    PlayerTexts =
+    {
+        Txt_Player1,
+        Txt_Player2,
+        Txt_Player3,
+        Txt_Player4
+    };
+
+    CharacterTexts =
+    {
+        Txt_Character1,
+        Txt_Character2,
+        Txt_Character3,
+        Txt_Character4
+    };
+
+    StatusTexts =
+    {
+        Txt_Status1,
+        Txt_Status2,
+        Txt_Status3,
+        Txt_Status4
+    };
+
     RefreshLobby();
 }
 
@@ -23,68 +47,69 @@ void ULobbyWidget::RefreshLobby()
         return;
     }
 
-    if (GS->PlayerArray.Num() == 0)
+    // 먼저 모든 칸을 초기화
+    for (int32 i = 0; i < 4; i++)
     {
-        return;
-    }
-
-    ABasePlayerState* PS =
-        Cast<ABasePlayerState>(GS->PlayerArray[0]);
-
-    if (!PS)
-    {
-        return;
-    }
-
-    if (Txt_Player1)
-    {
-        Txt_Player1->SetText(FText::FromString(PS->GetPlayerName()));
-        if (Txt_Character1)
+        if (PlayerTexts.IsValidIndex(i))
         {
-            switch (PS->SelectedCharacter)
-            {
-            case ECharacterType::Paladin:
-                Txt_Character1->SetText(FText::FromString("Paladin"));
-                break;
+            PlayerTexts[i]->SetText(FText::GetEmpty());
+        }
 
-            case ECharacterType::Warrior:
-                Txt_Character1->SetText(FText::FromString("Warrior"));
-                break;
+        if (CharacterTexts.IsValidIndex(i))
+        {
+            CharacterTexts[i]->SetText(FText::GetEmpty());
+        }
 
-            case ECharacterType::Archer:
-                Txt_Character1->SetText(FText::FromString("Archer"));
-                break;
-            }
+        if (StatusTexts.IsValidIndex(i))
+        {
+            StatusTexts[i]->SetText(FText::GetEmpty());
         }
     }
 
-    if (GS->PlayerArray.Num() > 1)
+    // 접속한 플레이어 수만큼 채우기
+    const int32 Count = FMath::Min(GS->PlayerArray.Num(), 4);
+
+    for (int32 i = 0; i < Count; i++)
     {
-        ABasePlayerState* PS2 =
-            Cast<ABasePlayerState>(GS->PlayerArray[1]);
+        ABasePlayerState* PS =
+            Cast<ABasePlayerState>(GS->PlayerArray[i]);
 
-        if (PS2 && Txt_Player2)
+        if (!PS)
         {
-            Txt_Player2->SetText(
-                FText::FromString(PS2->GetPlayerName()));
-            if (Txt_Character2)
-            {
-                switch (PS2->SelectedCharacter)
-                {
-                case ECharacterType::Paladin:
-                    Txt_Character2->SetText(FText::FromString("Paladin"));
-                    break;
-
-                case ECharacterType::Warrior:
-                    Txt_Character2->SetText(FText::FromString("Warrior"));
-                    break;
-
-                case ECharacterType::Archer:
-                    Txt_Character2->SetText(FText::FromString("Archer"));
-                    break;
-                }
-            }
+            continue;
         }
+
+        // 이름
+        PlayerTexts[i]->SetText(FText::FromString(PS->GetPlayerName()));
+
+        // 캐릭터
+        FString CharacterName;
+
+        switch (PS->SelectedCharacter)
+        {
+        case ECharacterType::Paladin:
+            CharacterName = TEXT("Paladin");
+            break;
+
+        case ECharacterType::Warrior:
+            CharacterName = TEXT("Warrior");
+            break;
+
+        case ECharacterType::Archer:
+            CharacterName = TEXT("Archer");
+            break;
+
+        default:
+            CharacterName = TEXT("Unknown");
+            break;
+        }
+
+        CharacterTexts[i]->SetText(FText::FromString(CharacterName));
+
+        // Ready
+        StatusTexts[i]->SetText(
+            FText::FromString(
+                PS->IsReady() ? TEXT("Ready") : TEXT("Not Ready")));
     }
 }
 
