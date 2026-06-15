@@ -43,5 +43,7 @@ protected:
 	void ServerSelectCharacter(ECharacterType NewCharacter);
 
 	UFUNCTION(BlueprintCallable)
-	void SelectCharacter(ECharacterType NewCharacter);	
+	void SelectCharacter(ECharacterType NewCharacter);
+
+	FTimerHandle LobbyRefreshHandle;
 };

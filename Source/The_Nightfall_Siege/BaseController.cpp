@@ -6,6 +6,8 @@
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "Blueprint/UserWidget.h"
 #include "BasePlayerState.h"
+#include "LobbyWidget.h"
+#include "TimerManager.h"
 
 void ABaseController::SetupInputComponent()
 {
@@ -109,6 +111,19 @@ void ABaseController::BeginPlay()
             if (LobbyWidget)
             {
                 LobbyWidget->AddToViewport();
+
+                ULobbyWidget* Lobby =
+                    Cast<ULobbyWidget>(LobbyWidget);
+
+                if (Lobby)
+                {
+                    GetWorld()->GetTimerManager().SetTimer(
+                        LobbyRefreshHandle,
+                        Lobby,
+                        &ULobbyWidget::RefreshLobby,
+                        1.0f,
+                        true);
+                }
             }
         }
     }
