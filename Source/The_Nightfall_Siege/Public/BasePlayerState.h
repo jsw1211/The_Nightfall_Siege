@@ -19,8 +19,11 @@ public:
 
 	ABasePlayerState();
 
-	UPROPERTY(Replicated, BlueprintReadOnly)
+	UPROPERTY(ReplicatedUsing = OnRep_SelectedCharacter, BlueprintReadOnly)
 	ECharacterType SelectedCharacter = ECharacterType::Paladin;
+
+	UFUNCTION()
+	void OnRep_SelectedCharacter();
 
 protected:
 

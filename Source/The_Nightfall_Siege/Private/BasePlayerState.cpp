@@ -20,3 +20,8 @@ void ABasePlayerState::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABasePlayerState, bReady);
 }
 
+void ABasePlayerState::OnRep_SelectedCharacter()
+{
+    UE_LOG(LogTemp, Warning, TEXT("Rep Character Changed"));
+}
+
