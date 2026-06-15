@@ -15,7 +15,11 @@ UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABaseController : public APlayerController
 {
 	GENERATED_BODY()
-	
+
+public:
+	UFUNCTION(BlueprintCallable)
+	void SelectNextCharacter();
+
 protected:
 	virtual void SetupInputComponent() override;
 

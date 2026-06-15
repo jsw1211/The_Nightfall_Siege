@@ -157,3 +157,32 @@ void ABaseController::SelectCharacter(ECharacterType NewCharacter)
     ServerSelectCharacter(NewCharacter);
 }
 
+void ABaseController::SelectNextCharacter()
+{
+    ABasePlayerState* PS = Cast<ABasePlayerState>(PlayerState);
+
+    if (!PS)
+    {
+        return;
+    }
+
+    ECharacterType NewCharacter;
+
+    switch (PS->SelectedCharacter)
+    {
+    case ECharacterType::Paladin:
+        NewCharacter = ECharacterType::Warrior;
+        break;
+
+    case ECharacterType::Warrior:
+        NewCharacter = ECharacterType::Archer;
+        break;
+
+    default:
+        NewCharacter = ECharacterType::Paladin;
+        break;
+    }
+
+    ServerSelectCharacter(NewCharacter);
+}
+
