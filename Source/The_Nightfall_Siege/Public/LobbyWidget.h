@@ -11,6 +11,7 @@
  */
 
 class UTextBlock;
+class UButton;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ULobbyWidget : public UUserWidget
@@ -60,6 +61,9 @@ protected:
 
     UPROPERTY(meta = (BindWidget))
     UTextBlock* Txt_Status4;
+
+    UPROPERTY(meta = (BindWidget))
+    UButton* Btn_StartGame;
 
     TArray<UTextBlock*> PlayerTexts;
     TArray<UTextBlock*> CharacterTexts;

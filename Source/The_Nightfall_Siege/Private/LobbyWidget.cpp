@@ -5,6 +5,7 @@
 #include "Components/TextBlock.h"
 #include "BasePlayerState.h"
 #include "GameFramework/GameStateBase.h"
+#include "Components/Button.h"
 
 
 void ULobbyWidget::NativeConstruct()
@@ -34,6 +35,16 @@ void ULobbyWidget::NativeConstruct()
         Txt_Status3,
         Txt_Status4
     };
+
+    APlayerController* PC = GetOwningPlayer();
+
+    if (PC)
+    {
+        Btn_StartGame->SetVisibility(
+            PC->HasAuthority()
+            ? ESlateVisibility::Visible
+            : ESlateVisibility::Collapsed);
+    }
 
     RefreshLobby();
 }
