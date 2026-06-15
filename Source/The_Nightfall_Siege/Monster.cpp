@@ -415,7 +415,7 @@ void AMonster::SpawnCoin()
     }
 
     FVector SpawnLocation =
-        GetActorLocation() + FVector(0, 0, 30);
+        GetActorLocation() + FVector(0, 0, 0);
 
     GetWorld()->SpawnActor<ACoin>(
         CoinClass,
@@ -431,7 +431,7 @@ void AMonster::SpawnPrism()
     }
 
     FVector SpawnLocation =
-        GetActorLocation() + FVector(0.f, 0.f, 30.f);
+        GetActorLocation() + FVector(50.f, 50.f, 0.f);
 
     GetWorld()->SpawnActor<ADungeonPrism>(
         PrismClass,
