@@ -84,6 +84,10 @@ void ABaseController::BeginPlay()
 {
     Super::BeginPlay();
 
+    FString MapName = GetWorld()->GetMapName();
+
+    UE_LOG(LogTemp, Warning, TEXT("%s"), *MapName);
+
     bShowMouseCursor = true;
     DefaultMouseCursor = EMouseCursor::Default;
 
