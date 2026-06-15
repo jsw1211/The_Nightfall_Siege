@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "Blueprint/UserWidget.h"
+#include "CharacterType.h"
 #include "BaseController.generated.h"
 
 /**
@@ -37,4 +38,10 @@ protected:
 
 	UPROPERTY()
 	UUserWidget* LobbyWidget;
+
+	UFUNCTION(Server, Reliable)
+	void ServerSelectCharacter(ECharacterType NewCharacter);
+
+	UFUNCTION(BlueprintCallable)
+	void SelectCharacter(ECharacterType NewCharacter);	
 };

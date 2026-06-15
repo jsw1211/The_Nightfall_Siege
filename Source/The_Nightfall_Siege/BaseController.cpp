@@ -5,6 +5,7 @@
 #include "BaseCharacter.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "Blueprint/UserWidget.h"
+#include "BasePlayerState.h"
 
 void ABaseController::SetupInputComponent()
 {
@@ -120,3 +121,24 @@ void ABaseController::BeginPlay()
 
     SetIgnoreLookInput(true);
 }
+
+void ABaseController::ServerSelectCharacter_Implementation(ECharacterType NewCharacter)
+{
+    ABasePlayerState* PS = Cast<ABasePlayerState>(PlayerState);
+
+    if (!PS)
+    {   
+        return;
+    }
+
+    PS->SelectedCharacter = NewCharacter;
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Character Changed"));
+}
+
+void ABaseController::SelectCharacter(ECharacterType NewCharacter)
+{
+    ServerSelectCharacter(NewCharacter);
+}
+
