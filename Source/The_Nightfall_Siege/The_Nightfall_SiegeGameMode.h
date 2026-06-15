@@ -31,6 +31,8 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character")
 	TSubclassOf<APawn> WarriorClass;
+
+	virtual void PostLogin(APlayerController* NewPlayer) override;
 };
 
 

@@ -3,6 +3,7 @@
 #include "The_Nightfall_SiegeGameMode.h"
 #include "TheNightfallSiegeInstance.h"
 #include "CharacterType.h"
+#include "BaseLobbyGameState.h"
 
 AThe_Nightfall_SiegeGameMode::AThe_Nightfall_SiegeGameMode()
 {
@@ -35,3 +36,20 @@ UClass* AThe_Nightfall_SiegeGameMode::GetDefaultPawnClassForController_Implement
 		return PaladinClass;
 	}
 }
+
+void AThe_Nightfall_SiegeGameMode::PostLogin(APlayerController* NewPlayer)
+{
+	Super::PostLogin(NewPlayer);
+
+	UE_LOG(LogTemp, Warning, TEXT("Player Joined"));
+
+	AGameStateBase* GS = GetGameState<AGameStateBase>();
+
+	if (GS)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("Players : %d"),
+			GS->PlayerArray.Num());
+	}
+}
+

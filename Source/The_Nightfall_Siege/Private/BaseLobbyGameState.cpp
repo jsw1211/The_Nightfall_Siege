@@ -3,3 +3,14 @@
 
 #include "BaseLobbyGameState.h"
 
+ABaseLobbyGameState::ABaseLobbyGameState()
+{
+
+}
+
+void ABaseLobbyGameState::BeginPlay()
+{
+    Super::BeginPlay();
+
+}
+

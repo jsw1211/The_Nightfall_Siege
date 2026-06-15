@@ -3,15 +3,23 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/GameState.h"
+#include "GameFramework/GameStateBase.h"
 #include "BaseLobbyGameState.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class THE_NIGHTFALL_SIEGE_API ABaseLobbyGameState : public AGameState
+class THE_NIGHTFALL_SIEGE_API ABaseLobbyGameState : public AGameStateBase
 {
 	GENERATED_BODY()
 	
+public:
+
+	ABaseLobbyGameState();
+
+protected:
+
+	virtual void BeginPlay() override;
+
 };
