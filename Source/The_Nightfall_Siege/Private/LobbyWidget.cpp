@@ -122,5 +122,37 @@ void ULobbyWidget::RefreshLobby()
             FText::FromString(
                 PS->IsReady() ? TEXT("Ready") : TEXT("Not Ready")));
     }
+    bool bAllReady = true;
+
+    for (APlayerState* PlayerState : GS->PlayerArray)
+    {
+        ABasePlayerState* PS = Cast<ABasePlayerState>(PlayerState);
+
+        if (!PS)
+        {
+            continue;
+        }
+
+        if (!PS->IsReady())
+        {
+            bAllReady = false;
+            break;
+        }
+    }
+
+    APlayerController* PC = GetOwningPlayer();
+
+    if (PC && PC->HasAuthority())
+    {
+        Btn_StartGame->SetVisibility(
+            bAllReady
+            ? ESlateVisibility::Visible
+            : ESlateVisibility::Hidden);
+    }
+    else
+    {
+        Btn_StartGame->SetVisibility(
+            ESlateVisibility::Hidden);
+    }
 }
 

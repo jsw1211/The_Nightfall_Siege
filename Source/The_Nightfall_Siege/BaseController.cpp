@@ -214,3 +214,19 @@ void ABaseController::ServerSetReady_Implementation(bool bNewReady)
         bNewReady ? TEXT("True") : TEXT("False"));
 }
 
+void ABaseController::StartGame()
+{
+    ServerStartGame();
+}
+
+void ABaseController::ServerStartGame_Implementation()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    GetWorld()->ServerTravel(
+        TEXT("/Game/TopDown/Lvl_TopDown?listen"));
+}
+

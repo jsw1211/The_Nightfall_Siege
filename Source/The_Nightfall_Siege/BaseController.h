@@ -50,6 +50,9 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerSetReady(bool bNewReady);
 
+	UFUNCTION(Server, Reliable)
+	void ServerStartGame();
+
 public:
 
 	UFUNCTION(BlueprintCallable)
@@ -57,4 +60,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void ToggleReady();
+
+	UFUNCTION(BlueprintCallable)
+	void StartGame();
 };
