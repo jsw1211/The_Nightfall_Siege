@@ -4,14 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Components/Button.h"
+#include "Components/TextBlock.h"
 #include "LobbyWidget.generated.h"
 
 /**
  * 
  */
-
-class UTextBlock;
-class UButton;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ULobbyWidget : public UUserWidget
@@ -62,7 +61,7 @@ protected:
     UPROPERTY(meta = (BindWidget))
     UTextBlock* Txt_Status4;
 
-    UPROPERTY(meta = (BindWidget))
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Lobby")
     UButton* Btn_StartGame;
 
     TArray<UTextBlock*> PlayerTexts;

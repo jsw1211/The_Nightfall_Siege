@@ -36,6 +36,8 @@ protected:
 	virtual void GetLifetimeReplicatedProps(
 		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	virtual void CopyProperties(APlayerState* PlayerState) override;
+
 	UPROPERTY(Replicated, BlueprintReadOnly)
 	bool bReady = false;
 };

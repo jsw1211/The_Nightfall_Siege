@@ -4,6 +4,9 @@
 #include "TheNightfallSiegeInstance.h"
 #include "CharacterType.h"
 #include "BaseLobbyGameState.h"
+#include "BasePlayerState.h"
+#include "GameFramework/PlayerStart.h"
+#include "Kismet/GameplayStatics.h"
 
 AThe_Nightfall_SiegeGameMode::AThe_Nightfall_SiegeGameMode()
 {
@@ -11,30 +14,39 @@ AThe_Nightfall_SiegeGameMode::AThe_Nightfall_SiegeGameMode()
 }
 
 UClass* AThe_Nightfall_SiegeGameMode::GetDefaultPawnClassForController_Implementation(
-	AController* InController)
+    AController* InController)
 {
-	UTheNightfallSiegeInstance* GI =
-		Cast<UTheNightfallSiegeInstance>(GetGameInstance());
+    if (!InController)
+    {
+        return PaladinClass;
+    }
 
-	if (!GI)
-	{
-		return PaladinClass;
-	}
+    ABasePlayerState* PS =
+        InController->GetPlayerState<ABasePlayerState>();
 
-	switch (GI->SelectedCharacter)
-	{
-	case ECharacterType::Paladin:
-		return PaladinClass;
+    if (!PS)
+    {
+        return PaladinClass;
+    }
 
-	case ECharacterType::Archer:
-		return ArcherClass;
+    UE_LOG(LogTemp, Warning,
+        TEXT("Selected Character : %d"),
+        (int32)PS->SelectedCharacter);
 
-	case ECharacterType::Warrior:
-		return WarriorClass;
+    switch (PS->SelectedCharacter)
+    {
+    case ECharacterType::Paladin:
+        return PaladinClass;
 
-	default:
-		return PaladinClass;
-	}
+    case ECharacterType::Warrior:
+        return PaladinClass;   // юс╫ц
+
+    case ECharacterType::Archer:
+        return ArcherClass;
+
+    default:
+        return PaladinClass;
+    }
 }
 
 void AThe_Nightfall_SiegeGameMode::PostLogin(APlayerController* NewPlayer)

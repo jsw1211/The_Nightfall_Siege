@@ -8,6 +8,8 @@
 #include "BasePlayerState.h"
 #include "LobbyWidget.h"
 #include "TimerManager.h"
+#include "The_Nightfall_SiegeGameMode.h"
+#include "TheNightfallSiegeInstance.h"
 
 void ABaseController::SetupInputComponent()
 {
@@ -137,28 +139,10 @@ void ABaseController::BeginPlay()
     SetIgnoreLookInput(true);
 }
 
-void ABaseController::ServerSelectCharacter_Implementation(ECharacterType NewCharacter)
-{
-    ABasePlayerState* PS = Cast<ABasePlayerState>(PlayerState);
-
-    if (!PS)
-    {   
-        return;
-    }
-
-    PS->SelectedCharacter = NewCharacter;
-
-    UE_LOG(LogTemp, Warning,
-        TEXT("Character Changed"));
-}
-
-void ABaseController::SelectCharacter(ECharacterType NewCharacter)
-{
-    ServerSelectCharacter(NewCharacter);
-}
-
 void ABaseController::SelectNextCharacter()
 {
+    UE_LOG(LogTemp, Error, TEXT("===== SelectNextCharacter Called ====="));
+
     ABasePlayerState* PS = Cast<ABasePlayerState>(PlayerState);
 
     if (!PS)
@@ -221,12 +205,48 @@ void ABaseController::StartGame()
 
 void ABaseController::ServerStartGame_Implementation()
 {
-    if (!HasAuthority())
+    UE_LOG(LogTemp, Error, TEXT("ServerTravel Start"));
+
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        ABaseController* PC = Cast<ABaseController>(*It);
+
+        if (!PC)
+            continue;
+
+        ABasePlayerState* PS = PC->GetPlayerState<ABasePlayerState>();
+
+        if (!PS)
+            continue;
+
+        UE_LOG(LogTemp, Error,
+            TEXT("Travel Character = %d"),
+            (int32)PS->SelectedCharacter);
+    }
+
+    GetWorld()->ServerTravel(TEXT("/Game/TopDown/Lvl_TopDown?listen"));
+}
+
+void ABaseController::ServerSelectCharacter_Implementation(ECharacterType NewCharacter)
+{
+    UE_LOG(LogTemp, Error, TEXT("===== ServerSelectCharacter Called ====="));
+
+    ABasePlayerState* PS = Cast<ABasePlayerState>(PlayerState);
+
+    if (!PS)
     {
         return;
     }
 
-    GetWorld()->ServerTravel(
-        TEXT("/Game/TopDown/Lvl_TopDown?listen"));
+    PS->SelectedCharacter = NewCharacter;
+
+    UE_LOG(LogTemp, Error,
+        TEXT("Character = %d"),
+        (int32)PS->SelectedCharacter);
+}
+
+void ABaseController::SelectCharacter(ECharacterType NewCharacter)
+{
+    ServerSelectCharacter(NewCharacter);
 }
 

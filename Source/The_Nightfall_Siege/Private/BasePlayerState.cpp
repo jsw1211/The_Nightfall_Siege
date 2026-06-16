@@ -35,3 +35,27 @@ bool ABasePlayerState::IsReady() const
     return bReady;
 }
 
+void ABasePlayerState::CopyProperties(APlayerState* PlayerState)
+{
+    Super::CopyProperties(PlayerState);
+
+    UE_LOG(LogTemp, Error,
+        TEXT("===== CopyProperties ====="));
+
+    UE_LOG(LogTemp, Error,
+        TEXT("Copy Character = %d"),
+        (int32)SelectedCharacter);
+
+    ABasePlayerState* NewPS =
+        Cast<ABasePlayerState>(PlayerState);
+
+    if (!NewPS)
+    {
+        return;
+    }
+
+    NewPS->SelectedCharacter = SelectedCharacter;
+    NewPS->bReady = bReady;
+
+}
+

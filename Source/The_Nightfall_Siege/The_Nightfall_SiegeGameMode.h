@@ -33,6 +33,7 @@ public:
 	TSubclassOf<APawn> WarriorClass;
 
 	virtual void PostLogin(APlayerController* NewPlayer) override;
+
 };
 
 
