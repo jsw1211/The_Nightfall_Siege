@@ -32,6 +32,12 @@ public:
 	// Sets default values for this character's properties
 	ABaseCharacter();
 
+	UFUNCTION(Server, Reliable)
+	void ServerUseQ();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayQ();
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -50,12 +56,15 @@ public:
 
 	void Attack(const FInputActionValue& Value);
 	void Q(const FInputActionValue& Value);
+	void UseQ();
 	void W(const FInputActionValue& Value);
 	void E(const FInputActionValue& Value);
 	void R(const FInputActionValue& Value);
 	void ToggleInventory();
 	UFUNCTION()
 	void TakePlayerDamage(float Damage);
+
+	void ExecuteQDamage();
 
 	// 스킬 사용 중인지
 	bool bIsUsingSkill = false;

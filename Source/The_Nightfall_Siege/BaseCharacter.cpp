@@ -36,6 +36,9 @@ ABaseCharacter::ABaseCharacter()
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+    bReplicates = true;
+    SetReplicateMovement(true);
+
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationRoll = false;
@@ -392,153 +395,12 @@ void ABaseCharacter::Attack(
 void ABaseCharacter::Q(const FInputActionValue& Value)
 {
     if (!bCanUseQ)
-    {
         return;
-    }
 
     if (!CanUseCombatAction())
-    {
         return;
-    }
 
-    if (CharacterType == ECharacterType::Archer)
-    {
-        GetCharacterMovement()->StopMovementImmediately();
-
-        if (AAIController* AICon = Cast<AAIController>(GetController()))
-        {
-            AICon->StopMovement();
-        }
-
-        RotateToMouseCursor();
-
-        bIsUsingSkill = true;
-
-        if (QMontage)
-        {
-            PlayAnimMontage(
-                QMontage,
-                AttackSpeed
-            );
-        }
-
-        bCanUseQ = false;
-
-        QRemainingCooldown = QCooldown;
-
-        GetWorldTimerManager().SetTimer(
-            QCooldownTimer,
-            this,
-            &ABaseCharacter::ResetQCooldown,
-            QCooldown,
-            false
-        );
-
-        return;
-    }
-
-    RotateToMouseCursor();
-
-    bIsUsingSkill = true;
-
-    GetCharacterMovement()->StopMovementImmediately();
-
-    if (AAIController* AICon = Cast<AAIController>(GetController()))
-    {
-        AICon->StopMovement();
-    }
-
-    UE_LOG(LogTemp, Warning, TEXT("Q"));
-    UE_LOG(LogTemp, Warning, TEXT("Damage: %f"), AttackPower * QMultiplier);
-
-    if (QMontage)
-    {
-        PlayAnimMontage(QMontage);
-    }
-    else
-    {
-        bIsUsingSkill = false;
-    }
-
-    if (QSkillEffect)
-    {
-        UNiagaraFunctionLibrary::SpawnSystemAttached(
-            QSkillEffect,
-            GetMesh(),
-            TEXT("SwordSocket"), // ¹æÆÐ ÂÊ
-            FVector::ZeroVector,
-            FRotator::ZeroRotator,
-            EAttachLocation::SnapToTarget,
-            true
-        );
-    } // VFX    
-
-    bCanUseQ = false;
-
-    QRemainingCooldown = QCooldown;
-
-    GetWorldTimerManager().SetTimer(
-        QCooldownTimer,
-        this,
-        &ABaseCharacter::ResetQCooldown,
-        QCooldown,
-        false
-    );
-
-    FVector Start = GetActorLocation();
-    float Radius = 150.f;
-
-    TArray<FOverlapResult> Overlaps;
-
-    FCollisionShape Sphere = FCollisionShape::MakeSphere(QRadius);
-
-    bool bHit = GetWorld()->OverlapMultiByChannel(
-        Overlaps,
-        Start,
-        FQuat::Identity,
-        ECC_Pawn,
-        Sphere
-    );
-
-    if (bHit)
-    {
-        for (auto& Result : Overlaps)
-        {
-            AMonster* Monster =
-                Cast<AMonster>(Result.GetActor());
-
-            if (Monster)
-            {
-                Monster->TakeMonsterDamage(
-                    AttackPower * QMultiplier);
-                if (QImpactEffect)
-                {
-                    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-                        GetWorld(),
-                        QImpactEffect,
-                        Monster->GetActorLocation() + FVector(0, 0, 80));
-                }
-            }
-
-            ADragonBoss* Dragon = Cast<ADragonBoss>(Result.GetActor());
-
-            if (Dragon)
-            {
-                Dragon->TakeBossDamage(AttackPower * QMultiplier);
-
-                if (QImpactEffect)
-                {
-                    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-                        GetWorld(),
-                        QImpactEffect,
-                        Dragon->GetActorLocation() + FVector(0, 0, 120));
-                }
-
-                UE_LOG(LogTemp, Warning,
-                    TEXT("Dragon Hit By Q"));
-            }
-        }
-    }
+    ServerUseQ();
 }
 
 void ABaseCharacter::W(const FInputActionValue& Value)
@@ -1978,3 +1840,141 @@ void ABaseCharacter::SetNearbyPortal(APortal* Portal)
     NearbyPortal = Portal;
 }
 
+void ABaseCharacter::ServerUseQ_Implementation()
+{
+    MulticastPlayQ();
+
+    UseQ();
+
+    ExecuteQDamage();
+}
+
+void ABaseCharacter::MulticastPlayQ_Implementation()
+{
+    RotateToMouseCursor();
+
+    bIsUsingSkill = true;
+
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AAIController* AICon = Cast<AAIController>(GetController()))
+    {
+        AICon->StopMovement();
+    }
+
+    if (CharacterType == ECharacterType::Archer)
+    {
+        if (QMontage)
+        {
+            PlayAnimMontage(QMontage, AttackSpeed);
+        }
+    }
+    else
+    {
+        if (QMontage)
+        {
+            PlayAnimMontage(QMontage);
+        }
+        else
+        {
+            bIsUsingSkill = false;
+        }
+    }
+
+    if (QSkillEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            QSkillEffect,
+            GetMesh(),
+            TEXT("SwordSocket"),
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::SnapToTarget,
+            true
+        );
+    }
+}
+
+void ABaseCharacter::UseQ()
+{
+    if (CharacterType == ECharacterType::Archer)
+    {
+        bCanUseQ = false;
+
+        QRemainingCooldown = QCooldown;
+
+        GetWorldTimerManager().SetTimer(
+            QCooldownTimer,
+            this,
+            &ABaseCharacter::ResetQCooldown,
+            QCooldown,
+            false);
+
+        return;
+    }
+
+    bCanUseQ = false;
+
+    QRemainingCooldown = QCooldown;
+
+    GetWorldTimerManager().SetTimer(
+        QCooldownTimer,
+        this,
+        &ABaseCharacter::ResetQCooldown,
+        QCooldown,
+        false);
+}
+
+void ABaseCharacter::ExecuteQDamage()
+{
+    FVector Start = GetActorLocation();
+
+    TArray<FOverlapResult> Overlaps;
+
+    FCollisionShape Sphere = FCollisionShape::MakeSphere(QRadius);
+
+    bool bHit = GetWorld()->OverlapMultiByChannel(
+        Overlaps,
+        Start,
+        FQuat::Identity,
+        ECC_Pawn,
+        Sphere);
+
+    if (bHit)
+    {
+        for (auto& Result : Overlaps)
+        {
+            AMonster* Monster = Cast<AMonster>(Result.GetActor());
+
+            if (Monster)
+            {
+                Monster->TakeMonsterDamage(AttackPower * QMultiplier);
+
+                if (QImpactEffect)
+                {
+                    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+                        GetWorld(),
+                        QImpactEffect,
+                        Monster->GetActorLocation() + FVector(0, 0, 80));
+                }
+            }
+
+            ADragonBoss* Dragon = Cast<ADragonBoss>(Result.GetActor());
+
+            if (Dragon)
+            {
+                Dragon->TakeBossDamage(AttackPower * QMultiplier);
+
+                if (QImpactEffect)
+                {
+                    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+                        GetWorld(),
+                        QImpactEffect,
+                        Dragon->GetActorLocation() + FVector(0, 0, 120));
+                }
+
+                UE_LOG(LogTemp, Warning, TEXT("Dragon Hit By Q"));
+            }
+        }
+    }
+}
