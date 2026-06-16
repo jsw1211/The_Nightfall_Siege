@@ -270,7 +270,10 @@ void ABaseCharacter::Tick(float DeltaTime)
 
     RRemainingCooldown = FMath::Max(0.f, RRemainingCooldown - DeltaTime);
 
-    RotateToMouseCursor();
+    if (IsLocallyControlled())
+    {
+        RotateToMouseCursor();
+    }
 }
 
 // Called to bind functionality to input
@@ -1267,8 +1270,14 @@ void ABaseCharacter::RotateToMouseCursor()
 
     if (!Direction.IsNearlyZero())
     {
-        SetActorRotation(
-            Direction.Rotation());
+        FRotator NewRotation = Direction.Rotation();
+
+        SetActorRotation(NewRotation);
+
+        if (!HasAuthority())
+        {
+            ServerRotate(NewRotation);
+        }
     }
 }
 
@@ -1970,3 +1979,9 @@ void ABaseCharacter::MulticastQImpact_Implementation(FVector Location)
     );
 }
 
+void ABaseCharacter::ServerRotate_Implementation(FRotator NewRotation)
+{
+    SetActorRotation(NewRotation);
+
+    ForceNetUpdate();
+}

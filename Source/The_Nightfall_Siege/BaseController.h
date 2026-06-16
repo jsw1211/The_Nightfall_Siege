@@ -53,6 +53,9 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerStartGame();
 
+	UFUNCTION(Server, Reliable)
+	void ServerMoveToLocation(FVector TargetLocation, FRotator TargetRotation);
+
 public:
 
 	UFUNCTION(BlueprintCallable)

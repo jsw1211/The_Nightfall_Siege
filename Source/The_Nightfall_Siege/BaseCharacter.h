@@ -71,6 +71,9 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastQImpact(FVector Location);
 
+	UFUNCTION(Server, Unreliable)
+	void ServerRotate(FRotator NewRotation);
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

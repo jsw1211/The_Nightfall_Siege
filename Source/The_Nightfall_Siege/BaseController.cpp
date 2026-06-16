@@ -63,9 +63,17 @@ void ABaseController::MoveToMouse()
 
     if (Hit.bBlockingHit)
     {
-        UAIBlueprintHelperLibrary::SimpleMoveToLocation(
-            this,
-            Hit.Location);
+        FVector Direction =
+            Hit.Location - MyCharacter->GetActorLocation();
+
+        Direction.Z = 0.f;
+
+        FRotator TargetRotation =
+            Direction.Rotation();
+
+        ServerMoveToLocation(
+            Hit.Location,
+            TargetRotation);
     }
 }
 
@@ -248,5 +256,23 @@ void ABaseController::ServerSelectCharacter_Implementation(ECharacterType NewCha
 void ABaseController::SelectCharacter(ECharacterType NewCharacter)
 {
     ServerSelectCharacter(NewCharacter);
+}
+
+void ABaseController::ServerMoveToLocation_Implementation(
+    FVector TargetLocation,
+    FRotator TargetRotation)
+{
+    APawn* MyPawn = GetPawn();
+
+    if (!MyPawn)
+    {
+        return;
+    }
+
+    MyPawn->SetActorRotation(TargetRotation);
+
+    UAIBlueprintHelperLibrary::SimpleMoveToLocation(
+        this,
+        TargetLocation);
 }
 
