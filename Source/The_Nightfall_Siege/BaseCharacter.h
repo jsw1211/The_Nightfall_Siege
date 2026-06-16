@@ -52,6 +52,14 @@ public:
 
 	void ExecuteE();
 
+	UFUNCTION(Server, Reliable)
+	void ServerUseR();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayR();
+
+	void ExecuteR();
+
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastQImpact(FVector Location);
 

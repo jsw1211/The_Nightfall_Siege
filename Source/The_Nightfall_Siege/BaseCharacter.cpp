@@ -445,151 +445,7 @@ void ABaseCharacter::R(const FInputActionValue& Value)
         return;
     }
 
-    if (CharacterType == ECharacterType::Archer)
-    {
-        GetCharacterMovement()->StopMovementImmediately();
-
-        if (AAIController* AICon = Cast<AAIController>(GetController()))
-        {
-            AICon->StopMovement();
-        }
-
-        RotateToMouseCursor();
-
-        bIsUsingSkill = true;
-
-        if (RMontage)
-        {
-            PlayAnimMontage(
-                RMontage,
-                AttackSpeed
-            );
-        }
-
-        bCanUseR = false;
-
-        RRemainingCooldown = RCooldown;
-
-        GetWorldTimerManager().SetTimer(
-            RCooldownTimer,
-            this,
-            &ABaseCharacter::ResetRCooldown,
-            RCooldown,
-            false
-        );
-
-        return;
-    }
-
-    RotateToMouseCursor();
-
-    bIsUsingSkill = true;
-
-    GetCharacterMovement()->StopMovementImmediately();
-
-    if (AAIController* AICon = Cast<AAIController>(GetController()))
-    {
-        AICon->StopMovement();
-    }
-
-    UE_LOG(LogTemp, Warning, TEXT("R"));
-
-    if (RMontage)
-    {
-        PlayAnimMontage(RMontage);
-    }
-    else
-    {
-        bIsUsingSkill = false;
-    }
-
-    if (RSkillEffect)
-    {
-        UNiagaraFunctionLibrary::SpawnSystemAttached(
-            RSkillEffect,
-            GetMesh(),
-            TEXT("RightHandSocket"), //°Ë ÂÊ
-            FVector::ZeroVector,
-            FRotator::ZeroRotator,
-            EAttachLocation::SnapToTarget,
-            true
-        );
-    } // VFX
-
-    bCanUseR = false;
-
-    RRemainingCooldown = RCooldown;
-
-    GetWorldTimerManager().SetTimer(
-        RCooldownTimer,
-        this,
-        &ABaseCharacter::ResetRCooldown,
-        RCooldown,
-        false
-    );
-
-    TArray<AActor*> Players;
-
-    UGameplayStatics::GetAllActorsOfClass(
-        GetWorld(),
-        ABaseCharacter::StaticClass(),
-        Players);
-
-    for (AActor* Actor : Players)
-    {
-        ABaseCharacter* Player =
-            Cast<ABaseCharacter>(Actor);
-
-        if (!Player)
-        {
-            continue;
-        }
-
-        float Heal = Player->MaxHP * RHealAmount;
-
-        UE_LOG(LogTemp, Warning,
-            TEXT("%s HP : %.0f -> %.0f"),
-            *Player->GetName(),
-            Player->CurrentHP,
-            FMath::Min(Player->CurrentHP + Heal, Player->MaxHP));
-
-        Player->CurrentHP = FMath::Min(
-            Player->CurrentHP + Heal,
-            Player->MaxHP);
-
-        UE_LOG(LogTemp, Warning,
-            TEXT("R Heal : %s"),
-            *Player->GetName());
-    }
-
-    TArray<AActor*> Monsters;
-
-    UGameplayStatics::GetAllActorsOfClass(
-        GetWorld(),
-        AMonster::StaticClass(),
-        Monsters);
-
-    for (AActor* Actor : Monsters)
-    {
-        AMonster* Monster = Cast<AMonster>(Actor);
-
-        if (!Monster)
-        {
-            continue;
-        }
-
-        if (Monster->bIsDead)
-        {
-            continue;
-        }
-
-        if (!Monster->bIsChasing)
-        {
-            continue;
-        }
-
-        Monster->ApplyTaunt(this);
-    }
+    ServerUseR();
 }
 
 void ABaseCharacter::ResetQCooldown()
@@ -1929,6 +1785,155 @@ void ABaseCharacter::ExecuteE()
                     Player->CurrentHP + Heal,
                     Player->MaxHP);
         }
+    }
+}
+
+void ABaseCharacter::ServerUseR_Implementation()
+{
+    MulticastPlayR();
+
+    ExecuteR();
+}
+
+void ABaseCharacter::MulticastPlayR_Implementation()
+{
+    RotateToMouseCursor();
+
+    bIsUsingSkill = true;
+
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AAIController* AICon = Cast<AAIController>(GetController()))
+    {
+        AICon->StopMovement();
+    }
+
+    if (RMontage)
+    {
+        PlayAnimMontage(RMontage);
+    }
+
+    if (RSkillEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            RSkillEffect,
+            GetMesh(),
+            TEXT("RightHandSocket"),
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::SnapToTarget,
+            true
+        );
+    }
+}
+
+void ABaseCharacter::ExecuteR()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    if (!bCanUseR)
+    {
+        return;
+    }
+
+    if (!CanUseCombatAction())
+    {
+        return;
+    }
+
+    if (CharacterType == ECharacterType::Archer)
+    {
+        bCanUseR = false;
+
+        RRemainingCooldown = RCooldown;
+
+        GetWorldTimerManager().SetTimer(
+            RCooldownTimer,
+            this,
+            &ABaseCharacter::ResetRCooldown,
+            RCooldown,
+            false
+        );
+
+        return;
+    }
+
+    bCanUseR = false;
+
+    RRemainingCooldown = RCooldown;
+
+    GetWorldTimerManager().SetTimer(
+        RCooldownTimer,
+        this,
+        &ABaseCharacter::ResetRCooldown,
+        RCooldown,
+        false
+    );
+
+    TArray<AActor*> Players;
+
+    UGameplayStatics::GetAllActorsOfClass(
+        GetWorld(),
+        ABaseCharacter::StaticClass(),
+        Players);
+
+    for (AActor* Actor : Players)
+    {
+        ABaseCharacter* Player =
+            Cast<ABaseCharacter>(Actor);
+
+        if (!Player)
+        {
+            continue;
+        }
+
+        float Heal = Player->MaxHP * RHealAmount;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("%s HP : %.0f -> %.0f"),
+            *Player->GetName(),
+            Player->CurrentHP,
+            FMath::Min(Player->CurrentHP + Heal, Player->MaxHP));
+
+        Player->CurrentHP = FMath::Min(
+            Player->CurrentHP + Heal,
+            Player->MaxHP);
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("R Heal : %s"),
+            *Player->GetName());
+    }
+
+    TArray<AActor*> Monsters;
+
+    UGameplayStatics::GetAllActorsOfClass(
+        GetWorld(),
+        AMonster::StaticClass(),
+        Monsters);
+
+    for (AActor* Actor : Monsters)
+    {
+        AMonster* Monster = Cast<AMonster>(Actor);
+
+        if (!Monster)
+        {
+            continue;
+        }
+
+        if (Monster->bIsDead)
+        {
+            continue;
+        }
+
+        if (!Monster->bIsChasing)
+        {
+            continue;
+        }
+
+        Monster->ApplyTaunt(this);
     }
 }
 
