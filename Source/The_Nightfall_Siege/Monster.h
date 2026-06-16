@@ -49,10 +49,10 @@ public:
 
 	void ResetAttack();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite)
 	float MaxHP;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly)
 	float CurrentHP;
 
 	// 도발 대상
@@ -120,4 +120,7 @@ public:
 
 	UFUNCTION()
 	void SpawnPrism();
+
+	virtual void GetLifetimeReplicatedProps(
+		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 };

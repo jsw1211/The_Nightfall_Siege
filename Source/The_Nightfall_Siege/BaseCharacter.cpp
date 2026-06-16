@@ -1927,6 +1927,8 @@ void ABaseCharacter::UseQ()
 
 void ABaseCharacter::ExecuteQDamage()
 {
+    UE_LOG(LogTemp, Warning, TEXT("ExecuteQDamage"));
+
     FVector Start = GetActorLocation();
 
     TArray<FOverlapResult> Overlaps;
@@ -1940,11 +1942,16 @@ void ABaseCharacter::ExecuteQDamage()
         ECC_Pawn,
         Sphere);
 
+    UE_LOG(LogTemp, Warning, TEXT("Hit : %d"), bHit);
+
     if (bHit)
     {
         for (auto& Result : Overlaps)
         {
             AMonster* Monster = Cast<AMonster>(Result.GetActor());
+
+            UE_LOG(LogTemp, Warning, TEXT("Overlap : %s"),
+                *Result.GetActor()->GetName());
 
             if (Monster)
             {
