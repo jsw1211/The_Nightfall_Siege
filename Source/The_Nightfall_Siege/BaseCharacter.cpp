@@ -297,99 +297,14 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     if (bIsDead) return; // 죽으면 입력 등록 안함
 }
 
-void ABaseCharacter::Attack(
-    const FInputActionValue& Value)
+void ABaseCharacter::Attack(const FInputActionValue& Value)
 {
     if (!CanUseCombatAction())
     {
         return;
     }
 
-    APlayerController* PC =
-        Cast<APlayerController>(GetController());
-
-    if (PC)
-    {
-        FHitResult Hit;
-
-        PC->GetHitResultUnderCursor(
-            ECC_Visibility,
-            false,
-            Hit);
-
-        FVector LookDirection =
-            Hit.Location - GetActorLocation();
-
-        LookDirection.Z = 0.f;
-
-        FRotator TargetRotation =
-            LookDirection.Rotation();
-
-        SetActorRotation(TargetRotation);
-    }
-
-    GetCharacterMovement()->StopMovementImmediately();
-
-    if (AAIController* AICon = Cast<AAIController>(GetController()))
-    {
-        AICon->StopMovement();
-    }
-
-    RotateToMouseCursor();
-
-    bIsAttacking = true;
-
-    if (AttackMontage)
-    {
-        PlayAnimMontage(
-            AttackMontage,
-            AttackSpeed);
-    }
-
-    FVector Start = GetActorLocation();
-
-    TArray<FOverlapResult> Overlaps;
-
-    FCollisionShape Sphere =
-        FCollisionShape::MakeSphere(150.f);
-
-    bool bHit =
-        GetWorld()->OverlapMultiByChannel(
-            Overlaps,
-            Start,
-            FQuat::Identity,
-            ECC_Pawn,
-            Sphere);
-
-    if (bHit)
-    {
-        for (auto& Result : Overlaps)
-        {
-            AMonster* Monster =
-                Cast<AMonster>(Result.GetActor());
-
-            if (Monster)
-            {
-                Monster->TakeMonsterDamage(
-                    AttackPower);
-
-                UE_LOG(LogTemp, Warning,
-                    TEXT("Basic Attack Hit"));
-            }
-
-            ADragonBoss* Dragon =
-                Cast<ADragonBoss>(Result.GetActor());
-
-            if (Dragon)
-            {
-                Dragon->TakeBossDamage(
-                    AttackPower);
-
-                UE_LOG(LogTemp, Warning,
-                    TEXT("Basic Attack Hit Dragon"));
-            }
-        }
-    }
+    ServerAttack();
 }
 
 void ABaseCharacter::Q(const FInputActionValue& Value)
@@ -1934,6 +1849,110 @@ void ABaseCharacter::ExecuteR()
         }
 
         Monster->ApplyTaunt(this);
+    }
+}
+
+void ABaseCharacter::ServerAttack_Implementation()
+{
+    MulticastAttack();
+
+    ExecuteAttack();
+}
+
+void ABaseCharacter::MulticastAttack_Implementation()
+{
+    RotateToMouseCursor();
+
+    bIsAttacking = true;
+
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AAIController* AICon = Cast<AAIController>(GetController()))
+    {
+        AICon->StopMovement();
+    }
+
+    if (AttackMontage)
+    {
+        PlayAnimMontage(
+            AttackMontage,
+            AttackSpeed);
+    }
+}
+
+void ABaseCharacter::ExecuteAttack()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    APlayerController* PC =
+        Cast<APlayerController>(GetController());
+
+    if (PC)
+    {
+        FHitResult Hit;
+
+        PC->GetHitResultUnderCursor(
+            ECC_Visibility,
+            false,
+            Hit);
+
+        FVector LookDirection =
+            Hit.Location - GetActorLocation();
+
+        LookDirection.Z = 0.f;
+
+        FRotator TargetRotation =
+            LookDirection.Rotation();
+
+        SetActorRotation(TargetRotation);
+    }
+
+    FVector Start = GetActorLocation();
+
+    TArray<FOverlapResult> Overlaps;
+
+    FCollisionShape Sphere =
+        FCollisionShape::MakeSphere(150.f);
+
+    bool bHit =
+        GetWorld()->OverlapMultiByChannel(
+            Overlaps,
+            Start,
+            FQuat::Identity,
+            ECC_Pawn,
+            Sphere);
+
+    if (bHit)
+    {
+        for (auto& Result : Overlaps)
+        {
+            AMonster* Monster =
+                Cast<AMonster>(Result.GetActor());
+
+            if (Monster)
+            {
+                Monster->TakeMonsterDamage(
+                    AttackPower);
+
+                UE_LOG(LogTemp, Warning,
+                    TEXT("Basic Attack Hit"));
+            }
+
+            ADragonBoss* Dragon =
+                Cast<ADragonBoss>(Result.GetActor());
+
+            if (Dragon)
+            {
+                Dragon->TakeBossDamage(
+                    AttackPower);
+
+                UE_LOG(LogTemp, Warning,
+                    TEXT("Basic Attack Hit Dragon"));
+            }
+        }
     }
 }
 

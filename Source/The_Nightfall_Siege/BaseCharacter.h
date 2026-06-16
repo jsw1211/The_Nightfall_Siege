@@ -60,6 +60,14 @@ public:
 
 	void ExecuteR();
 
+	UFUNCTION(Server, Reliable)
+	void ServerAttack();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastAttack();
+
+	void ExecuteAttack();
+
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastQImpact(FVector Location);
 
