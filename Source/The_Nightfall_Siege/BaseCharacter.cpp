@@ -1950,13 +1950,9 @@ void ABaseCharacter::ExecuteQDamage()
             {
                 Monster->TakeMonsterDamage(AttackPower * QMultiplier);
 
-                if (QImpactEffect)
-                {
-                    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-                        GetWorld(),
-                        QImpactEffect,
-                        Monster->GetActorLocation() + FVector(0, 0, 80));
-                }
+                MulticastQImpact(
+                    Monster->GetActorLocation() + FVector(0, 0, 80)
+                );
             }
 
             ADragonBoss* Dragon = Cast<ADragonBoss>(Result.GetActor());
@@ -1978,3 +1974,18 @@ void ABaseCharacter::ExecuteQDamage()
         }
     }
 }
+
+void ABaseCharacter::MulticastQImpact_Implementation(FVector Location)
+{
+    if (!QImpactEffect)
+    {
+        return;
+    }
+
+    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+        GetWorld(),
+        QImpactEffect,
+        Location
+    );
+}
+
