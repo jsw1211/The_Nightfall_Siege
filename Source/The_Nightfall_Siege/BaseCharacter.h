@@ -44,6 +44,14 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayW();
 
+	UFUNCTION(Server, Reliable)
+	void ServerUseE();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayE();
+
+	void ExecuteE();
+
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastQImpact(FVector Location);
 

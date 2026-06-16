@@ -139,7 +139,7 @@ void ABaseCharacter::BeginPlay()
         break;
     }
 
-    CurrentHP = MaxHP;
+    CurrentHP = 200000.f; // 임시 MaxHP여야함
 	
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
@@ -430,144 +430,7 @@ void ABaseCharacter::E(const FInputActionValue& Value)
         return;
     }
 
-    if (CharacterType == ECharacterType::Archer)
-    {
-        GetCharacterMovement()->StopMovementImmediately();
-
-        if (AAIController* AICon = Cast<AAIController>(GetController()))
-        {
-            AICon->StopMovement();
-        }
-
-        RotateToMouseCursor();
-
-        bIsUsingSkill = true;
-
-        if (EMontage)
-        {
-            PlayAnimMontage(
-                EMontage,
-                AttackSpeed
-            );
-        }
-
-        bCanUseE = false;
-
-        ERemainingCooldown = ECooldown;
-
-        GetWorldTimerManager().SetTimer(ECooldownTimer, this, &ABaseCharacter::ResetECooldown, ECooldown, false);
-
-        return;
-    }
-
-    RotateToMouseCursor();
-
-    bIsUsingSkill = true;
-
-    GetCharacterMovement()->StopMovementImmediately();
-
-    if (AAIController* AICon = Cast<AAIController>(GetController()))
-    {
-        AICon->StopMovement();
-    }
-
-    UE_LOG(LogTemp, Warning, TEXT("E"));
-    UE_LOG(LogTemp, Warning, TEXT("Damage: %f"), AttackPower * EMultiplier);
-
-    if (EMontage)
-    {
-        PlayAnimMontage(EMontage);
-    }
-    else
-    {
-        bIsUsingSkill = false;
-    }
-
-    if (ESkillEffect)
-    {
-        UNiagaraFunctionLibrary::SpawnSystemAttached(
-            ESkillEffect,
-            GetMesh(),
-            TEXT("RightHandSocket"), //검 쪽
-            FVector::ZeroVector,
-            FRotator::ZeroRotator,
-            EAttachLocation::SnapToTarget,
-            true
-        );
-    } // VFX
-
-    bCanUseE = false;
-
-    ERemainingCooldown = ECooldown;
-
-    GetWorldTimerManager().SetTimer(
-        ECooldownTimer,
-        this,
-        &ABaseCharacter::ResetECooldown,
-        ECooldown,
-        false
-    );
-
-    if (CharacterType == ECharacterType::Paladin)
-    {
-        ShieldHP = MaxHP * 0.1f;
-
-        UE_LOG(LogTemp, Warning,
-            TEXT("Shield : %f"),
-            ShieldHP);
-    }
-
-    FVector Start = GetActorLocation();
-
-    TArray<FOverlapResult> Overlaps;
-
-    FCollisionShape Sphere =
-        FCollisionShape::MakeSphere(ERadius);
-
-    bool bHit =
-        GetWorld()->OverlapMultiByChannel(
-            Overlaps,
-            Start,
-            FQuat::Identity,
-            ECC_Pawn,
-            Sphere);
-
-    if (bHit)
-    {
-        TSet<ABaseCharacter*> HealedPlayers;
-
-        for (auto& Result : Overlaps)
-        {
-            ABaseCharacter* Player =
-                Cast<ABaseCharacter>(Result.GetActor());
-
-            if (!Player)
-            {
-                continue;
-            }
-
-            // 이미 처리한 플레이어면 건너뜀
-            if (HealedPlayers.Contains(Player))
-            {
-                continue;
-            }
-
-            HealedPlayers.Add(Player);
-
-            float Heal = Player->MaxHP * HealAmount;
-
-            UE_LOG(LogTemp, Warning,
-                TEXT("%s HP : %.0f -> %.0f"),
-                *Player->GetName(),
-                Player->CurrentHP,
-                FMath::Min(Player->CurrentHP + Heal, Player->MaxHP));
-
-            Player->CurrentHP =
-                FMath::Min(
-                    Player->CurrentHP + Heal,
-                    Player->MaxHP);
-        }
-    }
+    ServerUseE();
 }
 
 void ABaseCharacter::R(const FInputActionValue& Value)
@@ -1931,6 +1794,142 @@ void ABaseCharacter::MulticastPlayW_Implementation()
         );
     }
     bIsUsingSkill = false;
+}
+
+void ABaseCharacter::ServerUseE_Implementation()
+{
+    MulticastPlayE();
+
+    ExecuteE();
+}
+
+void ABaseCharacter::MulticastPlayE_Implementation()
+{
+    RotateToMouseCursor();
+
+    bIsUsingSkill = true;
+
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AAIController* AICon = Cast<AAIController>(GetController()))
+    {
+        AICon->StopMovement();
+    }
+
+    if (EMontage)
+    {
+        PlayAnimMontage(EMontage);
+    }
+
+    if (ESkillEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            ESkillEffect,
+            GetMesh(),
+            TEXT("RightHandSocket"),
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::SnapToTarget,
+            true
+        );
+    }
+}
+
+void ABaseCharacter::ExecuteE()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    if (CharacterType == ECharacterType::Archer)
+    {
+        bCanUseE = false;
+
+        ERemainingCooldown = ECooldown;
+
+        GetWorldTimerManager().SetTimer(
+            ECooldownTimer,
+            this,
+            &ABaseCharacter::ResetECooldown,
+            ECooldown,
+            false);
+
+        return;
+    }
+
+    bCanUseE = false;
+
+    ERemainingCooldown = ECooldown;
+
+    GetWorldTimerManager().SetTimer(
+        ECooldownTimer,
+        this,
+        &ABaseCharacter::ResetECooldown,
+        ECooldown,
+        false
+    );
+
+    if (CharacterType == ECharacterType::Paladin)
+    {
+        ShieldHP = MaxHP * 0.1f;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Shield : %f"),
+            ShieldHP);
+    }
+
+    FVector Start = GetActorLocation();
+
+    TArray<FOverlapResult> Overlaps;
+
+    FCollisionShape Sphere =
+        FCollisionShape::MakeSphere(ERadius);
+
+    bool bHit =
+        GetWorld()->OverlapMultiByChannel(
+            Overlaps,
+            Start,
+            FQuat::Identity,
+            ECC_Pawn,
+            Sphere);
+
+    if (bHit)
+    {
+        TSet<ABaseCharacter*> HealedPlayers;
+
+        for (auto& Result : Overlaps)
+        {
+            ABaseCharacter* Player =
+                Cast<ABaseCharacter>(Result.GetActor());
+
+            if (!Player)
+            {
+                continue;
+            }
+
+            // 이미 처리한 플레이어면 건너뜀
+            if (HealedPlayers.Contains(Player))
+            {
+                continue;
+            }
+
+            HealedPlayers.Add(Player);
+
+            float Heal = Player->MaxHP * HealAmount;
+
+            UE_LOG(LogTemp, Warning,
+                TEXT("%s HP : %.0f -> %.0f"),
+                *Player->GetName(),
+                Player->CurrentHP,
+                FMath::Min(Player->CurrentHP + Heal, Player->MaxHP));
+
+            Player->CurrentHP =
+                FMath::Min(
+                    Player->CurrentHP + Heal,
+                    Player->MaxHP);
+        }
+    }
 }
 
 void ABaseCharacter::MulticastQImpact_Implementation(FVector Location)
