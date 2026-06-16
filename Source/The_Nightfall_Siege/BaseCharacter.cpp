@@ -415,106 +415,7 @@ void ABaseCharacter::W(const FInputActionValue& Value)
         return;
     }
 
-    if (CharacterType == ECharacterType::Archer)
-    {
-        AttackSpeed = BuffAttackSpeed;
-
-        if (WSkillEffect)
-        {
-            WAreaComponent =
-                UNiagaraFunctionLibrary::SpawnSystemAttached(
-                    WSkillEffect,
-                    GetRootComponent(),
-                    NAME_None,
-                    FVector::ZeroVector,
-                    FRotator::ZeroRotator,
-                    EAttachLocation::KeepRelativeOffset,
-                    true
-                );
-        }
-
-        UE_LOG(LogTemp, Warning,
-            TEXT("Attack Speed Buff Start : %f"),
-            AttackSpeed);
-
-        GetWorldTimerManager().ClearTimer(
-            AttackSpeedBuffHandle);
-
-        GetWorldTimerManager().SetTimer(
-            AttackSpeedBuffHandle,
-            this,
-            &ABaseCharacter::EndArcherWBuff,
-            5.f,
-            false);
-
-        bCanUseW = false;
-
-        WRemainingCooldown = WCooldown;
-
-        GetWorldTimerManager().SetTimer(
-            WCooldownTimer,
-            this,
-            &ABaseCharacter::ResetWCooldown,
-            WCooldown,
-            false);
-
-        return;
-    }
-
-    if (bLanternEquipped) return;
-
-    if (bIsDead) return;
-
-    if (!bCanUseW || bIsUsingSkill)
-        return;
-
-    RotateToMouseCursor();
-
-    bIsUsingSkill = true;
-
-    GetCharacterMovement()->StopMovementImmediately();
-
-    if (AAIController* AICon = Cast<AAIController>(GetController()))
-    {
-        AICon->StopMovement();
-    }
-
-    UE_LOG(LogTemp, Warning, TEXT("W"));
-    UE_LOG(LogTemp, Warning, TEXT("Damage: %f"), AttackPower * WMultiplier);
-
-    if (WMontage)
-    {
-        PlayAnimMontage(WMontage);
-    }
-    else
-    {
-        bIsUsingSkill = false;
-    }
-
-    if (WSkillEffect)
-    {
-        UNiagaraFunctionLibrary::SpawnSystemAttached(
-            WSkillEffect,
-            GetMesh(),
-            TEXT("RightHandSocket"), //°Ë ÂÊ
-            FVector::ZeroVector,
-            FRotator::ZeroRotator,
-            EAttachLocation::SnapToTarget,
-            true
-        );
-    } // VFX
-
-    bCanUseW = false;
-
-    WRemainingCooldown = WCooldown;
-
-    GetWorldTimerManager().SetTimer(
-        WCooldownTimer,
-        this,
-        &ABaseCharacter::ResetWCooldown,
-        WCooldown,
-        false
-    );
+    ServerUseW();
 }
 
 void ABaseCharacter::E(const FInputActionValue& Value)
@@ -1980,6 +1881,56 @@ void ABaseCharacter::ExecuteQDamage()
             }
         }
     }
+}
+
+void ABaseCharacter::ServerUseW_Implementation()
+{
+    bCanUseW = false;
+
+    WRemainingCooldown = WCooldown;
+
+    GetWorldTimerManager().SetTimer(
+        WCooldownTimer,
+        this,
+        &ABaseCharacter::ResetWCooldown,
+        WCooldown,
+        false
+    );
+
+    MulticastPlayW();
+}
+
+void ABaseCharacter::MulticastPlayW_Implementation()
+{
+    RotateToMouseCursor();
+
+    bIsUsingSkill = true;
+
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AAIController* AICon = Cast<AAIController>(GetController()))
+    {
+        AICon->StopMovement();
+    }
+
+    if (WMontage)
+    {
+        PlayAnimMontage(WMontage);
+    }
+
+    if (WSkillEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            WSkillEffect,
+            GetMesh(),
+            TEXT("RightHandSocket"),
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::SnapToTarget,
+            true
+        );
+    }
+    bIsUsingSkill = false;
 }
 
 void ABaseCharacter::MulticastQImpact_Implementation(FVector Location)
