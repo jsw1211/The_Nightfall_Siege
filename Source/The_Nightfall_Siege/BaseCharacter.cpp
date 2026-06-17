@@ -167,20 +167,17 @@ void ABaseCharacter::BeginPlay()
 
     FString MapName = GetWorld()->GetMapName();
 
-    if (MapName.Contains(TEXT("Lvl_TopDown")))
+    if (HUDWidgetClass)
     {
-        if (HUDWidgetClass)
+        APlayerController* PC = Cast<APlayerController>(GetController());
+
+        if (PC && PC->IsLocalController() && !HUDWidget)
         {
-            APlayerController* PC = Cast<APlayerController>(GetController());
+            HUDWidget = CreateWidget<UPlayerHUDWidget>(PC, HUDWidgetClass);
 
-            if (PC && PC->IsLocalController())
+            if (HUDWidget)
             {
-                HUDWidget = CreateWidget<UPlayerHUDWidget>(PC, HUDWidgetClass);
-
-                if (HUDWidget)
-                {
-                    HUDWidget->AddToViewport();
-                }
+                HUDWidget->AddToViewport();
             }
         }
     }
