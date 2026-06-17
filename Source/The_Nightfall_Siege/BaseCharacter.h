@@ -189,6 +189,15 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayLanternMontage(bool bEquip);
 
+	UFUNCTION(Server, Reliable)
+	void ServerPickupPrism(ADungeonPrism* Prism);
+
+	UFUNCTION(Server, Reliable)
+	void ServerUseSlot3();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayPrismMontage(bool bEquip);
+
 	UPROPERTY(Replicated, BlueprintReadOnly)
 	bool bHasLantern = false;
 
@@ -207,10 +216,10 @@ public:
 
 	void RefreshLanternState();
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(Replicated, BlueprintReadOnly)
 	bool bHasPrism = false;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(ReplicatedUsing = OnRep_PrismEquipped, BlueprintReadOnly)
 	bool bPrismEquipped = false;
 
 	UPROPERTY()
@@ -264,8 +273,13 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly)
 	bool bLanternPoseActive = false;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(Replicated, BlueprintReadOnly)
 	bool bPrismPoseActive = false;
+
+	UFUNCTION()
+	void OnRep_PrismEquipped();
+
+	void RefreshPrismState();
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSubclassOf<UPlayerHUDWidget> HUDWidgetClass;

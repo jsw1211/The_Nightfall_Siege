@@ -225,7 +225,7 @@ void ABaseCharacter::BeginPlay()
 
         if (bPrismEquipped)
         {
-            OnPrismEquipped();
+            OnRep_PrismEquipped();
         }
     }
 
@@ -853,24 +853,8 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 
     if (NearbyPrism)
     {
-        bHasPrism = true;
-
-        Slot3Icon = PrismIcon;
-
-        if (UTheNightfallSiegeInstance* GI =
-            Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
-        {
-            GI->bHasPrism = true;
-
-            bool bAllDungeonCleared =
-                GI->ClearCurrentDungeon();
-        }
-
-        NearbyPrism->SpawnReturnPortal();
-
-        NearbyPrism->Destroy();
-
-        NearbyPrism = nullptr;
+        ServerPickupPrism(NearbyPrism);
+        return;
     }
 }
 
@@ -920,8 +904,7 @@ void ABaseCharacter::UseSlot2(const FInputActionValue& Value)
     }
 }
 
-void ABaseCharacter::UseSlot3(
-    const FInputActionValue& Value)
+void ABaseCharacter::UseSlot3(const FInputActionValue& Value)
 {
     if (bLanternEquipped)
     {
@@ -929,29 +912,11 @@ void ABaseCharacter::UseSlot3(
     }
 
     if (!bHasPrism)
-        return;
-
-    if (bIsEquippingPrism)
-        return;
-
-    bIsEquippingPrism = true;
-
-    if (!bPrismEquipped)
     {
-        if (PrismEquipMontage)
-        {
-            PlayAnimMontage(PrismEquipMontage);
-        }
+        return;
     }
-    else
-    {
-        if (PrismUnequipMontage)
-        {
-            bPrismPoseActive = false;
 
-            PlayAnimMontage(PrismUnequipMontage);
-        }
-    }
+    ServerUseSlot3();
 }
 
 void ABaseCharacter::OnLanternEquipped()
@@ -1215,53 +1180,14 @@ bool ABaseCharacter::CanUseCombatAction() const
 
 void ABaseCharacter::OnPrismEquipped()
 {
-    EquippedLanternMesh->SetVisibility(false);
-    LanternLight->SetVisibility(false);
-
-    bLanternEquipped = false;
-    bLanternPoseActive = false;
-
-    bPrismEquipped = true;
-
-    if (UTheNightfallSiegeInstance* GI =
-        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
-    {
-        GI->bPrismEquipped = true;
-    }
-
-    bPrismPoseActive = true;
-
-    bLanternPoseActive = false;
-
-    EquippedPrismMesh->SetVisibility(true);
-
-    bIsEquippingPrism = false;
-
-    GetCharacterMovement()->SetMovementMode(
-        MOVE_Walking);
 }
 
 void ABaseCharacter::OnPrismUnequipped()
 {
-    EquippedPrismMesh->SetVisibility(false);
 }
 
 void ABaseCharacter::OnPrismUnequipFinished()
 {
-    bPrismEquipped = false;
-
-    if (UTheNightfallSiegeInstance* GI =
-        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
-    {
-        GI->bPrismEquipped = false;
-    }
-
-    bIsEquippingPrism = false;
-
-    bPrismPoseActive = false;
-
-    GetCharacterMovement()->SetMovementMode(
-        MOVE_Walking);
 }
 
 void ABaseCharacter::EndArcherWBuff()
@@ -1915,6 +1841,9 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABaseCharacter, bHasLantern);
     DOREPLIFETIME(ABaseCharacter, bLanternEquipped);
     DOREPLIFETIME(ABaseCharacter, bLanternPoseActive);
+    DOREPLIFETIME(ABaseCharacter, bHasPrism);
+    DOREPLIFETIME(ABaseCharacter, bPrismEquipped);
+    DOREPLIFETIME(ABaseCharacter, bPrismPoseActive);
 }
 
 void ABaseCharacter::OnRep_CurrentHP()
@@ -2057,5 +1986,108 @@ void ABaseCharacter::MulticastPlayLanternMontage_Implementation(bool bEquip)
             PlayAnimMontage(LanternUnequipMontage);
         }
     }
+}
+
+void ABaseCharacter::ServerUseSlot3_Implementation()
+{
+    if (bLanternEquipped)
+        return;
+
+    if (!bHasPrism)
+        return;
+
+    if (bIsEquippingPrism)
+        return;
+
+    bIsEquippingPrism = true;
+
+    const bool bEquip = !bPrismEquipped;
+
+    bPrismEquipped = bEquip;
+    bPrismPoseActive = bEquip;
+
+    bIsEquippingPrism = false;
+
+    RefreshPrismState();
+
+    ForceNetUpdate();
+
+    MulticastPlayPrismMontage(bEquip);
+}
+
+void ABaseCharacter::OnRep_PrismEquipped()
+{
+    EquippedPrismMesh->SetVisibility(bPrismEquipped);
+
+    bPrismPoseActive = bPrismEquipped;
+
+    if (bPrismEquipped)
+    {
+        EquippedLanternMesh->SetVisibility(false);
+        LanternLight->SetVisibility(false);
+    }
+
+    if (CharacterType == ECharacterType::Paladin)
+    {
+        if (RightHandWeapon)
+        {
+            RightHandWeapon->SetActorHiddenInGame(
+                bPrismEquipped);
+
+            RightHandWeapon->SetActorEnableCollision(
+                !bPrismEquipped);
+        }
+    }
+}
+
+void ABaseCharacter::RefreshPrismState()
+{
+    OnRep_PrismEquipped();
+
+    ForceNetUpdate();
+}
+
+void ABaseCharacter::MulticastPlayPrismMontage_Implementation(bool bEquip)
+{
+    if (bEquip)
+    {
+        if (PrismEquipMontage)
+        {
+            PlayAnimMontage(PrismEquipMontage);
+        }
+    }
+    else
+    {
+        if (PrismUnequipMontage)
+        {
+            PlayAnimMontage(PrismUnequipMontage);
+        }
+    }
+}
+
+void ABaseCharacter::ServerPickupPrism_Implementation(ADungeonPrism* Prism)
+{
+    if (!Prism)
+    {
+        return;
+    }
+
+    bHasPrism = true;
+
+    Slot3Icon = PrismIcon;
+
+    if (UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+    {
+        GI->bHasPrism = true;
+
+        GI->ClearCurrentDungeon();
+    }
+
+    Prism->SpawnReturnPortal();
+
+    Prism->Destroy();
+
+    NearbyPrism = nullptr;
 }
 
