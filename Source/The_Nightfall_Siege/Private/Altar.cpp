@@ -112,7 +112,9 @@ void AAltar::PlaceLantern(ABaseCharacter* Player)
 	Player->bLanternEquipped = false;
 	Player->bLanternPoseActive = false;
 
-	Player->OnLanternUnequipped();
+	Player->Slot1Icon = Player->EmptySlotIcon;
+
+	Player->RefreshLanternState();
 
 	LanternMesh->SetVisibility(true);
 
@@ -130,7 +132,9 @@ void AAltar::RemoveLantern(ABaseCharacter* Player)
 	Player->bLanternEquipped = true;
 	Player->bLanternPoseActive = true;
 
-	Player->OnLanternEquipped();
+	Player->Slot1Icon = Player->LanternIcon;
+
+	Player->RefreshLanternState();
 
 	LanternMesh->SetVisibility(false);
 

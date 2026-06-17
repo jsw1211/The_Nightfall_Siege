@@ -2005,6 +2005,13 @@ void ABaseCharacter::OnRep_LanternEquipped()
     bLanternPoseActive = bLanternEquipped;
 }
 
+void ABaseCharacter::RefreshLanternState()
+{
+    OnRep_LanternEquipped();
+
+    ForceNetUpdate();
+}
+
 void ABaseCharacter::ServerUseSlot1_Implementation()
 {
     if (bPrismEquipped)

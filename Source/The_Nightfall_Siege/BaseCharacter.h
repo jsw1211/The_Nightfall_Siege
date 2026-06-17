@@ -205,6 +205,8 @@ public:
 	UFUNCTION()
 	void OnRep_LanternEquipped();
 
+	void RefreshLanternState();
+
 	UPROPERTY(BlueprintReadOnly)
 	bool bHasPrism = false;
 
