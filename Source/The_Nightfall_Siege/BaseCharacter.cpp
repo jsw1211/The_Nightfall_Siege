@@ -28,6 +28,7 @@
 #include "TheNightfallSiegeInstance.h"
 #include "DrawDebugHelpers.h"
 #include "Portal.h"
+#include "Net/UnrealNetwork.h"
 
 
 // Sets default values
@@ -225,6 +226,10 @@ void ABaseCharacter::BeginPlay()
             OnPrismEquipped();
         }
     }
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Authority : %d"),
+        HasAuthority());
 }
 
 void ABaseCharacter::Die()
@@ -468,6 +473,8 @@ void ABaseCharacter::TakePlayerDamage(float Damage)
 
     // 남은 데미지만 체력 감소
     CurrentHP -= FinalDamage;
+
+    ForceNetUpdate();
 
     if (CurrentHP > 0)
     {
@@ -1985,3 +1992,28 @@ void ABaseCharacter::ServerRotate_Implementation(FRotator NewRotation)
 
     ForceNetUpdate();
 }
+
+void ABaseCharacter::GetLifetimeReplicatedProps(
+    TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+    DOREPLIFETIME(ABaseCharacter, CurrentHP);
+}
+
+void ABaseCharacter::OnRep_CurrentHP()
+{
+    UE_LOG(LogTemp, Warning,
+        TEXT("Current HP : %f"),
+        CurrentHP);
+}
+
+void ABaseCharacter::HealPlayer(float Amount)
+{
+    CurrentHP =
+        FMath::Clamp(
+            CurrentHP + Amount,
+            0.f,
+            MaxHP);
+}
+

@@ -15,6 +15,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "NiagaraComponent.h"
+#include "Net/UnrealNetwork.h"
 #include "BaseCharacter.generated.h"
 
 class USkillTreeWidget;
@@ -253,8 +254,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float MaxHP = 100.f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentHP, VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
 	float CurrentHP;
+
+	UFUNCTION()
+	void OnRep_CurrentHP();
+
+	void HealPlayer(float Amount);
+
+	virtual void GetLifetimeReplicatedProps(
+    TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 	// º¸È£¸·
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
