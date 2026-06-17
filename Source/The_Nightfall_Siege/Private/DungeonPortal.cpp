@@ -6,6 +6,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "TheNightfallSiegeInstance.h"
+#include "BaseCharacter.h"
 
 // Sets default values
 ADungeonPortal::ADungeonPortal()
@@ -53,18 +54,6 @@ void ADungeonPortal::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (bPlayerInside)
-	{
-		APlayerController* PC =
-			GetWorld()->GetFirstPlayerController();
-
-		if (PC && PC->WasInputKeyJustPressed(EKeys::F))
-		{
-			UE_LOG(LogTemp, Warning, TEXT("F Pressed"));
-
-			EnterDungeon();
-		}
-	}
 }
 
 void ADungeonPortal::OnOverlapBegin(
@@ -75,8 +64,15 @@ void ADungeonPortal::OnOverlapBegin(
 	bool bFromSweep,
 	const FHitResult& SweepResult)
 {
-	bPlayerInside = true;
+	ABaseCharacter* Player =
+		Cast<ABaseCharacter>(OtherActor);
 
+	if (!Player)
+	{
+		return;
+	}
+
+	Player->SetNearbyDungeonPortal(this);
 }
 
 void ADungeonPortal::OnOverlapEnd(
@@ -85,11 +81,28 @@ void ADungeonPortal::OnOverlapEnd(
 	UPrimitiveComponent* OtherComp,
 	int32 OtherBodyIndex)
 {
-	bPlayerInside = false;
+	ABaseCharacter* Player =
+		Cast<ABaseCharacter>(OtherActor);
+
+	if (!Player)
+	{
+		return;
+	}
+
+	Player->SetNearbyDungeonPortal(nullptr);
 }
 
-void ADungeonPortal::EnterDungeon()
+void ADungeonPortal::ServerEnterDungeon_Implementation()
 {
+	UE_LOG(LogTemp, Warning,
+		TEXT("ServerEnterDungeon"));
+
+
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	UTheNightfallSiegeInstance* GI =
 		Cast<UTheNightfallSiegeInstance>(GetGameInstance());
 
@@ -98,12 +111,15 @@ void ADungeonPortal::EnterDungeon()
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("Open Dungeon: %s"),
-		*GI->CurrentDungeon.ToString()); // 디버그용
+	FString MapPath =
+		FString::Printf(
+			TEXT("/Game/Level/%s?listen"),
+			*GI->CurrentDungeon.ToString());
 
+	UE_LOG(LogTemp, Warning,
+		TEXT("ServerTravel : %s"),
+		*MapPath);
 
-	UGameplayStatics::OpenLevel(
-		this,
-		GI->CurrentDungeon);
+	GetWorld()->ServerTravel(MapPath);
 }
 

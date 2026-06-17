@@ -30,6 +30,7 @@
 #include "Portal.h"
 #include "Net/UnrealNetwork.h"
 #include "Altar.h"
+#include "DungeonPortal.h"
 
 
 // Sets default values
@@ -830,8 +831,13 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 
     if (NearbyPortal)
     {
-        NearbyPortal->Interact(this);
+        ServerInteractPortal(NearbyPortal);
+        return;
+    }
 
+    if (NearbyDungeonPortal)
+    {
+        ServerInteractDungeonPortal();
         return;
     }
 
@@ -1228,6 +1234,11 @@ void ABaseCharacter::RestoreSkillUpgrades()
 void ABaseCharacter::SetNearbyPortal(APortal* Portal)
 {
     NearbyPortal = Portal;
+}
+
+void ABaseCharacter::SetNearbyDungeonPortal(ADungeonPortal* Portal)
+{
+    NearbyDungeonPortal = Portal;
 }
 
 void ABaseCharacter::ServerUseQ_Implementation()
@@ -2089,5 +2100,28 @@ void ABaseCharacter::ServerPickupPrism_Implementation(ADungeonPrism* Prism)
     Prism->Destroy();
 
     NearbyPrism = nullptr;
+}
+
+void ABaseCharacter::ServerInteractPortal_Implementation(APortal* Portal)
+{
+    if (!Portal)
+    {
+        return;
+    }
+
+    Portal->Interact(this);
+}
+
+void ABaseCharacter::ServerInteractDungeonPortal_Implementation()
+{
+    UE_LOG(LogTemp, Warning,
+        TEXT("ServerInteractDungeonPortal"));
+
+    if (!NearbyDungeonPortal)
+    {
+        return;
+    }
+
+    NearbyDungeonPortal->ServerEnterDungeon();
 }
 

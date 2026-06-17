@@ -24,6 +24,7 @@ class UPlayerHUDWidget;
 class AArrowProjectile;
 class APortal;
 class AAltar;
+class ADungeonPortal;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABaseCharacter : public ACharacter
@@ -198,6 +199,12 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayPrismMontage(bool bEquip);
 
+	UFUNCTION(Server, Reliable)
+	void ServerInteractPortal(APortal* Portal);
+
+	UFUNCTION(Server, Reliable)
+	void ServerInteractDungeonPortal();
+
 	UPROPERTY(Replicated, BlueprintReadOnly)
 	bool bHasLantern = false;
 
@@ -229,6 +236,11 @@ public:
 	APortal* NearbyPortal = nullptr;
 
 	void SetNearbyPortal(APortal* Portal);
+
+	UPROPERTY()
+	ADungeonPortal* NearbyDungeonPortal = nullptr;
+
+	void SetNearbyDungeonPortal(ADungeonPortal* Portal);
 
 	void UseSlot1(const FInputActionValue& Value);
 	void SetNearbyPrism(class ADungeonPrism* Prism);

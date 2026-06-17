@@ -27,6 +27,9 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	UFUNCTION(Server, Reliable)
+	void ServerEnterDungeon();
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	USceneComponent* SceneRoot;
@@ -56,7 +59,5 @@ protected:
 		UPrimitiveComponent* OtherComp,
 		int32 OtherBodyIndex
 	);
-
-	void EnterDungeon();
 
 };

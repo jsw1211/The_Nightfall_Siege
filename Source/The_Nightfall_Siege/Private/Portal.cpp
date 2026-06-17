@@ -142,19 +142,27 @@ void APortal::Interact(ABaseCharacter* Player)
     switch (PortalType)
     {
     case EPortalType::ReturnVillage:
-
-        UGameplayStatics::OpenLevel(
-            this,
-            FName("Lvl_TopDown"));
+    {
+        if (APlayerController* PC =
+            Cast<APlayerController>(Player->GetController()))
+        {
+            PC->ClientTravel(
+                TEXT("/Game/TopDown/Lvl_TopDown"),
+                TRAVEL_Absolute);
+        }
 
         break;
+    }
 
     case EPortalType::Boss:
-
-        UGameplayStatics::OpenLevel(
-            this,
-            FName("DragonLevelSample"));
+    {
+        if (HasAuthority())
+        {
+            GetWorld()->ServerTravel(
+                TEXT("/Game/Level/DragonLevelSample?listen"));
+        }
 
         break;
+    }
     }
 }
