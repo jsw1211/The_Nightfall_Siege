@@ -23,6 +23,7 @@ class ALantern;
 class UPlayerHUDWidget;
 class AArrowProjectile;
 class APortal;
+class AAltar;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABaseCharacter : public ACharacter
@@ -170,6 +171,14 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	UTexture2D* PortraitTexture;
+
+	UPROPERTY()
+	AAltar* NearbyAltar = nullptr;
+
+	void SetNearbyAltar(AAltar* Altar);
+
+	UFUNCTION(Server, Reliable)
+	void ServerInteractAltar();
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bHasLantern = false;

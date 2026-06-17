@@ -37,7 +37,7 @@ public:
 	UBoxComponent* InteractionBox;
 
 	// 활성화 여부
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(ReplicatedUsing = OnRep_Activated, BlueprintReadOnly)
 	bool bActivated;
 
 	// 플레이어 범위 안 여부
@@ -53,11 +53,20 @@ public:
 	// 제단 활성화
 	void ActivateAltar();
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(ReplicatedUsing = OnRep_LanternPlaced, BlueprintReadOnly)
 	bool bLanternPlaced = false;
 
 	void PlaceLantern(ABaseCharacter* Player);
 	void RemoveLantern(ABaseCharacter* Player);
+
+	UFUNCTION()
+	void OnRep_Activated();
+
+	UFUNCTION()
+	void OnRep_LanternPlaced();
+
+	virtual void GetLifetimeReplicatedProps(
+		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UPROPERTY(VisibleAnywhere)
 	USphereComponent* LightRange;
@@ -67,4 +76,20 @@ public:
 
 	UPROPERTY(VisibleAnywhere)
 	UPointLightComponent* AltarLight;
+
+	UFUNCTION()
+	void OnOverlapBegin(
+		UPrimitiveComponent* OverlappedComponent,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		int32 OtherBodyIndex,
+		bool bFromSweep,
+		const FHitResult& SweepResult);
+
+	UFUNCTION()
+	void OnOverlapEnd(
+		UPrimitiveComponent* OverlappedComponent,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		int32 OtherBodyIndex);
 };

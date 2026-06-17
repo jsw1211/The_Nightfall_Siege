@@ -29,6 +29,7 @@
 #include "DrawDebugHelpers.h"
 #include "Portal.h"
 #include "Net/UnrealNetwork.h"
+#include "Altar.h"
 
 
 // Sets default values
@@ -84,6 +85,7 @@ ABaseCharacter::ABaseCharacter()
     LanternLight->SetIntensity(5000.f);
 
     LanternLight->SetAttenuationRadius(1200.f);
+
 }
 
 // Called when the game starts or when spawned
@@ -820,6 +822,12 @@ void ABaseCharacter::SetNearbyLantern(ALantern* Lantern)
 
 void ABaseCharacter::Interact(const FInputActionValue& Value)
 {
+    if (NearbyAltar)
+    {
+        ServerInteractAltar();
+        return;
+    }
+
     if (NearbyPortal)
     {
         NearbyPortal->Interact(this);
@@ -2015,5 +2023,34 @@ void ABaseCharacter::HealPlayer(float Amount)
             CurrentHP + Amount,
             0.f,
             MaxHP);
+}
+
+void ABaseCharacter::SetNearbyAltar(AAltar* Altar)
+{
+    NearbyAltar = Altar;
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Nearby Altar : %s"),
+        Altar ? TEXT("SET") : TEXT("NULL"));
+}
+
+void ABaseCharacter::ServerInteractAltar_Implementation()
+{
+    if (!NearbyAltar)
+    {
+        return;
+    }
+
+    if (!NearbyAltar->bLanternPlaced)
+    {
+        if (bHasLantern && bLanternEquipped)
+        {
+            NearbyAltar->PlaceLantern(this);
+        }
+    }
+    else
+    {
+        NearbyAltar->RemoveLantern(this);
+    }
 }
 
