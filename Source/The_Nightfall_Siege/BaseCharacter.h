@@ -180,6 +180,9 @@ public:
 	UFUNCTION(Server, Reliable)
 	void ServerInteractAltar();
 
+	UFUNCTION(Server, Reliable)
+	void ServerPickupLantern(ALantern* Lantern);
+
 	UPROPERTY(BlueprintReadOnly)
 	bool bHasLantern = false;
 

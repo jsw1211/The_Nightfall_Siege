@@ -847,19 +847,8 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 
     if (NearbyLantern)
     {
-        bHasLantern = true;
-
-        Slot1Icon = LanternIcon;
-
-        if (UTheNightfallSiegeInstance* GI =
-            Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
-        {
-            GI->bHasLantern = true;
-        }
-
-        NearbyLantern->Destroy();
-
-        NearbyLantern = nullptr;
+        ServerPickupLantern(NearbyLantern);
+        return;
     }
 
     if (NearbyPrism)
@@ -2052,5 +2041,27 @@ void ABaseCharacter::ServerInteractAltar_Implementation()
     {
         NearbyAltar->RemoveLantern(this);
     }
+}
+
+void ABaseCharacter::ServerPickupLantern_Implementation(ALantern* Lantern)
+{
+    if (!Lantern)
+    {
+        return;
+    }
+
+    bHasLantern = true;
+
+    Slot1Icon = LanternIcon;
+
+    if (UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+    {
+        GI->bHasLantern = true;
+    }
+
+    Lantern->Destroy();
+
+    NearbyLantern = nullptr;
 }
 
