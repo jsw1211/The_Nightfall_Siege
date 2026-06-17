@@ -220,7 +220,7 @@ void ABaseCharacter::BeginPlay()
 
         if (bLanternEquipped)
         {
-            OnLanternEquipped();
+            OnRep_LanternEquipped();
         }
 
         if (bPrismEquipped)
@@ -882,29 +882,11 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
     }
 
     if (!bHasLantern)
-        return;
-
-    if (bIsEquippingLantern)
-        return;
-
-    bIsEquippingLantern = true;
-
-    if (!bLanternEquipped)
     {
-        if (LanternEquipMontage)
-        {
-            PlayAnimMontage(LanternEquipMontage);
-        }
+        return;
     }
-    else
-    {
-        if (LanternUnequipMontage)
-        {
-            bLanternPoseActive = false;
 
-            PlayAnimMontage(LanternUnequipMontage);
-        }
-    }
+    ServerUseSlot1();
 }
 
 void ABaseCharacter::UseSlot2(const FInputActionValue& Value)
@@ -974,80 +956,14 @@ void ABaseCharacter::UseSlot3(
 
 void ABaseCharacter::OnLanternEquipped()
 {
-    EquippedPrismMesh->SetVisibility(false);
-
-    bPrismEquipped = false;
-
-    bLanternEquipped = true;
-
-    if (UTheNightfallSiegeInstance* GI =
-        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
-    {
-        GI->bLanternEquipped = true;
-    }
-
-    bPrismPoseActive = false;
-
-    bIsEquippingLantern = false;
-
-    bLanternPoseActive = true;
-
-    EquippedLanternMesh->SetVisibility(true);
-
-    LanternLight->SetVisibility(true);
-
-    if (CharacterType == ECharacterType::Paladin)
-    {
-        if (RightHandWeapon)
-        {
-            RightHandWeapon->SetActorHiddenInGame(true);
-            RightHandWeapon->SetActorEnableCollision(false);
-        }
-    }
-
-    bIsEquippingLantern = false;
-
-    GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 }
 
 void ABaseCharacter::OnLanternUnequipped()
 {
-    UE_LOG(LogTemp, Warning, TEXT("UNEQUIP"));
-
-    bLanternEquipped = false;
-
-    if (UTheNightfallSiegeInstance* GI =
-        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
-    {
-        GI->bLanternEquipped = false;
-    }
-
-    bLanternPoseActive = false;
-
-    bIsEquippingLantern = false;
-
-    EquippedLanternMesh->SetVisibility(false);
-
-    LanternLight->SetVisibility(false);
-
-    if (CharacterType == ECharacterType::Paladin)
-    {
-        if (RightHandWeapon)
-        {
-            RightHandWeapon->SetActorHiddenInGame(false);
-            RightHandWeapon->SetActorEnableCollision(true);
-        }
-    }
 }
 
 void ABaseCharacter::OnLanternUnequipFinished()
 {
-    UE_LOG(LogTemp, Warning, TEXT("UNEQUIP FINISHED"));
-
-    bLanternEquipped = false;
-    bIsEquippingLantern = false;
-
-    GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 }
 
 void ABaseCharacter::EnableWeaponCollision()
@@ -1996,6 +1912,9 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
     DOREPLIFETIME(ABaseCharacter, CurrentHP);
+    DOREPLIFETIME(ABaseCharacter, bHasLantern);
+    DOREPLIFETIME(ABaseCharacter, bLanternEquipped);
+    DOREPLIFETIME(ABaseCharacter, bLanternPoseActive);
 }
 
 void ABaseCharacter::OnRep_CurrentHP()
@@ -2063,5 +1982,73 @@ void ABaseCharacter::ServerPickupLantern_Implementation(ALantern* Lantern)
     Lantern->Destroy();
 
     NearbyLantern = nullptr;
+}
+
+void ABaseCharacter::OnRep_LanternEquipped()
+{
+    EquippedLanternMesh->SetVisibility(bLanternEquipped);
+
+    LanternLight->SetVisibility(bLanternEquipped);
+
+    if (CharacterType == ECharacterType::Paladin)
+    {
+        if (RightHandWeapon)
+        {
+            RightHandWeapon->SetActorHiddenInGame(
+                bLanternEquipped);
+
+            RightHandWeapon->SetActorEnableCollision(
+                !bLanternEquipped);
+        }
+    }
+
+    bLanternPoseActive = bLanternEquipped;
+}
+
+void ABaseCharacter::ServerUseSlot1_Implementation()
+{
+    if (bPrismEquipped)
+        return;
+
+    if (!bHasLantern)
+        return;
+
+    if (bIsEquippingLantern)
+        return;
+
+    bIsEquippingLantern = true;
+
+    const bool bEquip = !bLanternEquipped;
+
+    bLanternEquipped = bEquip;
+    bLanternPoseActive = bEquip;
+
+    bIsEquippingLantern = false;
+
+    OnRep_LanternEquipped();
+
+    ForceNetUpdate();
+
+    bIsEquippingLantern = false;
+
+    MulticastPlayLanternMontage(bEquip);
+}
+
+void ABaseCharacter::MulticastPlayLanternMontage_Implementation(bool bEquip)
+{
+    if (bEquip)
+    {
+        if (LanternEquipMontage)
+        {
+            PlayAnimMontage(LanternEquipMontage);
+        }
+    }
+    else
+    {
+        if (LanternUnequipMontage)
+        {
+            PlayAnimMontage(LanternUnequipMontage);
+        }
+    }
 }
 

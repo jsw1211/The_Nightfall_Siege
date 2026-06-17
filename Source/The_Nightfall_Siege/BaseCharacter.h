@@ -183,7 +183,13 @@ public:
 	UFUNCTION(Server, Reliable)
 	void ServerPickupLantern(ALantern* Lantern);
 
-	UPROPERTY(BlueprintReadOnly)
+	UFUNCTION(Server, Reliable)
+	void ServerUseSlot1();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayLanternMontage(bool bEquip);
+
+	UPROPERTY(Replicated, BlueprintReadOnly)
 	bool bHasLantern = false;
 
 	UPROPERTY()
@@ -193,8 +199,11 @@ public:
 
 	void Interact(const FInputActionValue& Value);
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(ReplicatedUsing = OnRep_LanternEquipped, BlueprintReadOnly)
 	bool bLanternEquipped = false;
+
+	UFUNCTION()
+	void OnRep_LanternEquipped();
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bHasPrism = false;
@@ -250,7 +259,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void OnPrismUnequipFinished();
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(Replicated, BlueprintReadOnly)
 	bool bLanternPoseActive = false;
 
 	UPROPERTY(BlueprintReadOnly)
