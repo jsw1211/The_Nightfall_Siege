@@ -12,6 +12,9 @@ ACoin::ACoin()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
+    bReplicates = true;
+    SetReplicateMovement(true);
+
     Sphere = CreateDefaultSubobject<USphereComponent>("Sphere");
     RootComponent = Sphere;
 
@@ -56,8 +59,6 @@ void ACoin::OnOverlap(
         return;
     }
 
-    Player->Coin++;
-
-    Destroy();
+    Player->ServerPickupCoin(this);
 }
 

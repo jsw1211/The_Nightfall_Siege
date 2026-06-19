@@ -415,8 +415,14 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	bool bIsDead = false;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(ReplicatedUsing = OnRep_Coin, BlueprintReadOnly)
 	int32 Coin = 0;
+
+	UFUNCTION()
+	void OnRep_Coin();
+
+	UFUNCTION(Server, Reliable)
+	void ServerPickupCoin(class ACoin* CoinActor);
 
 protected:
 	UPROPERTY(VisibleAnywhere)

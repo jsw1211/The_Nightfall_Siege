@@ -31,6 +31,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Altar.h"
 #include "DungeonPortal.h"
+#include "Coin.h"
 
 
 // Sets default values
@@ -1852,6 +1853,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABaseCharacter, bHasPrism);
     DOREPLIFETIME(ABaseCharacter, bPrismEquipped);
     DOREPLIFETIME(ABaseCharacter, bPrismPoseActive);
+    DOREPLIFETIME(ABaseCharacter, Coin);
 }
 
 void ABaseCharacter::OnRep_CurrentHP()
@@ -2120,5 +2122,27 @@ void ABaseCharacter::ServerInteractDungeonPortal_Implementation()
     }
 
     NearbyDungeonPortal->ServerEnterDungeon();
+}
+
+void ABaseCharacter::ServerPickupCoin_Implementation(ACoin* CoinActor)
+{
+    if (!CoinActor)
+    {
+        return;
+    }
+
+    Coin++;
+
+    OnRep_Coin();
+
+    CoinActor->Destroy();
+}
+
+void ABaseCharacter::OnRep_Coin()
+{
+    if (HUDWidget)
+    {
+        HUDWidget->UpdateCoin(Coin);
+    }
 }
 
