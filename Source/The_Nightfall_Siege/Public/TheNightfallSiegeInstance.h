@@ -61,4 +61,7 @@ public:
 
 	UPROPERTY(BlueprintReadWrite)
 	bool bIsHost = false;
+
+	UPROPERTY()
+	bool bWorldLanternDestroyed = false;
 };

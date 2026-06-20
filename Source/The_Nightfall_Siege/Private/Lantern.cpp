@@ -29,20 +29,15 @@ ALantern::ALantern()
 void ALantern::BeginPlay()
 {
 	Super::BeginPlay();
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Lantern BeginPlay Authority=%d"),
+        HasAuthority());
 	
 	InteractionSphere->OnComponentBeginOverlap.AddDynamic(this, &ALantern::OnOverlapBegin);
 
 	InteractionSphere->OnComponentEndOverlap.AddDynamic(this, &ALantern::OnOverlapEnd);
 
-    UTheNightfallSiegeInstance* GI =
-        Cast<UTheNightfallSiegeInstance>(GetGameInstance());
-
-    if (GI && GI->bHasLantern)
-    {
-        Destroy();
-
-        return;
-    }
 }
 
 // Called every frame

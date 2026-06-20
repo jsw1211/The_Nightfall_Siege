@@ -243,6 +243,24 @@ void ABaseCharacter::BeginPlay()
         OnRep_PrismEquipped();
     }
 
+    if (HasAuthority() && bHasLantern)
+    {
+        TArray<AActor*> Lanterns;
+
+        UGameplayStatics::GetAllActorsOfClass(
+            GetWorld(),
+            ALantern::StaticClass(),
+            Lanterns);
+
+        for (AActor* Actor : Lanterns)
+        {
+            Actor->Destroy();
+        }
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Destroyed World Lantern"));
+    }
+
     UE_LOG(LogTemp, Warning,
         TEXT("Authority : %d"),
         HasAuthority());
@@ -1941,6 +1959,12 @@ void ABaseCharacter::ServerPickupLantern_Implementation(ALantern* Lantern)
 
     OnRep_HasLantern();
 
+    if (UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+    {
+        GI->bWorldLanternDestroyed = true;
+    }
+
     Lantern->Destroy();
 
     NearbyLantern = nullptr;
@@ -2245,6 +2269,27 @@ void ABaseCharacter::OnRep_PlayerState()
             TEXT("Restore Item From PlayerState Lantern=%d Equipped=%d"),
             bHasLantern,
             bLanternEquipped);
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("OnRep_PlayerState Finished"));
+    }
+
+    if (bHasLantern)
+    {
+        TArray<AActor*> Lanterns;
+
+        UGameplayStatics::GetAllActorsOfClass(
+            GetWorld(),
+            ALantern::StaticClass(),
+            Lanterns);
+
+        for (AActor* Actor : Lanterns)
+        {
+            Actor->Destroy();
+        }
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Removed World Lantern"));
     }
 }
 
@@ -2263,6 +2308,21 @@ void ABaseCharacter::PossessedBy(AController* NewController)
         UE_LOG(LogTemp, Warning,
             TEXT("Server Restore Item Lantern=%d"),
             bHasLantern);
+    }
+
+    if (bHasLantern)
+    {
+        TArray<AActor*> Lanterns;
+
+        UGameplayStatics::GetAllActorsOfClass(
+            GetWorld(),
+            ALantern::StaticClass(),
+            Lanterns);
+
+        for (AActor* Actor : Lanterns)
+        {
+            Actor->Destroy();
+        }
     }
 }
 

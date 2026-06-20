@@ -7,10 +7,67 @@
 #include "BasePlayerState.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
+#include "Lantern.h"
+#include "BaseCharacter.h"
 
 AThe_Nightfall_SiegeGameMode::AThe_Nightfall_SiegeGameMode()
 {
 	// stub
+}
+
+void AThe_Nightfall_SiegeGameMode::BeginPlay()
+{
+    Super::BeginPlay();
+
+    // TopDown 맵에서만 실행
+    if (!GetWorld()->GetMapName().Contains(TEXT("Lvl_TopDown")))
+    {
+        return;
+    }
+
+    bool bSomeoneHasLantern = false;
+
+    TArray<AActor*> Players;
+
+    UGameplayStatics::GetAllActorsOfClass(
+        GetWorld(),
+        ABaseCharacter::StaticClass(),
+        Players);
+
+    for (AActor* Actor : Players)
+    {
+        ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
+
+        if (!Player)
+        {
+            continue;
+        }
+
+        if (Player->bHasLantern)
+        {
+            bSomeoneHasLantern = true;
+            break;
+        }
+    }
+
+    if (!bSomeoneHasLantern)
+    {
+        return;
+    }
+
+    TArray<AActor*> Lanterns;
+
+    UGameplayStatics::GetAllActorsOfClass(
+        GetWorld(),
+        ALantern::StaticClass(),
+        Lanterns);
+
+    for (AActor* Actor : Lanterns)
+    {
+        Actor->Destroy();
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("World Lantern Removed"));
 }
 
 UClass* AThe_Nightfall_SiegeGameMode::GetDefaultPawnClassForController_Implementation(
