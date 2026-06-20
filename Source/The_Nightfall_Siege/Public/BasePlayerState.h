@@ -22,6 +22,24 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_SelectedCharacter, BlueprintReadOnly)
 	ECharacterType SelectedCharacter = ECharacterType::Paladin;
 
+	UPROPERTY(Replicated, BlueprintReadWrite)
+	bool bHasLantern = false;
+
+	UPROPERTY(Replicated, BlueprintReadWrite)
+	bool bLanternEquipped = false;
+
+	UPROPERTY(Replicated, BlueprintReadWrite)
+	bool bHasPrism = false;
+
+	UPROPERTY(Replicated, BlueprintReadWrite)
+	bool bPrismEquipped = false;
+
+	UPROPERTY(Replicated, BlueprintReadWrite)
+	int32 Coin = 0;
+
+	UPROPERTY(Replicated, BlueprintReadWrite)
+	int32 SkillPoints = 0;
+
 	UFUNCTION()
 	void OnRep_SelectedCharacter();
 

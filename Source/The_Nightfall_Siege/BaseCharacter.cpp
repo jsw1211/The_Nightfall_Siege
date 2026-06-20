@@ -32,6 +32,7 @@
 #include "Altar.h"
 #include "DungeonPortal.h"
 #include "Coin.h"
+#include "BasePlayerState.h"
 
 
 // Sets default values
@@ -200,32 +201,46 @@ void ABaseCharacter::BeginPlay()
         SkillLevels = GI->SkillLevels;
 
         RestoreSkillUpgrades();
+    }
 
-        bHasLantern = GI->bHasLantern;
-        bLanternEquipped = GI->bLanternEquipped;
+    ABasePlayerState* PS = GetPlayerState<ABasePlayerState>();
 
-        bHasPrism = GI->bHasPrism;
-        bPrismEquipped = GI->bPrismEquipped;
+    if (PS)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("BeginPlay PS Lantern=%d CharacterBefore=%d"),
+            PS->bHasLantern,
+            bHasLantern);
 
-        if (bHasLantern)
-        {
-            Slot1Icon = LanternIcon;
-        }
+        bHasLantern = PS->bHasLantern;
+        bLanternEquipped = PS->bLanternEquipped;
 
-        if (bHasPrism)
-        {
-            Slot3Icon = PrismIcon;
-        }
+        bHasPrism = PS->bHasPrism;
+        bPrismEquipped = PS->bPrismEquipped;
 
-        if (bLanternEquipped)
-        {
-            OnRep_LanternEquipped();
-        }
+        UE_LOG(LogTemp, Warning,
+            TEXT("CharacterAfter Lantern=%d"),
+            bHasLantern);
+    }
 
-        if (bPrismEquipped)
-        {
-            OnRep_PrismEquipped();
-        }
+    if (bHasLantern)
+    {
+        Slot1Icon = LanternIcon;
+    }
+
+    if (bHasPrism)
+    {
+        Slot3Icon = PrismIcon;
+    }
+
+    if (bLanternEquipped)
+    {
+        OnRep_LanternEquipped();
+    }
+
+    if (bPrismEquipped)
+    {
+        OnRep_PrismEquipped();
     }
 
     UE_LOG(LogTemp, Warning,
@@ -864,6 +879,11 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 
 void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
 {
+    UE_LOG(LogTemp, Warning,
+        TEXT("UseSlot1 HasLantern=%d Equipped=%d"),
+        bHasLantern,
+        bLanternEquipped);
+
     if (bPrismEquipped)
     {
         return;
@@ -1910,13 +1930,16 @@ void ABaseCharacter::ServerPickupLantern_Implementation(ALantern* Lantern)
 
     bHasLantern = true;
 
-    Slot1Icon = LanternIcon;
-
-    if (UTheNightfallSiegeInstance* GI =
-        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
     {
-        GI->bHasLantern = true;
+        PS->bHasLantern = true;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("PlayerState Lantern Saved : %d"),
+            PS->bHasLantern);
     }
+
+    OnRep_HasLantern();
 
     Lantern->Destroy();
 
@@ -1925,6 +1948,10 @@ void ABaseCharacter::ServerPickupLantern_Implementation(ALantern* Lantern)
 
 void ABaseCharacter::OnRep_LanternEquipped()
 {
+    UE_LOG(LogTemp, Warning,
+        TEXT("OnRep_LanternEquipped %d"),
+        bLanternEquipped);
+
     EquippedLanternMesh->SetVisibility(bLanternEquipped);
 
     LanternLight->SetVisibility(bLanternEquipped);
@@ -1953,6 +1980,12 @@ void ABaseCharacter::RefreshLanternState()
 
 void ABaseCharacter::ServerUseSlot1_Implementation()
 {
+    UE_LOG(LogTemp, Warning,
+        TEXT("ServerUseSlot1 Start Has=%d Equipped=%d Role=%d"),
+        bHasLantern,
+        bLanternEquipped,
+        (int32)GetLocalRole());
+
     if (bPrismEquipped)
         return;
 
@@ -1967,6 +2000,11 @@ void ABaseCharacter::ServerUseSlot1_Implementation()
     const bool bEquip = !bLanternEquipped;
 
     bLanternEquipped = bEquip;
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("ServerUseSlot1 After Equipped=%d"),
+        bLanternEquipped);
+
     bLanternPoseActive = bEquip;
 
     bIsEquippingLantern = false;
@@ -2084,7 +2122,16 @@ void ABaseCharacter::ServerPickupPrism_Implementation(ADungeonPrism* Prism)
 
     bHasPrism = true;
 
-    Slot3Icon = PrismIcon;
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        PS->bHasPrism = true;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("PlayerState Prism Saved : %d"),
+            PS->bHasPrism);
+    }
+
+    OnRep_HasPrism();
 
     if (UTheNightfallSiegeInstance* GI =
         Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
@@ -2143,6 +2190,79 @@ void ABaseCharacter::OnRep_Coin()
     if (HUDWidget)
     {
         HUDWidget->UpdateCoin(Coin);
+    }
+}
+
+void ABaseCharacter::OnRep_HasLantern()
+{
+    if (bHasLantern)
+    {
+        Slot1Icon = LanternIcon;
+    }
+    else
+    {
+        Slot1Icon = EmptySlotIcon;
+    }
+
+    if (UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+    {
+        GI->bHasLantern = bHasLantern;
+    }
+}
+
+void ABaseCharacter::OnRep_HasPrism()
+{
+    if (bHasPrism)
+    {
+        Slot3Icon = PrismIcon;
+    }
+    else
+    {
+        Slot3Icon = EmptySlotIcon;
+    }
+
+    if (UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+    {
+        GI->bHasPrism = bHasPrism;
+    }
+}
+
+void ABaseCharacter::OnRep_PlayerState()
+{
+    Super::OnRep_PlayerState();
+
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        bHasLantern = PS->bHasLantern;
+        bLanternEquipped = PS->bLanternEquipped;
+
+        bHasPrism = PS->bHasPrism;
+        bPrismEquipped = PS->bPrismEquipped;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Restore Item From PlayerState Lantern=%d Equipped=%d"),
+            bHasLantern,
+            bLanternEquipped);
+    }
+}
+
+void ABaseCharacter::PossessedBy(AController* NewController)
+{
+    Super::PossessedBy(NewController);
+
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        bHasLantern = PS->bHasLantern;
+        bLanternEquipped = PS->bLanternEquipped;
+
+        bHasPrism = PS->bHasPrism;
+        bPrismEquipped = PS->bPrismEquipped;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Server Restore Item Lantern=%d"),
+            bHasLantern);
     }
 }
 

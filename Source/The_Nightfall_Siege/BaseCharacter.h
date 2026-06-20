@@ -205,8 +205,11 @@ public:
 	UFUNCTION(Server, Reliable)
 	void ServerInteractDungeonPortal();
 
-	UPROPERTY(Replicated, BlueprintReadOnly)
+	UPROPERTY(ReplicatedUsing = OnRep_HasLantern, BlueprintReadOnly)
 	bool bHasLantern = false;
+
+	UFUNCTION()
+	void OnRep_HasLantern();
 
 	UPROPERTY()
 	ALantern* NearbyLantern = nullptr;
@@ -223,8 +226,11 @@ public:
 
 	void RefreshLanternState();
 
-	UPROPERTY(Replicated, BlueprintReadOnly)
+	UPROPERTY(ReplicatedUsing = OnRep_HasPrism, BlueprintReadOnly)
 	bool bHasPrism = false;
+	
+	UFUNCTION()
+	void OnRep_HasPrism();
 
 	UPROPERTY(ReplicatedUsing = OnRep_PrismEquipped, BlueprintReadOnly)
 	bool bPrismEquipped = false;
@@ -292,6 +298,10 @@ public:
 	void OnRep_PrismEquipped();
 
 	void RefreshPrismState();
+
+	virtual void OnRep_PlayerState() override;
+
+	virtual void PossessedBy(AController* NewController) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSubclassOf<UPlayerHUDWidget> HUDWidgetClass;

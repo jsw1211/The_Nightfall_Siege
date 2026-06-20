@@ -18,6 +18,15 @@ void ABasePlayerState::GetLifetimeReplicatedProps(
 
     DOREPLIFETIME(ABasePlayerState, SelectedCharacter);
     DOREPLIFETIME(ABasePlayerState, bReady);
+
+    DOREPLIFETIME(ABasePlayerState, bHasLantern);
+    DOREPLIFETIME(ABasePlayerState, bLanternEquipped);
+
+    DOREPLIFETIME(ABasePlayerState, bHasPrism);
+    DOREPLIFETIME(ABasePlayerState, bPrismEquipped);
+
+    DOREPLIFETIME(ABasePlayerState, Coin);
+    DOREPLIFETIME(ABasePlayerState, SkillPoints);
 }
 
 void ABasePlayerState::OnRep_SelectedCharacter()
@@ -56,6 +65,23 @@ void ABasePlayerState::CopyProperties(APlayerState* PlayerState)
 
     NewPS->SelectedCharacter = SelectedCharacter;
     NewPS->bReady = bReady;
+
+    NewPS->bHasLantern = bHasLantern;
+    NewPS->bLanternEquipped = bLanternEquipped;
+
+    NewPS->bHasPrism = bHasPrism;
+    NewPS->bPrismEquipped = bPrismEquipped;
+
+    NewPS->Coin = Coin;
+    NewPS->SkillPoints = SkillPoints;
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Copy Lantern : %d"),
+        bHasLantern);
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Copy Prism : %d"),
+        bHasPrism);
 
 }
 
