@@ -11,6 +11,7 @@
 #include "Components/SphereComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "BasePlayerState.h"
 
 // Sets default values
 AAltar::AAltar()
@@ -114,6 +115,12 @@ void AAltar::PlaceLantern(ABaseCharacter* Player)
 
 	Player->Slot1Icon = Player->EmptySlotIcon;
 
+	if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
+	{
+		PS->bHasLantern = false;
+		PS->bLanternEquipped = false;
+	}
+
 	Player->RefreshLanternState();
 
 	LanternMesh->SetVisibility(true);
@@ -133,6 +140,12 @@ void AAltar::RemoveLantern(ABaseCharacter* Player)
 	Player->bLanternPoseActive = true;
 
 	Player->Slot1Icon = Player->LanternIcon;
+
+	if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
+	{
+		PS->bHasLantern = true;
+		PS->bLanternEquipped = true;
+	}
 
 	Player->RefreshLanternState();
 
