@@ -96,7 +96,7 @@ UClass* AThe_Nightfall_SiegeGameMode::GetDefaultPawnClassForController_Implement
         return PaladinClass;
 
     case ECharacterType::Warrior:
-        return PaladinClass;   // юс╫ц
+        return WarriorClass;
 
     case ECharacterType::Archer:
         return ArcherClass;
