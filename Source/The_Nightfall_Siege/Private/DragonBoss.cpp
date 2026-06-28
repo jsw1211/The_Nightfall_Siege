@@ -1018,7 +1018,8 @@ void ADragonBoss::StartAttackTelegraph(
 
 		if (Zone)
 		{
-			Zone->SetBiteShape();
+			Zone->ZoneType = EDangerZoneType::Circle;
+			Zone->OnRep_ZoneType();
 		}
 
 		break;
@@ -1040,7 +1041,8 @@ void ADragonBoss::StartAttackTelegraph(
 
 		if (Zone)
 		{
-			Zone->SetCloseBreathShape();
+			Zone->ZoneType = EDangerZoneType::Cone;
+			Zone->OnRep_ZoneType();
 		}
 
 		break;
@@ -1056,11 +1058,12 @@ void ADragonBoss::StartAttackTelegraph(
 
 		FRotator Rot = (TargetPlayer->GetActorLocation() - MouthLocation).Rotation();
 
-		CurrentBreathZone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, Rot);
+		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, Rot);
 
-		if (CurrentBreathZone)
+		if (Zone)
 		{
-			CurrentBreathZone->SetLineShape();
+			Zone->ZoneType = EDangerZoneType::Line;
+			Zone->OnRep_ZoneType();
 		}
 
 		break;
@@ -1074,15 +1077,12 @@ void ADragonBoss::StartAttackTelegraph(
 
 		FRotator Rotation(-90.f, 0.f, 0.f);
 
-		ADangerZone* Zone =
-			GetWorld()->SpawnActor<ADangerZone>(
-				DangerZoneClass,
-				SpawnLocation,
-				Rotation);
+		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, Rotation);
 
 		if (Zone)
 		{
-			Zone->SetFullMapShape();
+			Zone->ZoneType = EDangerZoneType::FullMap;
+			Zone->OnRep_ZoneType();
 		}
 
 		break;

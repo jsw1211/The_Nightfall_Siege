@@ -3,6 +3,7 @@
 
 #include "DangerZone.h"
 #include "Components/DecalComponent.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 ADangerZone::ADangerZone()
@@ -76,3 +77,34 @@ void ADangerZone::SetFullMapShape()
 		Decal->SetDecalMaterial(FullMapMaterial);
 	}
 }
+
+void ADangerZone::OnRep_ZoneType()
+{
+	switch (ZoneType)
+	{
+	case EDangerZoneType::Circle:
+		SetBiteShape();
+		break;
+
+	case EDangerZoneType::Cone:
+		SetCloseBreathShape();
+		break;
+
+	case EDangerZoneType::Line:
+		SetLineShape();
+		break;
+
+	case EDangerZoneType::FullMap:
+		SetFullMapShape();
+		break;
+	}
+}
+
+void ADangerZone::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ADangerZone, ZoneType);
+}
+
