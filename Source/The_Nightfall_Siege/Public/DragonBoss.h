@@ -264,4 +264,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void BreathFire();
 
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayAttack(EDragonAttackType AttackType);
+
 };

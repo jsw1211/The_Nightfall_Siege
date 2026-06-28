@@ -26,6 +26,11 @@ void ADragonBoss::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	ArenaCenter = FVector(0.f, 0.f, 0.f);
 	
 	bShielded = true;
@@ -46,6 +51,11 @@ void ADragonBoss::BeginPlay()
 void ADragonBoss::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (!HasAuthority())
+	{
+		return;
+	}
 
 	if (bCenterTracking && TargetPlayer)
 	{
@@ -152,6 +162,11 @@ void ADragonBoss::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 
 void ADragonBoss::StartAttackCycle()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	GetWorldTimerManager().ClearTimer(
 		AttackTimerHandle);
 
@@ -205,6 +220,11 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 
 void ADragonBoss::ExecuteRandomAttack()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	EDragonAttackType AttackType =
 		ChooseRandomAttack();
 
@@ -243,12 +263,7 @@ void ADragonBoss::BiteAttack()
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Bite"));
 
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-
-	if (AnimInstance && BiteMontage)
-	{
-		AnimInstance->Montage_Play(BiteMontage);
-	}
+	MulticastPlayAttack(EDragonAttackType::Bite);
 
 	FTimerHandle AttackEndHandle;
 
@@ -294,12 +309,7 @@ void ADragonBoss::CloseBreathAttack()
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Close Breath"));
 
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-
-	if (AnimInstance && CloseBreathMontage)
-	{
-		AnimInstance->Montage_Play(CloseBreathMontage);
-	}
+	MulticastPlayAttack(EDragonAttackType::CloseBreath);
 
 	FTimerHandle AttackEndHandle;
 
@@ -341,12 +351,7 @@ void ADragonBoss::BreathAttack()
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Breath"));
 
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-
-	if (AnimInstance && BreathMontage)
-	{
-		AnimInstance->Montage_Play(BreathMontage);
-	}
+	MulticastPlayAttack(EDragonAttackType::Breath);
 
 	FTimerHandle AttackEndHandle;
 
@@ -541,6 +546,11 @@ void ADragonBoss::FlyToCenter()
 
 void ADragonBoss::TakeBossDamage(float Damage)
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (!bCanTakeDamage)
 	{
 		UE_LOG(LogTemp, Warning,
@@ -655,6 +665,11 @@ void ADragonBoss::UpdatePlayerList()
 
 void ADragonBoss::ChooseRandomTarget()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	UpdatePlayerList();
 
 	if (AlivePlayers.Num() == 0)
@@ -701,6 +716,11 @@ EDragonPatternType ADragonBoss::ChoosePattern()
 
 void ADragonBoss::ExecutePattern()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (!TargetPlayer || TargetPlayer->IsDead())
 	{
 		ChooseRandomTarget();
@@ -1257,5 +1277,48 @@ void ADragonBoss::BreathFire()
 	FRotator SpawnRotation = GetActorRotation();
 
 	GetWorld()->SpawnActor<ADragonBreathProjectile>(BreathProjectileClass, MouthLocation, SpawnRotation);
+}
+
+void ADragonBoss::MulticastPlayAttack_Implementation(EDragonAttackType AttackType)
+{
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
+	if (!AnimInstance)
+	{
+		return;
+	}
+
+	switch (AttackType)
+	{
+	case EDragonAttackType::Bite:
+
+		if (BiteMontage)
+		{
+			AnimInstance->Montage_Play(BiteMontage);
+		}
+
+		break;
+
+	case EDragonAttackType::CloseBreath:
+
+		if (CloseBreathMontage)
+		{
+			AnimInstance->Montage_Play(CloseBreathMontage);
+		}
+
+		break;
+
+	case EDragonAttackType::Breath:
+
+		if (BreathMontage)
+		{
+			AnimInstance->Montage_Play(BreathMontage);
+		}
+
+		break;
+
+	default:
+		break;
+	}
 }
 
