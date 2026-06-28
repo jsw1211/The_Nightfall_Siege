@@ -90,8 +90,11 @@ public:
 	// State
 	// =========================
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentState, BlueprintReadOnly)
 	EDragonState CurrentState = EDragonState::Idle;
+
+	UFUNCTION()
+	void OnRep_CurrentState();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
 	bool bIsFlying = false;
@@ -273,4 +276,5 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastSpawnCloseBreathFX(FVector Location);
 
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 };

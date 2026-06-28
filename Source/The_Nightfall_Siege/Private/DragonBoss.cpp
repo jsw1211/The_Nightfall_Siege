@@ -12,6 +12,7 @@
 #include "DragonBreathProjectile.h"
 #include "DangerZone.h"
 #include "NiagaraFunctionLibrary.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 ADragonBoss::ADragonBoss()
@@ -1349,5 +1350,20 @@ void ADragonBoss::MulticastSpawnCloseBreathFX_Implementation(
 		GetWorld(),
 		CloseBreathFX,
 		Location);
+}
+
+void ADragonBoss::OnRep_CurrentState()
+{
+	UE_LOG(LogTemp, Warning,
+		TEXT("Dragon State Changed : %d"),
+		(int32)CurrentState);
+}
+
+void ADragonBoss::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ADragonBoss, CurrentState);
 }
 
