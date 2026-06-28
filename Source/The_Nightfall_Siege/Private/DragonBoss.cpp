@@ -1177,6 +1177,11 @@ void ADragonBoss::OnLandFinished()
 
 void ADragonBoss::BiteHit()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	float Damage = AttackPower * 1.0f;
 
 	FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
@@ -1185,16 +1190,7 @@ void ADragonBoss::BiteHit()
 
 	FVector BiteCenter = MouthLocation + Forward * 500.f;
 
-	if (BiteFX)
-	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			GetWorld(),
-			BiteFX,
-			BiteCenter,
-			FRotator::ZeroRotator,
-			FVector(3.f)
-		);
-	}
+	MulticastSpawnBiteFX(BiteCenter);
 
 	TArray<AActor*> Players;
 
@@ -1222,6 +1218,11 @@ void ADragonBoss::BiteHit()
 
 void ADragonBoss::CloseBreathFire()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	float Damage = AttackPower * 2.0f;
 
 	FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
@@ -1232,14 +1233,7 @@ void ADragonBoss::CloseBreathFire()
 
 	BreathCenter.Z = GetActorLocation().Z;
 
-	if (CloseBreathFX)
-	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			GetWorld(),
-			CloseBreathFX,
-			BreathCenter
-		);
-	}
+	MulticastSpawnCloseBreathFX(BreathCenter);
 
 	TArray<AActor*> Players;
 
@@ -1267,6 +1261,11 @@ void ADragonBoss::CloseBreathFire()
 
 void ADragonBoss::BreathFire()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (!BreathProjectileClass)
 	{
 		return;
@@ -1320,5 +1319,35 @@ void ADragonBoss::MulticastPlayAttack_Implementation(EDragonAttackType AttackTyp
 	default:
 		break;
 	}
+}
+
+void ADragonBoss::MulticastSpawnBiteFX_Implementation(
+	FVector Location)
+{
+	if (!BiteFX)
+	{
+		return;
+	}
+
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		GetWorld(),
+		BiteFX,
+		Location,
+		FRotator::ZeroRotator,
+		FVector(3.f));
+}
+
+void ADragonBoss::MulticastSpawnCloseBreathFX_Implementation(
+	FVector Location)
+{
+	if (!CloseBreathFX)
+	{
+		return;
+	}
+
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		GetWorld(),
+		CloseBreathFX,
+		Location);
 }
 

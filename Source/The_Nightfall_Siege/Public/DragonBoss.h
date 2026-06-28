@@ -267,4 +267,10 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayAttack(EDragonAttackType AttackType);
 
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastSpawnBiteFX(FVector Location);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastSpawnCloseBreathFX(FVector Location);
+
 };
