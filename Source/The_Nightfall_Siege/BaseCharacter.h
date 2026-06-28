@@ -632,9 +632,16 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerDebugBossPattern(uint8 PatternIndex);
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_Debug1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_Debug2;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_Debug3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_Debug4;
 
 	void DebugBossPattern1();
