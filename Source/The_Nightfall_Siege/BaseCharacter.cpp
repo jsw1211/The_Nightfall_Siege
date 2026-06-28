@@ -334,6 +334,11 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         EnhancedInput->BindAction(IA_Slot2, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot2);
         EnhancedInput->BindAction(IA_Slot3, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot3);
         //EnhancedInput->BindAction(IA_Slot4, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot4);
+
+        EnhancedInput->BindAction(IA_Debug1, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern1);
+        EnhancedInput->BindAction(IA_Debug2, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern2);
+        EnhancedInput->BindAction(IA_Debug3, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern3);
+        EnhancedInput->BindAction(IA_Debug4, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern4);
     }
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
@@ -1892,6 +1897,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABaseCharacter, bPrismEquipped);
     DOREPLIFETIME(ABaseCharacter, bPrismPoseActive);
     DOREPLIFETIME(ABaseCharacter, Coin);
+    DOREPLIFETIME(ABaseCharacter, bDarknessDebuff);
 }
 
 void ABaseCharacter::OnRep_CurrentHP()
@@ -2323,6 +2329,75 @@ void ABaseCharacter::PossessedBy(AController* NewController)
         {
             Actor->Destroy();
         }
+    }
+}
+
+void ABaseCharacter::OnRep_DarknessDebuff()
+{
+    UE_LOG(LogTemp, Warning,
+        TEXT("Darkness : %d"),
+        bDarknessDebuff);
+}
+
+void ABaseCharacter::DebugBossPattern1()
+{
+    ServerDebugBossPattern(0);
+}
+
+void ABaseCharacter::DebugBossPattern2()
+{
+    ServerDebugBossPattern(1);
+}
+
+void ABaseCharacter::DebugBossPattern3()
+{
+    ServerDebugBossPattern(2);
+}
+
+void ABaseCharacter::DebugBossPattern4()
+{
+    ServerDebugBossPattern(3);
+}
+
+void ABaseCharacter::ServerDebugBossPattern_Implementation(uint8 PatternIndex)
+{
+    TArray<AActor*> Bosses;
+
+    UGameplayStatics::GetAllActorsOfClass(
+        GetWorld(),
+        ADragonBoss::StaticClass(),
+        Bosses);
+
+    if (Bosses.Num() == 0)
+    {
+        return;
+    }
+
+    ADragonBoss* Boss =
+        Cast<ADragonBoss>(Bosses[0]);
+
+    if (!Boss)
+    {
+        return;
+    }
+
+    switch (PatternIndex)
+    {
+    case 0:
+        Boss->DebugBite();
+        break;
+
+    case 1:
+        Boss->DebugCloseBreath();
+        break;
+
+    case 2:
+        Boss->DebugBreath();
+        break;
+
+    case 3:
+        Boss->DebugDebuff();
+        break;
     }
 }
 

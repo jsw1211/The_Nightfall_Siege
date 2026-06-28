@@ -280,4 +280,11 @@ public:
 	void MulticastSpawnCloseBreathFX(FVector Location);
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+
+	////////////////////////////////////µð¹ö±×
+	void DebugBite();
+	void DebugCloseBreath();
+	void DebugBreath();
+	void DebugDebuff();
 };

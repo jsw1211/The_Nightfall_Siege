@@ -25,6 +25,7 @@ class AArrowProjectile;
 class APortal;
 class AAltar;
 class ADungeonPortal;
+class ADragonBoss;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABaseCharacter : public ACharacter
@@ -409,8 +410,11 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool IsDead() const;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(ReplicatedUsing = OnRep_DarknessDebuff, BlueprintReadOnly)
 	bool bDarknessDebuff = false;
+
+	UFUNCTION()
+	void OnRep_DarknessDebuff();
 
 	void EndAttackSpeedBuff();
 
@@ -623,4 +627,18 @@ protected:
 
 	UPROPERTY()
 	AActor* LeftHandWeapon;
+
+	////////////////////////////////////////////µð¹ö±×
+	UFUNCTION(Server, Reliable)
+	void ServerDebugBossPattern(uint8 PatternIndex);
+
+	UInputAction* IA_Debug1;
+	UInputAction* IA_Debug2;
+	UInputAction* IA_Debug3;
+	UInputAction* IA_Debug4;
+
+	void DebugBossPattern1();
+	void DebugBossPattern2();
+	void DebugBossPattern3();
+	void DebugBossPattern4();
 };

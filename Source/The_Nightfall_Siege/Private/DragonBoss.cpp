@@ -1377,3 +1377,23 @@ void ADragonBoss::OnRep_CurrentHP()
 		CurrentHP);
 }
 
+void ADragonBoss::DebugBite()
+{
+	StartAttackTelegraph(EDragonAttackType::Bite);
+}
+
+void ADragonBoss::DebugCloseBreath()
+{
+	StartAttackTelegraph(EDragonAttackType::CloseBreath);
+}
+
+void ADragonBoss::DebugBreath()
+{
+	StartAttackTelegraph(EDragonAttackType::Breath);
+}
+
+void ADragonBoss::DebugDebuff()
+{
+	StartAttackTelegraph(EDragonAttackType::Debuff);
+}
+
