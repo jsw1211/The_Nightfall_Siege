@@ -80,8 +80,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
 	float MaxHP = 8000.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentHP, BlueprintReadOnly, Category = "Boss")
 	float CurrentHP = 8000.f;
+
+	UFUNCTION()
+	void OnRep_CurrentHP();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
 	float AttackPower = 120.f;

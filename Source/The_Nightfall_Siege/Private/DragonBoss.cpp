@@ -561,6 +561,8 @@ void ADragonBoss::TakeBossDamage(float Damage)
 
 	CurrentHP -= Damage;
 
+	ForceNetUpdate();
+
 	UE_LOG(LogTemp, Warning,
 		TEXT("Dragon HP : %f"),
 		CurrentHP);
@@ -1365,5 +1367,13 @@ void ADragonBoss::GetLifetimeReplicatedProps(
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ADragonBoss, CurrentState);
+	DOREPLIFETIME(ADragonBoss, CurrentHP);
+}
+
+void ADragonBoss::OnRep_CurrentHP()
+{
+	UE_LOG(LogTemp, Warning,
+		TEXT("Boss HP : %.1f"),
+		CurrentHP);
 }
 
