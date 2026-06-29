@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "Blueprint/UserWidget.h"
+#include "CharacterType.h"
 #include "BaseController.generated.h"
 
 /**
@@ -13,7 +15,7 @@ UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABaseController : public APlayerController
 {
 	GENERATED_BODY()
-	
+
 protected:
 	virtual void SetupInputComponent() override;
 
@@ -24,4 +26,44 @@ protected:
 	void RotateCharacterToCursor();
 
 	virtual void BeginPlay() override;
+
+	UPROPERTY(EditDefaultsOnly, Category = UI)
+	TSubclassOf<class UUserWidget> CharacterSelectWidgetClass;
+
+	UPROPERTY()
+	UUserWidget* CharacterSelectWidget;
+
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUserWidget> LobbyWidgetClass;
+
+	UPROPERTY()
+	UUserWidget* LobbyWidget;
+
+	UFUNCTION(Server, Reliable)
+	void ServerSelectCharacter(ECharacterType NewCharacter);
+
+	UFUNCTION(BlueprintCallable)
+	void SelectCharacter(ECharacterType NewCharacter);
+
+	FTimerHandle LobbyRefreshHandle;
+
+	UFUNCTION(Server, Reliable)
+	void ServerSetReady(bool bNewReady);
+
+	UFUNCTION(Server, Reliable)
+	void ServerStartGame();
+
+	UFUNCTION(Server, Reliable)
+	void ServerMoveToLocation(FVector TargetLocation, FRotator TargetRotation);
+
+public:
+
+	UFUNCTION(BlueprintCallable)
+	void SelectNextCharacter();
+
+	UFUNCTION(BlueprintCallable)
+	void ToggleReady();
+
+	UFUNCTION(BlueprintCallable)
+	void StartGame();
 };

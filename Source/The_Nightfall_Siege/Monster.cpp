@@ -16,12 +16,16 @@
 #include "Coin.h"
 #include "DungeonPrism.h"
 #include "TheNightfallSiegeInstance.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 AMonster::AMonster()
 {
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+
+    bReplicates = true;
+    SetReplicateMovement(true);
 
     MaxHP = 1000.f;
     CurrentHP = 1000.f;
@@ -438,4 +442,13 @@ void AMonster::SpawnPrism()
         SpawnLocation,
         FRotator::ZeroRotator);
 }
+
+void AMonster::GetLifetimeReplicatedProps(
+    TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+    DOREPLIFETIME(AMonster, CurrentHP);
+    DOREPLIFETIME(AMonster, MaxHP);
+}   
 

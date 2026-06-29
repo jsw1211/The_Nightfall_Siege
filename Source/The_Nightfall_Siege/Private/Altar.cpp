@@ -10,6 +10,8 @@
 #include "BaseCharacter.h"
 #include "Components/SphereComponent.h"
 #include "Components/PointLightComponent.h"
+#include "Net/UnrealNetwork.h"
+#include "BasePlayerState.h"
 
 // Sets default values
 AAltar::AAltar()
@@ -17,18 +19,24 @@ AAltar::AAltar()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	bReplicates = true;
+
 	// 메쉬 생성
 	AltarMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AltarMesh"));
 
 	RootComponent = AltarMesh;
 
-	// 충돌 박스 생성
 	InteractionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("InteractionBox"));
 
 	InteractionBox->SetupAttachment(RootComponent);
 
-	// 박스 크기
 	InteractionBox->SetBoxExtent(FVector(300.f));
+
+	InteractionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	InteractionBox->SetCollisionObjectType(ECC_WorldDynamic);
+	InteractionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	InteractionBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	InteractionBox->SetGenerateOverlapEvents(true);
 
 	bActivated = false;
 	bPlayerInside = false;
@@ -54,6 +62,8 @@ AAltar::AAltar()
 	AltarLight->SetAttenuationRadius(1200.f);
 
 	AltarLight->SetVisibility(false);
+
+	UE_LOG(LogTemp, Warning, TEXT("Bind BeginOverlap"));
 }
 
 // Called when the game starts or when spawned
@@ -61,6 +71,15 @@ void AAltar::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	UE_LOG(LogTemp, Warning, TEXT("Altar BeginPlay"));
+
+	InteractionBox->OnComponentBeginOverlap.AddDynamic(
+		this,
+		&AAltar::OnOverlapBegin);
+
+	InteractionBox->OnComponentEndOverlap.AddDynamic(
+		this,
+		&AAltar::OnOverlapEnd);
 }
 
 // Called every frame
@@ -68,40 +87,6 @@ void AAltar::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	APawn* Player =
-		UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
-
-	if (!Player) return;
-
-	bPlayerInside =
-		InteractionBox->IsOverlappingActor(Player);
-
-	// F키 상호작용
-	if (bPlayerInside)
-	{
-		APlayerController* PC =
-			UGameplayStatics::GetPlayerController(GetWorld(), 0);
-
-		if (PC && PC->WasInputKeyJustPressed(EKeys::F))
-		{
-			ABaseCharacter* PlayerChar = Cast<ABaseCharacter>(Player);
-
-			if (!PlayerChar)
-				return;
-
-			if (!bLanternPlaced)
-			{
-				if (PlayerChar->bHasLantern && PlayerChar->bLanternEquipped)	
-				{
-					PlaceLantern(PlayerChar);
-				}
-			}
-			else
-			{
-				RemoveLantern(PlayerChar);
-			}
-		}
-	}
 }
 
 void AAltar::ActivateAltar()
@@ -128,7 +113,15 @@ void AAltar::PlaceLantern(ABaseCharacter* Player)
 	Player->bLanternEquipped = false;
 	Player->bLanternPoseActive = false;
 
-	Player->OnLanternUnequipped();
+	Player->Slot1Icon = Player->EmptySlotIcon;
+
+	if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
+	{
+		PS->bHasLantern = false;
+		PS->bLanternEquipped = false;
+	}
+
+	Player->RefreshLanternState();
 
 	LanternMesh->SetVisibility(true);
 
@@ -146,7 +139,15 @@ void AAltar::RemoveLantern(ABaseCharacter* Player)
 	Player->bLanternEquipped = true;
 	Player->bLanternPoseActive = true;
 
-	Player->OnLanternEquipped();
+	Player->Slot1Icon = Player->LanternIcon;
+
+	if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
+	{
+		PS->bHasLantern = true;
+		PS->bLanternEquipped = true;
+	}
+
+	Player->RefreshLanternState();
 
 	LanternMesh->SetVisibility(false);
 
@@ -154,3 +155,68 @@ void AAltar::RemoveLantern(ABaseCharacter* Player)
 
 	UE_LOG(LogTemp, Warning, TEXT("Lantern Removed"));
 }
+
+void AAltar::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AAltar, bActivated);
+	DOREPLIFETIME(AAltar, bLanternPlaced);
+}
+
+void AAltar::OnRep_Activated()
+{
+	AltarLight->SetVisibility(bActivated);
+}
+
+void AAltar::OnRep_LanternPlaced()
+{
+	UE_LOG(LogTemp, Warning,
+		TEXT("OnRep_LanternPlaced : %d"),
+
+		bLanternPlaced);
+	LanternMesh->SetVisibility(bLanternPlaced);
+
+	AltarLight->SetVisibility(bLanternPlaced);
+}
+
+void AAltar::OnOverlapBegin(
+	UPrimitiveComponent* OverlappedComponent,
+	AActor* OtherActor,
+	UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex,
+	bool bFromSweep,
+	const FHitResult& SweepResult)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Altar BeginOverlap"));
+
+	ABaseCharacter* Player =
+		Cast<ABaseCharacter>(OtherActor);
+
+	if (!Player)
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Player Found"));
+	Player->SetNearbyAltar(this);
+}
+
+void AAltar::OnOverlapEnd(
+	UPrimitiveComponent* OverlappedComponent,
+	AActor* OtherActor,
+	UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex)
+{
+	ABaseCharacter* Player =
+		Cast<ABaseCharacter>(OtherActor);
+
+	if (!Player)
+	{
+		return;
+	}
+
+	Player->SetNearbyAltar(nullptr);
+}
+

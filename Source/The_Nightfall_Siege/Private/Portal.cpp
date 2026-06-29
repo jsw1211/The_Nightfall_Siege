@@ -13,6 +13,9 @@ APortal::APortal()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+    bReplicates = true;
+    SetReplicateMovement(true);
+
     PortalMesh =
         CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PortalMesh"));
 
@@ -142,19 +145,31 @@ void APortal::Interact(ABaseCharacter* Player)
     switch (PortalType)
     {
     case EPortalType::ReturnVillage:
+    {
+        if (HasAuthority())
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("ServerTravel -> Village"));
 
-        UGameplayStatics::OpenLevel(
-            this,
-            FName("Lvl_TopDown"));
+            GetWorld()->ServerTravel(
+                TEXT("/Game/TopDown/Lvl_TopDown?listen"));
+        }
 
         break;
+    }
 
     case EPortalType::Boss:
+    {
+        if (HasAuthority())
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("ServerTravel -> Boss"));
 
-        UGameplayStatics::OpenLevel(
-            this,
-            FName("DragonLevelSample"));
+            GetWorld()->ServerTravel(
+                TEXT("/Game/Level/DragonLevelSample?listen"));
+        }
 
         break;
+    }
     }
 }

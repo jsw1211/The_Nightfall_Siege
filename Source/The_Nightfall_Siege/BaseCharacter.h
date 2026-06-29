@@ -15,6 +15,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "NiagaraComponent.h"
+#include "Net/UnrealNetwork.h"
 #include "BaseCharacter.generated.h"
 
 class USkillTreeWidget;
@@ -22,6 +23,9 @@ class ALantern;
 class UPlayerHUDWidget;
 class AArrowProjectile;
 class APortal;
+class AAltar;
+class ADungeonPortal;
+class ADragonBoss;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABaseCharacter : public ACharacter
@@ -31,6 +35,48 @@ class THE_NIGHTFALL_SIEGE_API ABaseCharacter : public ACharacter
 public:
 	// Sets default values for this character's properties
 	ABaseCharacter();
+
+	UFUNCTION(Server, Reliable)
+	void ServerUseQ();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayQ();
+
+	UFUNCTION(Server, Reliable)
+	void ServerUseW();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayW();
+
+	UFUNCTION(Server, Reliable)
+	void ServerUseE();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayE();
+
+	void ExecuteE();
+
+	UFUNCTION(Server, Reliable)
+	void ServerUseR();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayR();
+
+	void ExecuteR();
+
+	UFUNCTION(Server, Reliable)
+	void ServerAttack();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastAttack();
+
+	void ExecuteAttack();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastQImpact(FVector Location);
+
+	UFUNCTION(Server, Unreliable)
+	void ServerRotate(FRotator NewRotation);
 
 protected:
 	// Called when the game starts or when spawned
@@ -50,12 +96,15 @@ public:
 
 	void Attack(const FInputActionValue& Value);
 	void Q(const FInputActionValue& Value);
+	void UseQ();
 	void W(const FInputActionValue& Value);
 	void E(const FInputActionValue& Value);
 	void R(const FInputActionValue& Value);
 	void ToggleInventory();
 	UFUNCTION()
 	void TakePlayerDamage(float Damage);
+
+	void ExecuteQDamage();
 
 	// 스킬 사용 중인지
 	bool bIsUsingSkill = false;
@@ -125,8 +174,43 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	UTexture2D* PortraitTexture;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY()
+	AAltar* NearbyAltar = nullptr;
+
+	void SetNearbyAltar(AAltar* Altar);
+
+	UFUNCTION(Server, Reliable)
+	void ServerInteractAltar();
+
+	UFUNCTION(Server, Reliable)
+	void ServerPickupLantern(ALantern* Lantern);
+
+	UFUNCTION(Server, Reliable)
+	void ServerUseSlot1();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayLanternMontage(bool bEquip);
+
+	UFUNCTION(Server, Reliable)
+	void ServerPickupPrism(ADungeonPrism* Prism);
+
+	UFUNCTION(Server, Reliable)
+	void ServerUseSlot3();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayPrismMontage(bool bEquip);
+
+	UFUNCTION(Server, Reliable)
+	void ServerInteractPortal(APortal* Portal);
+
+	UFUNCTION(Server, Reliable)
+	void ServerInteractDungeonPortal();
+
+	UPROPERTY(ReplicatedUsing = OnRep_HasLantern, BlueprintReadOnly)
 	bool bHasLantern = false;
+
+	UFUNCTION()
+	void OnRep_HasLantern();
 
 	UPROPERTY()
 	ALantern* NearbyLantern = nullptr;
@@ -135,13 +219,21 @@ public:
 
 	void Interact(const FInputActionValue& Value);
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(ReplicatedUsing = OnRep_LanternEquipped, BlueprintReadOnly)
 	bool bLanternEquipped = false;
 
-	UPROPERTY(BlueprintReadOnly)
-	bool bHasPrism = false;
+	UFUNCTION()
+	void OnRep_LanternEquipped();
 
-	UPROPERTY(BlueprintReadOnly)
+	void RefreshLanternState();
+
+	UPROPERTY(ReplicatedUsing = OnRep_HasPrism, BlueprintReadOnly)
+	bool bHasPrism = false;
+	
+	UFUNCTION()
+	void OnRep_HasPrism();
+
+	UPROPERTY(ReplicatedUsing = OnRep_PrismEquipped, BlueprintReadOnly)
 	bool bPrismEquipped = false;
 
 	UPROPERTY()
@@ -151,6 +243,11 @@ public:
 	APortal* NearbyPortal = nullptr;
 
 	void SetNearbyPortal(APortal* Portal);
+
+	UPROPERTY()
+	ADungeonPortal* NearbyDungeonPortal = nullptr;
+
+	void SetNearbyDungeonPortal(ADungeonPortal* Portal);
 
 	void UseSlot1(const FInputActionValue& Value);
 	void SetNearbyPrism(class ADungeonPrism* Prism);
@@ -192,11 +289,20 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void OnPrismUnequipFinished();
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(Replicated, BlueprintReadOnly)
 	bool bLanternPoseActive = false;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(Replicated, BlueprintReadOnly)
 	bool bPrismPoseActive = false;
+
+	UFUNCTION()
+	void OnRep_PrismEquipped();
+
+	void RefreshPrismState();
+
+	virtual void OnRep_PlayerState() override;
+
+	virtual void PossessedBy(AController* NewController) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSubclassOf<UPlayerHUDWidget> HUDWidgetClass;
@@ -208,8 +314,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float MaxHP = 100.f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentHP, VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
 	float CurrentHP;
+
+	UFUNCTION()
+	void OnRep_CurrentHP();
+
+	void HealPlayer(float Amount);
+
+	virtual void GetLifetimeReplicatedProps(
+    TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 	// 보호막
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
@@ -296,8 +410,11 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool IsDead() const;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(ReplicatedUsing = OnRep_DarknessDebuff, BlueprintReadOnly)
 	bool bDarknessDebuff = false;
+
+	UFUNCTION()
+	void OnRep_DarknessDebuff();
 
 	void EndAttackSpeedBuff();
 
@@ -312,8 +429,14 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	bool bIsDead = false;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(ReplicatedUsing = OnRep_Coin, BlueprintReadOnly)
 	int32 Coin = 0;
+
+	UFUNCTION()
+	void OnRep_Coin();
+
+	UFUNCTION(Server, Reliable)
+	void ServerPickupCoin(class ACoin* CoinActor);
 
 protected:
 	UPROPERTY(VisibleAnywhere)
@@ -504,4 +627,25 @@ protected:
 
 	UPROPERTY()
 	AActor* LeftHandWeapon;
+
+	////////////////////////////////////////////디버그
+	UFUNCTION(Server, Reliable)
+	void ServerDebugBossPattern(uint8 PatternIndex);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* IA_Debug1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* IA_Debug2;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* IA_Debug3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* IA_Debug4;
+
+	void DebugBossPattern1();
+	void DebugBossPattern2();
+	void DebugBossPattern3();
+	void DebugBossPattern4();
 };

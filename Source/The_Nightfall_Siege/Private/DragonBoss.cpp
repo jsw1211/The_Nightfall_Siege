@@ -12,6 +12,7 @@
 #include "DragonBreathProjectile.h"
 #include "DangerZone.h"
 #include "NiagaraFunctionLibrary.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 ADragonBoss::ADragonBoss()
@@ -25,6 +26,11 @@ ADragonBoss::ADragonBoss()
 void ADragonBoss::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (!HasAuthority())
+	{
+		return;
+	}
 
 	ArenaCenter = FVector(0.f, 0.f, 0.f);
 	
@@ -46,6 +52,11 @@ void ADragonBoss::BeginPlay()
 void ADragonBoss::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (!HasAuthority())
+	{
+		return;
+	}
 
 	if (bCenterTracking && TargetPlayer)
 	{
@@ -152,6 +163,11 @@ void ADragonBoss::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 
 void ADragonBoss::StartAttackCycle()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	GetWorldTimerManager().ClearTimer(
 		AttackTimerHandle);
 
@@ -205,6 +221,11 @@ EDragonAttackType ADragonBoss::ChooseRandomAttack()
 
 void ADragonBoss::ExecuteRandomAttack()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	EDragonAttackType AttackType =
 		ChooseRandomAttack();
 
@@ -243,12 +264,7 @@ void ADragonBoss::BiteAttack()
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Bite"));
 
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-
-	if (AnimInstance && BiteMontage)
-	{
-		AnimInstance->Montage_Play(BiteMontage);
-	}
+	MulticastPlayAttack(EDragonAttackType::Bite);
 
 	FTimerHandle AttackEndHandle;
 
@@ -294,12 +310,7 @@ void ADragonBoss::CloseBreathAttack()
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Close Breath"));
 
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-
-	if (AnimInstance && CloseBreathMontage)
-	{
-		AnimInstance->Montage_Play(CloseBreathMontage);
-	}
+	MulticastPlayAttack(EDragonAttackType::CloseBreath);
 
 	FTimerHandle AttackEndHandle;
 
@@ -341,12 +352,7 @@ void ADragonBoss::BreathAttack()
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Breath"));
 
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-
-	if (AnimInstance && BreathMontage)
-	{
-		AnimInstance->Montage_Play(BreathMontage);
-	}
+	MulticastPlayAttack(EDragonAttackType::Breath);
 
 	FTimerHandle AttackEndHandle;
 
@@ -541,6 +547,11 @@ void ADragonBoss::FlyToCenter()
 
 void ADragonBoss::TakeBossDamage(float Damage)
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (!bCanTakeDamage)
 	{
 		UE_LOG(LogTemp, Warning,
@@ -549,6 +560,8 @@ void ADragonBoss::TakeBossDamage(float Damage)
 	}
 
 	CurrentHP -= Damage;
+
+	ForceNetUpdate();
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("Dragon HP : %f"),
@@ -655,6 +668,11 @@ void ADragonBoss::UpdatePlayerList()
 
 void ADragonBoss::ChooseRandomTarget()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	UpdatePlayerList();
 
 	if (AlivePlayers.Num() == 0)
@@ -701,6 +719,11 @@ EDragonPatternType ADragonBoss::ChoosePattern()
 
 void ADragonBoss::ExecutePattern()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (!TargetPlayer || TargetPlayer->IsDead())
 	{
 		ChooseRandomTarget();
@@ -995,7 +1018,8 @@ void ADragonBoss::StartAttackTelegraph(
 
 		if (Zone)
 		{
-			Zone->SetBiteShape();
+			Zone->ZoneType = EDangerZoneType::Circle;
+			Zone->OnRep_ZoneType();
 		}
 
 		break;
@@ -1017,7 +1041,8 @@ void ADragonBoss::StartAttackTelegraph(
 
 		if (Zone)
 		{
-			Zone->SetCloseBreathShape();
+			Zone->ZoneType = EDangerZoneType::Cone;
+			Zone->OnRep_ZoneType();
 		}
 
 		break;
@@ -1033,11 +1058,12 @@ void ADragonBoss::StartAttackTelegraph(
 
 		FRotator Rot = (TargetPlayer->GetActorLocation() - MouthLocation).Rotation();
 
-		CurrentBreathZone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, Rot);
+		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, Rot);
 
-		if (CurrentBreathZone)
+		if (Zone)
 		{
-			CurrentBreathZone->SetLineShape();
+			Zone->ZoneType = EDangerZoneType::Line;
+			Zone->OnRep_ZoneType();
 		}
 
 		break;
@@ -1051,15 +1077,12 @@ void ADragonBoss::StartAttackTelegraph(
 
 		FRotator Rotation(-90.f, 0.f, 0.f);
 
-		ADangerZone* Zone =
-			GetWorld()->SpawnActor<ADangerZone>(
-				DangerZoneClass,
-				SpawnLocation,
-				Rotation);
+		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, Rotation);
 
 		if (Zone)
 		{
-			Zone->SetFullMapShape();
+			Zone->ZoneType = EDangerZoneType::FullMap;
+			Zone->OnRep_ZoneType();
 		}
 
 		break;
@@ -1157,6 +1180,11 @@ void ADragonBoss::OnLandFinished()
 
 void ADragonBoss::BiteHit()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	float Damage = AttackPower * 1.0f;
 
 	FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
@@ -1165,16 +1193,7 @@ void ADragonBoss::BiteHit()
 
 	FVector BiteCenter = MouthLocation + Forward * 500.f;
 
-	if (BiteFX)
-	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			GetWorld(),
-			BiteFX,
-			BiteCenter,
-			FRotator::ZeroRotator,
-			FVector(3.f)
-		);
-	}
+	MulticastSpawnBiteFX(BiteCenter);
 
 	TArray<AActor*> Players;
 
@@ -1202,6 +1221,11 @@ void ADragonBoss::BiteHit()
 
 void ADragonBoss::CloseBreathFire()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	float Damage = AttackPower * 2.0f;
 
 	FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
@@ -1212,14 +1236,7 @@ void ADragonBoss::CloseBreathFire()
 
 	BreathCenter.Z = GetActorLocation().Z;
 
-	if (CloseBreathFX)
-	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			GetWorld(),
-			CloseBreathFX,
-			BreathCenter
-		);
-	}
+	MulticastSpawnCloseBreathFX(BreathCenter);
 
 	TArray<AActor*> Players;
 
@@ -1247,6 +1264,11 @@ void ADragonBoss::CloseBreathFire()
 
 void ADragonBoss::BreathFire()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (!BreathProjectileClass)
 	{
 		return;
@@ -1257,5 +1279,121 @@ void ADragonBoss::BreathFire()
 	FRotator SpawnRotation = GetActorRotation();
 
 	GetWorld()->SpawnActor<ADragonBreathProjectile>(BreathProjectileClass, MouthLocation, SpawnRotation);
+}
+
+void ADragonBoss::MulticastPlayAttack_Implementation(EDragonAttackType AttackType)
+{
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
+	if (!AnimInstance)
+	{
+		return;
+	}
+
+	switch (AttackType)
+	{
+	case EDragonAttackType::Bite:
+
+		if (BiteMontage)
+		{
+			AnimInstance->Montage_Play(BiteMontage);
+		}
+
+		break;
+
+	case EDragonAttackType::CloseBreath:
+
+		if (CloseBreathMontage)
+		{
+			AnimInstance->Montage_Play(CloseBreathMontage);
+		}
+
+		break;
+
+	case EDragonAttackType::Breath:
+
+		if (BreathMontage)
+		{
+			AnimInstance->Montage_Play(BreathMontage);
+		}
+
+		break;
+
+	default:
+		break;
+	}
+}
+
+void ADragonBoss::MulticastSpawnBiteFX_Implementation(
+	FVector Location)
+{
+	if (!BiteFX)
+	{
+		return;
+	}
+
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		GetWorld(),
+		BiteFX,
+		Location,
+		FRotator::ZeroRotator,
+		FVector(3.f));
+}
+
+void ADragonBoss::MulticastSpawnCloseBreathFX_Implementation(
+	FVector Location)
+{
+	if (!CloseBreathFX)
+	{
+		return;
+	}
+
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		GetWorld(),
+		CloseBreathFX,
+		Location);
+}
+
+void ADragonBoss::OnRep_CurrentState()
+{
+	UE_LOG(LogTemp, Warning,
+		TEXT("Dragon State Changed : %d"),
+		(int32)CurrentState);
+}
+
+void ADragonBoss::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ADragonBoss, CurrentState);
+	DOREPLIFETIME(ADragonBoss, CurrentHP);
+}
+
+void ADragonBoss::OnRep_CurrentHP()
+{
+	UE_LOG(LogTemp, Warning,
+		TEXT("Boss HP : %.1f"),
+		CurrentHP);
+}
+
+void ADragonBoss::DebugBite()
+{
+	StartAttackTelegraph(EDragonAttackType::Bite);
+}
+
+void ADragonBoss::DebugCloseBreath()
+{
+	StartAttackTelegraph(EDragonAttackType::CloseBreath);
+}
+
+void ADragonBoss::DebugBreath()
+{
+	StartAttackTelegraph(EDragonAttackType::Breath);
+}
+
+void ADragonBoss::DebugDebuff()
+{
+	StartAttackTelegraph(EDragonAttackType::Debuff);
 }
 

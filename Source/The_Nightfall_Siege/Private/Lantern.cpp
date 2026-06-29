@@ -11,6 +11,9 @@ ALantern::ALantern()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
+    bReplicates = true;
+    SetReplicateMovement(true);
+
 	LanternMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LanternMesh"));
 
 	RootComponent = LanternMesh;
@@ -26,20 +29,15 @@ ALantern::ALantern()
 void ALantern::BeginPlay()
 {
 	Super::BeginPlay();
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Lantern BeginPlay Authority=%d"),
+        HasAuthority());
 	
 	InteractionSphere->OnComponentBeginOverlap.AddDynamic(this, &ALantern::OnOverlapBegin);
 
 	InteractionSphere->OnComponentEndOverlap.AddDynamic(this, &ALantern::OnOverlapEnd);
 
-    UTheNightfallSiegeInstance* GI =
-        Cast<UTheNightfallSiegeInstance>(GetGameInstance());
-
-    if (GI && GI->bHasLantern)
-    {
-        Destroy();
-
-        return;
-    }
 }
 
 // Called every frame

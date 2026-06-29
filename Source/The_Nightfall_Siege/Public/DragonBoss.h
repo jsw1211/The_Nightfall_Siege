@@ -80,8 +80,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
 	float MaxHP = 8000.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentHP, BlueprintReadOnly, Category = "Boss")
 	float CurrentHP = 8000.f;
+
+	UFUNCTION()
+	void OnRep_CurrentHP();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
 	float AttackPower = 120.f;
@@ -90,8 +93,11 @@ public:
 	// State
 	// =========================
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentState, BlueprintReadOnly)
 	EDragonState CurrentState = EDragonState::Idle;
+
+	UFUNCTION()
+	void OnRep_CurrentState();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
 	bool bIsFlying = false;
@@ -264,4 +270,21 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void BreathFire();
 
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayAttack(EDragonAttackType AttackType);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastSpawnBiteFX(FVector Location);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastSpawnCloseBreathFX(FVector Location);
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+
+	////////////////////////////////////µð¹ö±×
+	void DebugBite();
+	void DebugCloseBreath();
+	void DebugBreath();
+	void DebugDebuff();
 };

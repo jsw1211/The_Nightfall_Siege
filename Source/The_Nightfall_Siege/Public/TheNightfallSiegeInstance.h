@@ -58,4 +58,10 @@ public:
 
 	UPROPERTY(BlueprintReadWrite)
 	bool bBossPortalSpawned = false;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bIsHost = false;
+
+	UPROPERTY()
+	bool bWorldLanternDestroyed = false;
 };

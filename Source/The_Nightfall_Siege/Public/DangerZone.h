@@ -44,8 +44,13 @@ public:
 	UPROPERTY(EditAnywhere)
 	float LifeTime = 3.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(ReplicatedUsing = OnRep_ZoneType)
 	EDangerZoneType ZoneType;
+
+	UFUNCTION()
+	void OnRep_ZoneType();
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION(BlueprintCallable)
 	void SetLineShape();

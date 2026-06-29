@@ -13,6 +13,8 @@
  		// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 		PrimaryActorTick.bCanEverTick = false;
 
+		bReplicates = true;
+
 		AliveMonsterCount = 0;
 
 		MonstersPerAltar = 5;
@@ -23,6 +25,11 @@
 	{
 		Super::BeginPlay();
 	
+		if (!HasAuthority())
+		{
+			return;
+		}
+
 		SpawnMonsters();
 	}
 

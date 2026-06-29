@@ -3,12 +3,16 @@
 
 #include "DangerZone.h"
 #include "Components/DecalComponent.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 ADangerZone::ADangerZone()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
+
+	bReplicates = true;
+	SetReplicateMovement(true);
 
 	Decal = CreateDefaultSubobject<UDecalComponent>(TEXT("Decal"));
 
@@ -73,3 +77,34 @@ void ADangerZone::SetFullMapShape()
 		Decal->SetDecalMaterial(FullMapMaterial);
 	}
 }
+
+void ADangerZone::OnRep_ZoneType()
+{
+	switch (ZoneType)
+	{
+	case EDangerZoneType::Circle:
+		SetBiteShape();
+		break;
+
+	case EDangerZoneType::Cone:
+		SetCloseBreathShape();
+		break;
+
+	case EDangerZoneType::Line:
+		SetLineShape();
+		break;
+
+	case EDangerZoneType::FullMap:
+		SetFullMapShape();
+		break;
+	}
+}
+
+void ADangerZone::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ADangerZone, ZoneType);
+}
+

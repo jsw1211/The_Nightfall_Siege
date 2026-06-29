@@ -28,6 +28,11 @@
 #include "TheNightfallSiegeInstance.h"
 #include "DrawDebugHelpers.h"
 #include "Portal.h"
+#include "Net/UnrealNetwork.h"
+#include "Altar.h"
+#include "DungeonPortal.h"
+#include "Coin.h"
+#include "BasePlayerState.h"
 
 
 // Sets default values
@@ -35,6 +40,9 @@ ABaseCharacter::ABaseCharacter()
 {
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+
+    bReplicates = true;
+    SetReplicateMovement(true);
 
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationPitch = false;
@@ -80,6 +88,7 @@ ABaseCharacter::ABaseCharacter()
     LanternLight->SetIntensity(5000.f);
 
     LanternLight->SetAttenuationRadius(1200.f);
+
 }
 
 // Called when the game starts or when spawned
@@ -136,7 +145,7 @@ void ABaseCharacter::BeginPlay()
         break;
     }
 
-    CurrentHP = MaxHP;
+    CurrentHP = 200000.f; // 임시 MaxHP여야함
 	
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
@@ -158,11 +167,13 @@ void ABaseCharacter::BeginPlay()
     EquipWeapon(RightHandWeaponClass, RightHandSocketName, RightHandWeapon);
     EquipWeapon(LeftHandWeaponClass, LeftHandSocketName, LeftHandWeapon);
 
+    FString MapName = GetWorld()->GetMapName();
+
     if (HUDWidgetClass)
     {
         APlayerController* PC = Cast<APlayerController>(GetController());
 
-        if (PC)
+        if (PC && PC->IsLocalController() && !HUDWidget)
         {
             HUDWidget = CreateWidget<UPlayerHUDWidget>(PC, HUDWidgetClass);
 
@@ -190,33 +201,69 @@ void ABaseCharacter::BeginPlay()
         SkillLevels = GI->SkillLevels;
 
         RestoreSkillUpgrades();
-
-        bHasLantern = GI->bHasLantern;
-        bLanternEquipped = GI->bLanternEquipped;
-
-        bHasPrism = GI->bHasPrism;
-        bPrismEquipped = GI->bPrismEquipped;
-
-        if (bHasLantern)
-        {
-            Slot1Icon = LanternIcon;
-        }
-
-        if (bHasPrism)
-        {
-            Slot3Icon = PrismIcon;
-        }
-
-        if (bLanternEquipped)
-        {
-            OnLanternEquipped();
-        }
-
-        if (bPrismEquipped)
-        {
-            OnPrismEquipped();
-        }
     }
+
+    ABasePlayerState* PS = GetPlayerState<ABasePlayerState>();
+
+    if (PS)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("BeginPlay PS Lantern=%d CharacterBefore=%d"),
+            PS->bHasLantern,
+            bHasLantern);
+
+        bHasLantern = PS->bHasLantern;
+        bLanternEquipped = PS->bLanternEquipped;
+
+        bHasPrism = PS->bHasPrism;
+        bPrismEquipped = PS->bPrismEquipped;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("CharacterAfter Lantern=%d"),
+            bHasLantern);
+    }
+
+    if (bHasLantern)
+    {
+        Slot1Icon = LanternIcon;
+    }
+
+    if (bHasPrism)
+    {
+        Slot3Icon = PrismIcon;
+    }
+
+    if (bLanternEquipped)
+    {
+        OnRep_LanternEquipped();
+    }
+
+    if (bPrismEquipped)
+    {
+        OnRep_PrismEquipped();
+    }
+
+    if (HasAuthority() && bHasLantern)
+    {
+        TArray<AActor*> Lanterns;
+
+        UGameplayStatics::GetAllActorsOfClass(
+            GetWorld(),
+            ALantern::StaticClass(),
+            Lanterns);
+
+        for (AActor* Actor : Lanterns)
+        {
+            Actor->Destroy();
+        }
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Destroyed World Lantern"));
+    }
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Authority : %d"),
+        HasAuthority());
 }
 
 void ABaseCharacter::Die()
@@ -262,7 +309,10 @@ void ABaseCharacter::Tick(float DeltaTime)
 
     RRemainingCooldown = FMath::Max(0.f, RRemainingCooldown - DeltaTime);
 
-    RotateToMouseCursor();
+    if (IsLocallyControlled())
+    {
+        RotateToMouseCursor();
+    }
 }
 
 // Called to bind functionality to input
@@ -284,256 +334,35 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         EnhancedInput->BindAction(IA_Slot2, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot2);
         EnhancedInput->BindAction(IA_Slot3, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot3);
         //EnhancedInput->BindAction(IA_Slot4, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot4);
+
+        EnhancedInput->BindAction(IA_Debug1, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern1);
+        EnhancedInput->BindAction(IA_Debug2, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern2);
+        EnhancedInput->BindAction(IA_Debug3, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern3);
+        EnhancedInput->BindAction(IA_Debug4, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern4);
     }
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
 }
 
-void ABaseCharacter::Attack(
-    const FInputActionValue& Value)
+void ABaseCharacter::Attack(const FInputActionValue& Value)
 {
     if (!CanUseCombatAction())
     {
         return;
     }
 
-    APlayerController* PC =
-        Cast<APlayerController>(GetController());
-
-    if (PC)
-    {
-        FHitResult Hit;
-
-        PC->GetHitResultUnderCursor(
-            ECC_Visibility,
-            false,
-            Hit);
-
-        FVector LookDirection =
-            Hit.Location - GetActorLocation();
-
-        LookDirection.Z = 0.f;
-
-        FRotator TargetRotation =
-            LookDirection.Rotation();
-
-        SetActorRotation(TargetRotation);
-    }
-
-    GetCharacterMovement()->StopMovementImmediately();
-
-    if (AAIController* AICon = Cast<AAIController>(GetController()))
-    {
-        AICon->StopMovement();
-    }
-
-    RotateToMouseCursor();
-
-    bIsAttacking = true;
-
-    if (AttackMontage)
-    {
-        PlayAnimMontage(
-            AttackMontage,
-            AttackSpeed);
-    }
-
-    FVector Start = GetActorLocation();
-
-    TArray<FOverlapResult> Overlaps;
-
-    FCollisionShape Sphere =
-        FCollisionShape::MakeSphere(150.f);
-
-    bool bHit =
-        GetWorld()->OverlapMultiByChannel(
-            Overlaps,
-            Start,
-            FQuat::Identity,
-            ECC_Pawn,
-            Sphere);
-
-    if (bHit)
-    {
-        for (auto& Result : Overlaps)
-        {
-            AMonster* Monster =
-                Cast<AMonster>(Result.GetActor());
-
-            if (Monster)
-            {
-                Monster->TakeMonsterDamage(
-                    AttackPower);
-
-                UE_LOG(LogTemp, Warning,
-                    TEXT("Basic Attack Hit"));
-            }
-
-            ADragonBoss* Dragon =
-                Cast<ADragonBoss>(Result.GetActor());
-
-            if (Dragon)
-            {
-                Dragon->TakeBossDamage(
-                    AttackPower);
-
-                UE_LOG(LogTemp, Warning,
-                    TEXT("Basic Attack Hit Dragon"));
-            }
-        }
-    }
+    ServerAttack();
 }
 
 void ABaseCharacter::Q(const FInputActionValue& Value)
 {
     if (!bCanUseQ)
-    {
         return;
-    }
 
     if (!CanUseCombatAction())
-    {
         return;
-    }
 
-    if (CharacterType == ECharacterType::Archer)
-    {
-        GetCharacterMovement()->StopMovementImmediately();
-
-        if (AAIController* AICon = Cast<AAIController>(GetController()))
-        {
-            AICon->StopMovement();
-        }
-
-        RotateToMouseCursor();
-
-        bIsUsingSkill = true;
-
-        if (QMontage)
-        {
-            PlayAnimMontage(
-                QMontage,
-                AttackSpeed
-            );
-        }
-
-        bCanUseQ = false;
-
-        QRemainingCooldown = QCooldown;
-
-        GetWorldTimerManager().SetTimer(
-            QCooldownTimer,
-            this,
-            &ABaseCharacter::ResetQCooldown,
-            QCooldown,
-            false
-        );
-
-        return;
-    }
-
-    RotateToMouseCursor();
-
-    bIsUsingSkill = true;
-
-    GetCharacterMovement()->StopMovementImmediately();
-
-    if (AAIController* AICon = Cast<AAIController>(GetController()))
-    {
-        AICon->StopMovement();
-    }
-
-    UE_LOG(LogTemp, Warning, TEXT("Q"));
-    UE_LOG(LogTemp, Warning, TEXT("Damage: %f"), AttackPower * QMultiplier);
-
-    if (QMontage)
-    {
-        PlayAnimMontage(QMontage);
-    }
-    else
-    {
-        bIsUsingSkill = false;
-    }
-
-    if (QSkillEffect)
-    {
-        UNiagaraFunctionLibrary::SpawnSystemAttached(
-            QSkillEffect,
-            GetMesh(),
-            TEXT("SwordSocket"), // 방패 쪽
-            FVector::ZeroVector,
-            FRotator::ZeroRotator,
-            EAttachLocation::SnapToTarget,
-            true
-        );
-    } // VFX    
-
-    bCanUseQ = false;
-
-    QRemainingCooldown = QCooldown;
-
-    GetWorldTimerManager().SetTimer(
-        QCooldownTimer,
-        this,
-        &ABaseCharacter::ResetQCooldown,
-        QCooldown,
-        false
-    );
-
-    FVector Start = GetActorLocation();
-    float Radius = 150.f;
-
-    TArray<FOverlapResult> Overlaps;
-
-    FCollisionShape Sphere = FCollisionShape::MakeSphere(QRadius);
-
-    bool bHit = GetWorld()->OverlapMultiByChannel(
-        Overlaps,
-        Start,
-        FQuat::Identity,
-        ECC_Pawn,
-        Sphere
-    );
-
-    if (bHit)
-    {
-        for (auto& Result : Overlaps)
-        {
-            AMonster* Monster =
-                Cast<AMonster>(Result.GetActor());
-
-            if (Monster)
-            {
-                Monster->TakeMonsterDamage(
-                    AttackPower * QMultiplier);
-                if (QImpactEffect)
-                {
-                    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-                        GetWorld(),
-                        QImpactEffect,
-                        Monster->GetActorLocation() + FVector(0, 0, 80));
-                }
-            }
-
-            ADragonBoss* Dragon = Cast<ADragonBoss>(Result.GetActor());
-
-            if (Dragon)
-            {
-                Dragon->TakeBossDamage(AttackPower * QMultiplier);
-
-                if (QImpactEffect)
-                {
-                    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-                        GetWorld(),
-                        QImpactEffect,
-                        Dragon->GetActorLocation() + FVector(0, 0, 120));
-                }
-
-                UE_LOG(LogTemp, Warning,
-                    TEXT("Dragon Hit By Q"));
-            }
-        }
-    }
+    ServerUseQ();
 }
 
 void ABaseCharacter::W(const FInputActionValue& Value)
@@ -548,106 +377,7 @@ void ABaseCharacter::W(const FInputActionValue& Value)
         return;
     }
 
-    if (CharacterType == ECharacterType::Archer)
-    {
-        AttackSpeed = BuffAttackSpeed;
-
-        if (WSkillEffect)
-        {
-            WAreaComponent =
-                UNiagaraFunctionLibrary::SpawnSystemAttached(
-                    WSkillEffect,
-                    GetRootComponent(),
-                    NAME_None,
-                    FVector::ZeroVector,
-                    FRotator::ZeroRotator,
-                    EAttachLocation::KeepRelativeOffset,
-                    true
-                );
-        }
-
-        UE_LOG(LogTemp, Warning,
-            TEXT("Attack Speed Buff Start : %f"),
-            AttackSpeed);
-
-        GetWorldTimerManager().ClearTimer(
-            AttackSpeedBuffHandle);
-
-        GetWorldTimerManager().SetTimer(
-            AttackSpeedBuffHandle,
-            this,
-            &ABaseCharacter::EndArcherWBuff,
-            5.f,
-            false);
-
-        bCanUseW = false;
-
-        WRemainingCooldown = WCooldown;
-
-        GetWorldTimerManager().SetTimer(
-            WCooldownTimer,
-            this,
-            &ABaseCharacter::ResetWCooldown,
-            WCooldown,
-            false);
-
-        return;
-    }
-
-    if (bLanternEquipped) return;
-
-    if (bIsDead) return;
-
-    if (!bCanUseW || bIsUsingSkill)
-        return;
-
-    RotateToMouseCursor();
-
-    bIsUsingSkill = true;
-
-    GetCharacterMovement()->StopMovementImmediately();
-
-    if (AAIController* AICon = Cast<AAIController>(GetController()))
-    {
-        AICon->StopMovement();
-    }
-
-    UE_LOG(LogTemp, Warning, TEXT("W"));
-    UE_LOG(LogTemp, Warning, TEXT("Damage: %f"), AttackPower * WMultiplier);
-
-    if (WMontage)
-    {
-        PlayAnimMontage(WMontage);
-    }
-    else
-    {
-        bIsUsingSkill = false;
-    }
-
-    if (WSkillEffect)
-    {
-        UNiagaraFunctionLibrary::SpawnSystemAttached(
-            WSkillEffect,
-            GetMesh(),
-            TEXT("RightHandSocket"), //검 쪽
-            FVector::ZeroVector,
-            FRotator::ZeroRotator,
-            EAttachLocation::SnapToTarget,
-            true
-        );
-    } // VFX
-
-    bCanUseW = false;
-
-    WRemainingCooldown = WCooldown;
-
-    GetWorldTimerManager().SetTimer(
-        WCooldownTimer,
-        this,
-        &ABaseCharacter::ResetWCooldown,
-        WCooldown,
-        false
-    );
+    ServerUseW();
 }
 
 void ABaseCharacter::E(const FInputActionValue& Value)
@@ -662,144 +392,7 @@ void ABaseCharacter::E(const FInputActionValue& Value)
         return;
     }
 
-    if (CharacterType == ECharacterType::Archer)
-    {
-        GetCharacterMovement()->StopMovementImmediately();
-
-        if (AAIController* AICon = Cast<AAIController>(GetController()))
-        {
-            AICon->StopMovement();
-        }
-
-        RotateToMouseCursor();
-
-        bIsUsingSkill = true;
-
-        if (EMontage)
-        {
-            PlayAnimMontage(
-                EMontage,
-                AttackSpeed
-            );
-        }
-
-        bCanUseE = false;
-
-        ERemainingCooldown = ECooldown;
-
-        GetWorldTimerManager().SetTimer(ECooldownTimer, this, &ABaseCharacter::ResetECooldown, ECooldown, false);
-
-        return;
-    }
-
-    RotateToMouseCursor();
-
-    bIsUsingSkill = true;
-
-    GetCharacterMovement()->StopMovementImmediately();
-
-    if (AAIController* AICon = Cast<AAIController>(GetController()))
-    {
-        AICon->StopMovement();
-    }
-
-    UE_LOG(LogTemp, Warning, TEXT("E"));
-    UE_LOG(LogTemp, Warning, TEXT("Damage: %f"), AttackPower * EMultiplier);
-
-    if (EMontage)
-    {
-        PlayAnimMontage(EMontage);
-    }
-    else
-    {
-        bIsUsingSkill = false;
-    }
-
-    if (ESkillEffect)
-    {
-        UNiagaraFunctionLibrary::SpawnSystemAttached(
-            ESkillEffect,
-            GetMesh(),
-            TEXT("RightHandSocket"), //검 쪽
-            FVector::ZeroVector,
-            FRotator::ZeroRotator,
-            EAttachLocation::SnapToTarget,
-            true
-        );
-    } // VFX
-
-    bCanUseE = false;
-
-    ERemainingCooldown = ECooldown;
-
-    GetWorldTimerManager().SetTimer(
-        ECooldownTimer,
-        this,
-        &ABaseCharacter::ResetECooldown,
-        ECooldown,
-        false
-    );
-
-    if (CharacterType == ECharacterType::Paladin)
-    {
-        ShieldHP = MaxHP * 0.1f;
-
-        UE_LOG(LogTemp, Warning,
-            TEXT("Shield : %f"),
-            ShieldHP);
-    }
-
-    FVector Start = GetActorLocation();
-
-    TArray<FOverlapResult> Overlaps;
-
-    FCollisionShape Sphere =
-        FCollisionShape::MakeSphere(ERadius);
-
-    bool bHit =
-        GetWorld()->OverlapMultiByChannel(
-            Overlaps,
-            Start,
-            FQuat::Identity,
-            ECC_Pawn,
-            Sphere);
-
-    if (bHit)
-    {
-        TSet<ABaseCharacter*> HealedPlayers;
-
-        for (auto& Result : Overlaps)
-        {
-            ABaseCharacter* Player =
-                Cast<ABaseCharacter>(Result.GetActor());
-
-            if (!Player)
-            {
-                continue;
-            }
-
-            // 이미 처리한 플레이어면 건너뜀
-            if (HealedPlayers.Contains(Player))
-            {
-                continue;
-            }
-
-            HealedPlayers.Add(Player);
-
-            float Heal = Player->MaxHP * HealAmount;
-
-            UE_LOG(LogTemp, Warning,
-                TEXT("%s HP : %.0f -> %.0f"),
-                *Player->GetName(),
-                Player->CurrentHP,
-                FMath::Min(Player->CurrentHP + Heal, Player->MaxHP));
-
-            Player->CurrentHP =
-                FMath::Min(
-                    Player->CurrentHP + Heal,
-                    Player->MaxHP);
-        }
-    }
+    ServerUseE();
 }
 
 void ABaseCharacter::R(const FInputActionValue& Value)
@@ -814,151 +407,7 @@ void ABaseCharacter::R(const FInputActionValue& Value)
         return;
     }
 
-    if (CharacterType == ECharacterType::Archer)
-    {
-        GetCharacterMovement()->StopMovementImmediately();
-
-        if (AAIController* AICon = Cast<AAIController>(GetController()))
-        {
-            AICon->StopMovement();
-        }
-
-        RotateToMouseCursor();
-
-        bIsUsingSkill = true;
-
-        if (RMontage)
-        {
-            PlayAnimMontage(
-                RMontage,
-                AttackSpeed
-            );
-        }
-
-        bCanUseR = false;
-
-        RRemainingCooldown = RCooldown;
-
-        GetWorldTimerManager().SetTimer(
-            RCooldownTimer,
-            this,
-            &ABaseCharacter::ResetRCooldown,
-            RCooldown,
-            false
-        );
-
-        return;
-    }
-
-    RotateToMouseCursor();
-
-    bIsUsingSkill = true;
-
-    GetCharacterMovement()->StopMovementImmediately();
-
-    if (AAIController* AICon = Cast<AAIController>(GetController()))
-    {
-        AICon->StopMovement();
-    }
-
-    UE_LOG(LogTemp, Warning, TEXT("R"));
-
-    if (RMontage)
-    {
-        PlayAnimMontage(RMontage);
-    }
-    else
-    {
-        bIsUsingSkill = false;
-    }
-
-    if (RSkillEffect)
-    {
-        UNiagaraFunctionLibrary::SpawnSystemAttached(
-            RSkillEffect,
-            GetMesh(),
-            TEXT("RightHandSocket"), //검 쪽
-            FVector::ZeroVector,
-            FRotator::ZeroRotator,
-            EAttachLocation::SnapToTarget,
-            true
-        );
-    } // VFX
-
-    bCanUseR = false;
-
-    RRemainingCooldown = RCooldown;
-
-    GetWorldTimerManager().SetTimer(
-        RCooldownTimer,
-        this,
-        &ABaseCharacter::ResetRCooldown,
-        RCooldown,
-        false
-    );
-
-    TArray<AActor*> Players;
-
-    UGameplayStatics::GetAllActorsOfClass(
-        GetWorld(),
-        ABaseCharacter::StaticClass(),
-        Players);
-
-    for (AActor* Actor : Players)
-    {
-        ABaseCharacter* Player =
-            Cast<ABaseCharacter>(Actor);
-
-        if (!Player)
-        {
-            continue;
-        }
-
-        float Heal = Player->MaxHP * RHealAmount;
-
-        UE_LOG(LogTemp, Warning,
-            TEXT("%s HP : %.0f -> %.0f"),
-            *Player->GetName(),
-            Player->CurrentHP,
-            FMath::Min(Player->CurrentHP + Heal, Player->MaxHP));
-
-        Player->CurrentHP = FMath::Min(
-            Player->CurrentHP + Heal,
-            Player->MaxHP);
-
-        UE_LOG(LogTemp, Warning,
-            TEXT("R Heal : %s"),
-            *Player->GetName());
-    }
-
-    TArray<AActor*> Monsters;
-
-    UGameplayStatics::GetAllActorsOfClass(
-        GetWorld(),
-        AMonster::StaticClass(),
-        Monsters);
-
-    for (AActor* Actor : Monsters)
-    {
-        AMonster* Monster = Cast<AMonster>(Actor);
-
-        if (!Monster)
-        {
-            continue;
-        }
-
-        if (Monster->bIsDead)
-        {
-            continue;
-        }
-
-        if (!Monster->bIsChasing)
-        {
-            continue;
-        }
-
-        Monster->ApplyTaunt(this);
-    }
+    ServerUseR();
 }
 
 void ABaseCharacter::ResetQCooldown()
@@ -1063,6 +512,8 @@ void ABaseCharacter::TakePlayerDamage(float Damage)
 
     // 남은 데미지만 체력 감소
     CurrentHP -= FinalDamage;
+
+    ForceNetUpdate();
 
     if (CurrentHP > 0)
     {
@@ -1408,10 +859,21 @@ void ABaseCharacter::SetNearbyLantern(ALantern* Lantern)
 
 void ABaseCharacter::Interact(const FInputActionValue& Value)
 {
+    if (NearbyAltar)
+    {
+        ServerInteractAltar();
+        return;
+    }
+
     if (NearbyPortal)
     {
-        NearbyPortal->Interact(this);
+        ServerInteractPortal(NearbyPortal);
+        return;
+    }
 
+    if (NearbyDungeonPortal)
+    {
+        ServerInteractDungeonPortal();
         return;
     }
 
@@ -1427,75 +889,35 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 
     if (NearbyLantern)
     {
-        bHasLantern = true;
-
-        Slot1Icon = LanternIcon;
-
-        if (UTheNightfallSiegeInstance* GI =
-            Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
-        {
-            GI->bHasLantern = true;
-        }
-
-        NearbyLantern->Destroy();
-
-        NearbyLantern = nullptr;
+        ServerPickupLantern(NearbyLantern);
+        return;
     }
 
     if (NearbyPrism)
     {
-        bHasPrism = true;
-
-        Slot3Icon = PrismIcon;
-
-        if (UTheNightfallSiegeInstance* GI =
-            Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
-        {
-            GI->bHasPrism = true;
-
-            bool bAllDungeonCleared =
-                GI->ClearCurrentDungeon();
-        }
-
-        NearbyPrism->SpawnReturnPortal();
-
-        NearbyPrism->Destroy();
-
-        NearbyPrism = nullptr;
+        ServerPickupPrism(NearbyPrism);
+        return;
     }
 }
 
 void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
 {
+    UE_LOG(LogTemp, Warning,
+        TEXT("UseSlot1 HasLantern=%d Equipped=%d"),
+        bHasLantern,
+        bLanternEquipped);
+
     if (bPrismEquipped)
     {
         return;
     }
 
     if (!bHasLantern)
-        return;
-
-    if (bIsEquippingLantern)
-        return;
-
-    bIsEquippingLantern = true;
-
-    if (!bLanternEquipped)
     {
-        if (LanternEquipMontage)
-        {
-            PlayAnimMontage(LanternEquipMontage);
-        }
+        return;
     }
-    else
-    {
-        if (LanternUnequipMontage)
-        {
-            bLanternPoseActive = false;
 
-            PlayAnimMontage(LanternUnequipMontage);
-        }
-    }
+    ServerUseSlot1();
 }
 
 void ABaseCharacter::UseSlot2(const FInputActionValue& Value)
@@ -1529,8 +951,7 @@ void ABaseCharacter::UseSlot2(const FInputActionValue& Value)
     }
 }
 
-void ABaseCharacter::UseSlot3(
-    const FInputActionValue& Value)
+void ABaseCharacter::UseSlot3(const FInputActionValue& Value)
 {
     if (bLanternEquipped)
     {
@@ -1538,107 +959,23 @@ void ABaseCharacter::UseSlot3(
     }
 
     if (!bHasPrism)
-        return;
-
-    if (bIsEquippingPrism)
-        return;
-
-    bIsEquippingPrism = true;
-
-    if (!bPrismEquipped)
     {
-        if (PrismEquipMontage)
-        {
-            PlayAnimMontage(PrismEquipMontage);
-        }
+        return;
     }
-    else
-    {
-        if (PrismUnequipMontage)
-        {
-            bPrismPoseActive = false;
 
-            PlayAnimMontage(PrismUnequipMontage);
-        }
-    }
+    ServerUseSlot3();
 }
 
 void ABaseCharacter::OnLanternEquipped()
 {
-    EquippedPrismMesh->SetVisibility(false);
-
-    bPrismEquipped = false;
-
-    bLanternEquipped = true;
-
-    if (UTheNightfallSiegeInstance* GI =
-        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
-    {
-        GI->bLanternEquipped = true;
-    }
-
-    bPrismPoseActive = false;
-
-    bIsEquippingLantern = false;
-
-    bLanternPoseActive = true;
-
-    EquippedLanternMesh->SetVisibility(true);
-
-    LanternLight->SetVisibility(true);
-
-    if (CharacterType == ECharacterType::Paladin)
-    {
-        if (RightHandWeapon)
-        {
-            RightHandWeapon->SetActorHiddenInGame(true);
-            RightHandWeapon->SetActorEnableCollision(false);
-        }
-    }
-
-    bIsEquippingLantern = false;
-
-    GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 }
 
 void ABaseCharacter::OnLanternUnequipped()
 {
-    UE_LOG(LogTemp, Warning, TEXT("UNEQUIP"));
-
-    bLanternEquipped = false;
-
-    if (UTheNightfallSiegeInstance* GI =
-        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
-    {
-        GI->bLanternEquipped = false;
-    }
-
-    bLanternPoseActive = false;
-
-    bIsEquippingLantern = false;
-
-    EquippedLanternMesh->SetVisibility(false);
-
-    LanternLight->SetVisibility(false);
-
-    if (CharacterType == ECharacterType::Paladin)
-    {
-        if (RightHandWeapon)
-        {
-            RightHandWeapon->SetActorHiddenInGame(false);
-            RightHandWeapon->SetActorEnableCollision(true);
-        }
-    }
 }
 
 void ABaseCharacter::OnLanternUnequipFinished()
 {
-    UE_LOG(LogTemp, Warning, TEXT("UNEQUIP FINISHED"));
-
-    bLanternEquipped = false;
-    bIsEquippingLantern = false;
-
-    GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 }
 
 void ABaseCharacter::EnableWeaponCollision()
@@ -1865,8 +1202,14 @@ void ABaseCharacter::RotateToMouseCursor()
 
     if (!Direction.IsNearlyZero())
     {
-        SetActorRotation(
-            Direction.Rotation());
+        FRotator NewRotation = Direction.Rotation();
+
+        SetActorRotation(NewRotation);
+
+        if (!HasAuthority())
+        {
+            ServerRotate(NewRotation);
+        }
     }
 }
 
@@ -1884,53 +1227,14 @@ bool ABaseCharacter::CanUseCombatAction() const
 
 void ABaseCharacter::OnPrismEquipped()
 {
-    EquippedLanternMesh->SetVisibility(false);
-    LanternLight->SetVisibility(false);
-
-    bLanternEquipped = false;
-    bLanternPoseActive = false;
-
-    bPrismEquipped = true;
-
-    if (UTheNightfallSiegeInstance* GI =
-        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
-    {
-        GI->bPrismEquipped = true;
-    }
-
-    bPrismPoseActive = true;
-
-    bLanternPoseActive = false;
-
-    EquippedPrismMesh->SetVisibility(true);
-
-    bIsEquippingPrism = false;
-
-    GetCharacterMovement()->SetMovementMode(
-        MOVE_Walking);
 }
 
 void ABaseCharacter::OnPrismUnequipped()
 {
-    EquippedPrismMesh->SetVisibility(false);
 }
 
 void ABaseCharacter::OnPrismUnequipFinished()
 {
-    bPrismEquipped = false;
-
-    if (UTheNightfallSiegeInstance* GI =
-        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
-    {
-        GI->bPrismEquipped = false;
-    }
-
-    bIsEquippingPrism = false;
-
-    bPrismPoseActive = false;
-
-    GetCharacterMovement()->SetMovementMode(
-        MOVE_Walking);
 }
 
 void ABaseCharacter::EndArcherWBuff()
@@ -1971,5 +1275,1129 @@ void ABaseCharacter::RestoreSkillUpgrades()
 void ABaseCharacter::SetNearbyPortal(APortal* Portal)
 {
     NearbyPortal = Portal;
+}
+
+void ABaseCharacter::SetNearbyDungeonPortal(ADungeonPortal* Portal)
+{
+    NearbyDungeonPortal = Portal;
+}
+
+void ABaseCharacter::ServerUseQ_Implementation()
+{
+    MulticastPlayQ();
+
+    UseQ();
+
+    ExecuteQDamage();
+}
+
+void ABaseCharacter::MulticastPlayQ_Implementation()
+{
+    RotateToMouseCursor();
+
+    bIsUsingSkill = true;
+
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AAIController* AICon = Cast<AAIController>(GetController()))
+    {
+        AICon->StopMovement();
+    }
+
+    if (CharacterType == ECharacterType::Archer)
+    {
+        if (QMontage)
+        {
+            PlayAnimMontage(QMontage, AttackSpeed);
+        }
+    }
+    else
+    {
+        if (QMontage)
+        {
+            PlayAnimMontage(QMontage);
+        }
+        else
+        {
+            bIsUsingSkill = false;
+        }
+    }
+
+    if (QSkillEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            QSkillEffect,
+            GetMesh(),
+            TEXT("SwordSocket"),
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::SnapToTarget,
+            true
+        );
+    }
+}
+
+void ABaseCharacter::UseQ()
+{
+    if (CharacterType == ECharacterType::Archer)
+    {
+        bCanUseQ = false;
+
+        QRemainingCooldown = QCooldown;
+
+        GetWorldTimerManager().SetTimer(
+            QCooldownTimer,
+            this,
+            &ABaseCharacter::ResetQCooldown,
+            QCooldown,
+            false);
+
+        return;
+    }
+
+    bCanUseQ = false;
+
+    QRemainingCooldown = QCooldown;
+
+    GetWorldTimerManager().SetTimer(
+        QCooldownTimer,
+        this,
+        &ABaseCharacter::ResetQCooldown,
+        QCooldown,
+        false);
+}
+
+void ABaseCharacter::ExecuteQDamage()
+{
+    UE_LOG(LogTemp, Warning, TEXT("ExecuteQDamage"));
+
+    FVector Start = GetActorLocation();
+
+    TArray<FOverlapResult> Overlaps;
+
+    FCollisionShape Sphere = FCollisionShape::MakeSphere(QRadius);
+
+    bool bHit = GetWorld()->OverlapMultiByChannel(
+        Overlaps,
+        Start,
+        FQuat::Identity,
+        ECC_Pawn,
+        Sphere);
+
+    UE_LOG(LogTemp, Warning, TEXT("Hit : %d"), bHit);
+
+    if (bHit)
+    {
+        for (auto& Result : Overlaps)
+        {
+            AMonster* Monster = Cast<AMonster>(Result.GetActor());
+
+            UE_LOG(LogTemp, Warning, TEXT("Overlap : %s"),
+                *Result.GetActor()->GetName());
+
+            if (Monster)
+            {
+                Monster->TakeMonsterDamage(AttackPower * QMultiplier);
+
+                MulticastQImpact(
+                    Monster->GetActorLocation() + FVector(0, 0, 80)
+                );
+            }
+
+            ADragonBoss* Dragon = Cast<ADragonBoss>(Result.GetActor());
+
+            if (Dragon)
+            {
+                Dragon->TakeBossDamage(AttackPower * QMultiplier);
+
+                if (QImpactEffect)
+                {
+                    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+                        GetWorld(),
+                        QImpactEffect,
+                        Dragon->GetActorLocation() + FVector(0, 0, 120));
+                }
+
+                UE_LOG(LogTemp, Warning, TEXT("Dragon Hit By Q"));
+            }
+        }
+    }
+}
+
+void ABaseCharacter::ServerUseW_Implementation()
+{
+    bCanUseW = false;
+
+    WRemainingCooldown = WCooldown;
+
+    GetWorldTimerManager().SetTimer(
+        WCooldownTimer,
+        this,
+        &ABaseCharacter::ResetWCooldown,
+        WCooldown,
+        false
+    );
+
+    MulticastPlayW();
+}
+
+void ABaseCharacter::MulticastPlayW_Implementation()
+{
+    RotateToMouseCursor();
+
+    bIsUsingSkill = true;
+
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AAIController* AICon = Cast<AAIController>(GetController()))
+    {
+        AICon->StopMovement();
+    }
+
+    if (WMontage)
+    {
+        PlayAnimMontage(WMontage);
+    }
+
+    if (WSkillEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            WSkillEffect,
+            GetMesh(),
+            TEXT("RightHandSocket"),
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::SnapToTarget,
+            true
+        );
+    }
+    bIsUsingSkill = false;
+}
+
+void ABaseCharacter::ServerUseE_Implementation()
+{
+    MulticastPlayE();
+
+    ExecuteE();
+}
+
+void ABaseCharacter::MulticastPlayE_Implementation()
+{
+    RotateToMouseCursor();
+
+    bIsUsingSkill = true;
+
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AAIController* AICon = Cast<AAIController>(GetController()))
+    {
+        AICon->StopMovement();
+    }
+
+    if (EMontage)
+    {
+        PlayAnimMontage(EMontage);
+    }
+
+    if (ESkillEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            ESkillEffect,
+            GetMesh(),
+            TEXT("RightHandSocket"),
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::SnapToTarget,
+            true
+        );
+    }
+}
+
+void ABaseCharacter::ExecuteE()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    if (CharacterType == ECharacterType::Archer)
+    {
+        bCanUseE = false;
+
+        ERemainingCooldown = ECooldown;
+
+        GetWorldTimerManager().SetTimer(
+            ECooldownTimer,
+            this,
+            &ABaseCharacter::ResetECooldown,
+            ECooldown,
+            false);
+
+        return;
+    }
+
+    bCanUseE = false;
+
+    ERemainingCooldown = ECooldown;
+
+    GetWorldTimerManager().SetTimer(
+        ECooldownTimer,
+        this,
+        &ABaseCharacter::ResetECooldown,
+        ECooldown,
+        false
+    );
+
+    if (CharacterType == ECharacterType::Paladin)
+    {
+        ShieldHP = MaxHP * 0.1f;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Shield : %f"),
+            ShieldHP);
+    }
+
+    FVector Start = GetActorLocation();
+
+    TArray<FOverlapResult> Overlaps;
+
+    FCollisionShape Sphere =
+        FCollisionShape::MakeSphere(ERadius);
+
+    bool bHit =
+        GetWorld()->OverlapMultiByChannel(
+            Overlaps,
+            Start,
+            FQuat::Identity,
+            ECC_Pawn,
+            Sphere);
+
+    if (bHit)
+    {
+        TSet<ABaseCharacter*> HealedPlayers;
+
+        for (auto& Result : Overlaps)
+        {
+            ABaseCharacter* Player =
+                Cast<ABaseCharacter>(Result.GetActor());
+
+            if (!Player)
+            {
+                continue;
+            }
+
+            // 이미 처리한 플레이어면 건너뜀
+            if (HealedPlayers.Contains(Player))
+            {
+                continue;
+            }
+
+            HealedPlayers.Add(Player);
+
+            float Heal = Player->MaxHP * HealAmount;
+
+            UE_LOG(LogTemp, Warning,
+                TEXT("%s HP : %.0f -> %.0f"),
+                *Player->GetName(),
+                Player->CurrentHP,
+                FMath::Min(Player->CurrentHP + Heal, Player->MaxHP));
+
+            Player->CurrentHP =
+                FMath::Min(
+                    Player->CurrentHP + Heal,
+                    Player->MaxHP);
+        }
+    }
+}
+
+void ABaseCharacter::ServerUseR_Implementation()
+{
+    MulticastPlayR();
+
+    ExecuteR();
+}
+
+void ABaseCharacter::MulticastPlayR_Implementation()
+{
+    RotateToMouseCursor();
+
+    bIsUsingSkill = true;
+
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AAIController* AICon = Cast<AAIController>(GetController()))
+    {
+        AICon->StopMovement();
+    }
+
+    if (RMontage)
+    {
+        PlayAnimMontage(RMontage);
+    }
+
+    if (RSkillEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            RSkillEffect,
+            GetMesh(),
+            TEXT("RightHandSocket"),
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::SnapToTarget,
+            true
+        );
+    }
+}
+
+void ABaseCharacter::ExecuteR()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    if (!bCanUseR)
+    {
+        return;
+    }
+
+    if (!CanUseCombatAction())
+    {
+        return;
+    }
+
+    if (CharacterType == ECharacterType::Archer)
+    {
+        bCanUseR = false;
+
+        RRemainingCooldown = RCooldown;
+
+        GetWorldTimerManager().SetTimer(
+            RCooldownTimer,
+            this,
+            &ABaseCharacter::ResetRCooldown,
+            RCooldown,
+            false
+        );
+
+        return;
+    }
+
+    bCanUseR = false;
+
+    RRemainingCooldown = RCooldown;
+
+    GetWorldTimerManager().SetTimer(
+        RCooldownTimer,
+        this,
+        &ABaseCharacter::ResetRCooldown,
+        RCooldown,
+        false
+    );
+
+    TArray<AActor*> Players;
+
+    UGameplayStatics::GetAllActorsOfClass(
+        GetWorld(),
+        ABaseCharacter::StaticClass(),
+        Players);
+
+    for (AActor* Actor : Players)
+    {
+        ABaseCharacter* Player =
+            Cast<ABaseCharacter>(Actor);
+
+        if (!Player)
+        {
+            continue;
+        }
+
+        float Heal = Player->MaxHP * RHealAmount;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("%s HP : %.0f -> %.0f"),
+            *Player->GetName(),
+            Player->CurrentHP,
+            FMath::Min(Player->CurrentHP + Heal, Player->MaxHP));
+
+        Player->CurrentHP = FMath::Min(
+            Player->CurrentHP + Heal,
+            Player->MaxHP);
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("R Heal : %s"),
+            *Player->GetName());
+    }
+
+    TArray<AActor*> Monsters;
+
+    UGameplayStatics::GetAllActorsOfClass(
+        GetWorld(),
+        AMonster::StaticClass(),
+        Monsters);
+
+    for (AActor* Actor : Monsters)
+    {
+        AMonster* Monster = Cast<AMonster>(Actor);
+
+        if (!Monster)
+        {
+            continue;
+        }
+
+        if (Monster->bIsDead)
+        {
+            continue;
+        }
+
+        if (!Monster->bIsChasing)
+        {
+            continue;
+        }
+
+        Monster->ApplyTaunt(this);
+    }
+}
+
+void ABaseCharacter::ServerAttack_Implementation()
+{
+    MulticastAttack();
+
+    ExecuteAttack();
+}
+
+void ABaseCharacter::MulticastAttack_Implementation()
+{
+    RotateToMouseCursor();
+
+    bIsAttacking = true;
+
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AAIController* AICon = Cast<AAIController>(GetController()))
+    {
+        AICon->StopMovement();
+    }
+
+    if (AttackMontage)
+    {
+        PlayAnimMontage(
+            AttackMontage,
+            AttackSpeed);
+    }
+}
+
+void ABaseCharacter::ExecuteAttack()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    APlayerController* PC =
+        Cast<APlayerController>(GetController());
+
+    if (PC)
+    {
+        FHitResult Hit;
+
+        PC->GetHitResultUnderCursor(
+            ECC_Visibility,
+            false,
+            Hit);
+
+        FVector LookDirection =
+            Hit.Location - GetActorLocation();
+
+        LookDirection.Z = 0.f;
+
+        FRotator TargetRotation =
+            LookDirection.Rotation();
+
+        SetActorRotation(TargetRotation);
+    }
+
+    FVector Start = GetActorLocation();
+
+    TArray<FOverlapResult> Overlaps;
+
+    FCollisionShape Sphere =
+        FCollisionShape::MakeSphere(150.f);
+
+    bool bHit =
+        GetWorld()->OverlapMultiByChannel(
+            Overlaps,
+            Start,
+            FQuat::Identity,
+            ECC_Pawn,
+            Sphere);
+
+    if (bHit)
+    {
+        for (auto& Result : Overlaps)
+        {
+            AMonster* Monster =
+                Cast<AMonster>(Result.GetActor());
+
+            if (Monster)
+            {
+                Monster->TakeMonsterDamage(
+                    AttackPower);
+
+                UE_LOG(LogTemp, Warning,
+                    TEXT("Basic Attack Hit"));
+            }
+
+            ADragonBoss* Dragon =
+                Cast<ADragonBoss>(Result.GetActor());
+
+            if (Dragon)
+            {
+                Dragon->TakeBossDamage(
+                    AttackPower);
+
+                UE_LOG(LogTemp, Warning,
+                    TEXT("Basic Attack Hit Dragon"));
+            }
+        }
+    }
+}
+
+void ABaseCharacter::MulticastQImpact_Implementation(FVector Location)
+{
+    if (!QImpactEffect)
+    {
+        return;
+    }
+
+    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+        GetWorld(),
+        QImpactEffect,
+        Location
+    );
+}
+
+void ABaseCharacter::ServerRotate_Implementation(FRotator NewRotation)
+{
+    SetActorRotation(NewRotation);
+
+    ForceNetUpdate();
+}
+
+void ABaseCharacter::GetLifetimeReplicatedProps(
+    TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+    DOREPLIFETIME(ABaseCharacter, CurrentHP);
+    DOREPLIFETIME(ABaseCharacter, bHasLantern);
+    DOREPLIFETIME(ABaseCharacter, bLanternEquipped);
+    DOREPLIFETIME(ABaseCharacter, bLanternPoseActive);
+    DOREPLIFETIME(ABaseCharacter, bHasPrism);
+    DOREPLIFETIME(ABaseCharacter, bPrismEquipped);
+    DOREPLIFETIME(ABaseCharacter, bPrismPoseActive);
+    DOREPLIFETIME(ABaseCharacter, Coin);
+    DOREPLIFETIME(ABaseCharacter, bDarknessDebuff);
+}
+
+void ABaseCharacter::OnRep_CurrentHP()
+{
+    UE_LOG(LogTemp, Warning,
+        TEXT("Current HP : %f"),
+        CurrentHP);
+}
+
+void ABaseCharacter::HealPlayer(float Amount)
+{
+    CurrentHP =
+        FMath::Clamp(
+            CurrentHP + Amount,
+            0.f,
+            MaxHP);
+}
+
+void ABaseCharacter::SetNearbyAltar(AAltar* Altar)
+{
+    NearbyAltar = Altar;
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("Nearby Altar : %s"),
+        Altar ? TEXT("SET") : TEXT("NULL"));
+}
+
+void ABaseCharacter::ServerInteractAltar_Implementation()
+{
+    if (!NearbyAltar)
+    {
+        return;
+    }
+
+    if (!NearbyAltar->bLanternPlaced)
+    {
+        if (bHasLantern && bLanternEquipped)
+        {
+            NearbyAltar->PlaceLantern(this);
+        }
+    }
+    else
+    {
+        NearbyAltar->RemoveLantern(this);
+    }
+}
+
+void ABaseCharacter::ServerPickupLantern_Implementation(ALantern* Lantern)
+{
+    if (!Lantern)
+    {
+        return;
+    }
+
+    bHasLantern = true;
+
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        PS->bHasLantern = true;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("PlayerState Lantern Saved : %d"),
+            PS->bHasLantern);
+    }
+
+    OnRep_HasLantern();
+
+    if (UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+    {
+        GI->bWorldLanternDestroyed = true;
+    }
+
+    Lantern->Destroy();
+
+    NearbyLantern = nullptr;
+}
+
+void ABaseCharacter::OnRep_LanternEquipped()
+{
+    UE_LOG(LogTemp, Warning,
+        TEXT("OnRep_LanternEquipped %d"),
+        bLanternEquipped);
+
+    EquippedLanternMesh->SetVisibility(bLanternEquipped);
+
+    LanternLight->SetVisibility(bLanternEquipped);
+
+    if (CharacterType == ECharacterType::Paladin)
+    {
+        if (RightHandWeapon)
+        {
+            RightHandWeapon->SetActorHiddenInGame(
+                bLanternEquipped);
+
+            RightHandWeapon->SetActorEnableCollision(
+                !bLanternEquipped);
+        }
+    }
+
+    bLanternPoseActive = bLanternEquipped;
+}
+
+void ABaseCharacter::RefreshLanternState()
+{
+    OnRep_LanternEquipped();
+
+    ForceNetUpdate();
+}
+
+void ABaseCharacter::ServerUseSlot1_Implementation()
+{
+    UE_LOG(LogTemp, Warning,
+        TEXT("ServerUseSlot1 Start Has=%d Equipped=%d Role=%d"),
+        bHasLantern,
+        bLanternEquipped,
+        (int32)GetLocalRole());
+
+    if (bPrismEquipped)
+        return;
+
+    if (!bHasLantern)
+        return;
+
+    if (bIsEquippingLantern)
+        return;
+
+    bIsEquippingLantern = true;
+
+    const bool bEquip = !bLanternEquipped;
+
+    bLanternEquipped = bEquip;
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("ServerUseSlot1 After Equipped=%d"),
+        bLanternEquipped);
+
+    bLanternPoseActive = bEquip;
+
+    bIsEquippingLantern = false;
+
+    OnRep_LanternEquipped();
+
+    ForceNetUpdate();
+
+    bIsEquippingLantern = false;
+
+    MulticastPlayLanternMontage(bEquip);
+}
+
+void ABaseCharacter::MulticastPlayLanternMontage_Implementation(bool bEquip)
+{
+    if (bEquip)
+    {
+        if (LanternEquipMontage)
+        {
+            PlayAnimMontage(LanternEquipMontage);
+        }
+    }
+    else
+    {
+        if (LanternUnequipMontage)
+        {
+            PlayAnimMontage(LanternUnequipMontage);
+        }
+    }
+}
+
+void ABaseCharacter::ServerUseSlot3_Implementation()
+{
+    if (bLanternEquipped)
+        return;
+
+    if (!bHasPrism)
+        return;
+
+    if (bIsEquippingPrism)
+        return;
+
+    bIsEquippingPrism = true;
+
+    const bool bEquip = !bPrismEquipped;
+
+    bPrismEquipped = bEquip;
+    bPrismPoseActive = bEquip;
+
+    bIsEquippingPrism = false;
+
+    RefreshPrismState();
+
+    ForceNetUpdate();
+
+    MulticastPlayPrismMontage(bEquip);
+}
+
+void ABaseCharacter::OnRep_PrismEquipped()
+{
+    EquippedPrismMesh->SetVisibility(bPrismEquipped);
+
+    bPrismPoseActive = bPrismEquipped;
+
+    if (bPrismEquipped)
+    {
+        EquippedLanternMesh->SetVisibility(false);
+        LanternLight->SetVisibility(false);
+    }
+
+    if (CharacterType == ECharacterType::Paladin)
+    {
+        if (RightHandWeapon)
+        {
+            RightHandWeapon->SetActorHiddenInGame(
+                bPrismEquipped);
+
+            RightHandWeapon->SetActorEnableCollision(
+                !bPrismEquipped);
+        }
+    }
+}
+
+void ABaseCharacter::RefreshPrismState()
+{
+    OnRep_PrismEquipped();
+
+    ForceNetUpdate();
+}
+
+void ABaseCharacter::MulticastPlayPrismMontage_Implementation(bool bEquip)
+{
+    if (bEquip)
+    {
+        if (PrismEquipMontage)
+        {
+            PlayAnimMontage(PrismEquipMontage);
+        }
+    }
+    else
+    {
+        if (PrismUnequipMontage)
+        {
+            PlayAnimMontage(PrismUnequipMontage);
+        }
+    }
+}
+
+void ABaseCharacter::ServerPickupPrism_Implementation(ADungeonPrism* Prism)
+{
+    if (!Prism)
+    {
+        return;
+    }
+
+    bHasPrism = true;
+
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        PS->bHasPrism = true;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("PlayerState Prism Saved : %d"),
+            PS->bHasPrism);
+    }
+
+    OnRep_HasPrism();
+
+    if (UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+    {
+        GI->bHasPrism = true;
+
+        GI->ClearCurrentDungeon();
+    }
+
+    Prism->SpawnReturnPortal();
+
+    Prism->Destroy();
+
+    NearbyPrism = nullptr;
+}
+
+void ABaseCharacter::ServerInteractPortal_Implementation(APortal* Portal)
+{
+    if (!Portal)
+    {
+        return;
+    }
+
+    Portal->Interact(this);
+}
+
+void ABaseCharacter::ServerInteractDungeonPortal_Implementation()
+{
+    UE_LOG(LogTemp, Warning,
+        TEXT("ServerInteractDungeonPortal"));
+
+    if (!NearbyDungeonPortal)
+    {
+        return;
+    }
+
+    NearbyDungeonPortal->ServerEnterDungeon();
+}
+
+void ABaseCharacter::ServerPickupCoin_Implementation(ACoin* CoinActor)
+{
+    if (!CoinActor)
+    {
+        return;
+    }
+
+    Coin++;
+
+    OnRep_Coin();
+
+    CoinActor->Destroy();
+}
+
+void ABaseCharacter::OnRep_Coin()
+{
+    if (HUDWidget)
+    {
+        HUDWidget->UpdateCoin(Coin);
+    }
+}
+
+void ABaseCharacter::OnRep_HasLantern()
+{
+    if (bHasLantern)
+    {
+        Slot1Icon = LanternIcon;
+    }
+    else
+    {
+        Slot1Icon = EmptySlotIcon;
+    }
+
+    if (UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+    {
+        GI->bHasLantern = bHasLantern;
+    }
+}
+
+void ABaseCharacter::OnRep_HasPrism()
+{
+    if (bHasPrism)
+    {
+        Slot3Icon = PrismIcon;
+    }
+    else
+    {
+        Slot3Icon = EmptySlotIcon;
+    }
+
+    if (UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+    {
+        GI->bHasPrism = bHasPrism;
+    }
+}
+
+void ABaseCharacter::OnRep_PlayerState()
+{
+    Super::OnRep_PlayerState();
+
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        bHasLantern = PS->bHasLantern;
+        bLanternEquipped = PS->bLanternEquipped;
+
+        bHasPrism = PS->bHasPrism;
+        bPrismEquipped = PS->bPrismEquipped;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Restore Item From PlayerState Lantern=%d Equipped=%d"),
+            bHasLantern,
+            bLanternEquipped);
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("OnRep_PlayerState Finished"));
+    }
+
+    if (bHasLantern)
+    {
+        TArray<AActor*> Lanterns;
+
+        UGameplayStatics::GetAllActorsOfClass(
+            GetWorld(),
+            ALantern::StaticClass(),
+            Lanterns);
+
+        for (AActor* Actor : Lanterns)
+        {
+            Actor->Destroy();
+        }
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Removed World Lantern"));
+    }
+}
+
+void ABaseCharacter::PossessedBy(AController* NewController)
+{
+    Super::PossessedBy(NewController);
+
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        bHasLantern = PS->bHasLantern;
+        bLanternEquipped = PS->bLanternEquipped;
+
+        bHasPrism = PS->bHasPrism;
+        bPrismEquipped = PS->bPrismEquipped;
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("Server Restore Item Lantern=%d"),
+            bHasLantern);
+    }
+
+    if (bHasLantern)
+    {
+        TArray<AActor*> Lanterns;
+
+        UGameplayStatics::GetAllActorsOfClass(
+            GetWorld(),
+            ALantern::StaticClass(),
+            Lanterns);
+
+        for (AActor* Actor : Lanterns)
+        {
+            Actor->Destroy();
+        }
+    }
+}
+
+void ABaseCharacter::OnRep_DarknessDebuff()
+{
+    UE_LOG(LogTemp, Warning,
+        TEXT("Darkness : %d"),
+        bDarknessDebuff);
+}
+
+void ABaseCharacter::DebugBossPattern1()
+{
+    ServerDebugBossPattern(0);
+}
+
+void ABaseCharacter::DebugBossPattern2()
+{
+    ServerDebugBossPattern(1);
+}
+
+void ABaseCharacter::DebugBossPattern3()
+{
+    ServerDebugBossPattern(2);
+}
+
+void ABaseCharacter::DebugBossPattern4()
+{
+    ServerDebugBossPattern(3);
+}
+
+void ABaseCharacter::ServerDebugBossPattern_Implementation(uint8 PatternIndex)
+{
+    TArray<AActor*> Bosses;
+
+    UGameplayStatics::GetAllActorsOfClass(
+        GetWorld(),
+        ADragonBoss::StaticClass(),
+        Bosses);
+
+    if (Bosses.Num() == 0)
+    {
+        return;
+    }
+
+    ADragonBoss* Boss =
+        Cast<ADragonBoss>(Bosses[0]);
+
+    if (!Boss)
+    {
+        return;
+    }
+
+    switch (PatternIndex)
+    {
+    case 0:
+        Boss->DebugBite();
+        break;
+
+    case 1:
+        Boss->DebugCloseBreath();
+        break;
+
+    case 2:
+        Boss->DebugBreath();
+        break;
+
+    case 3:
+        Boss->DebugDebuff();
+        break;
+    }
 }
 
