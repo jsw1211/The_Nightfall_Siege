@@ -322,6 +322,13 @@ public:
 
 	void HealPlayer(float Amount);
 
+	FTimerHandle HealOverTimeHandle;
+
+	int32 HealTickCount = 0;
+
+	UFUNCTION()
+	void HealOverTimeTick();
+
 	virtual void GetLifetimeReplicatedProps(
     TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
