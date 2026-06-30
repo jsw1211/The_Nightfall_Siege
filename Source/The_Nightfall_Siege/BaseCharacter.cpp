@@ -1602,10 +1602,7 @@ void ABaseCharacter::ExecuteE()
                 Player->CurrentHP,
                 FMath::Min(Player->CurrentHP + Heal, Player->MaxHP));
 
-            Player->CurrentHP =
-                FMath::Min(
-                    Player->CurrentHP + Heal,
-                    Player->MaxHP);
+            Player->HealPlayer(Heal);
         }
     }
 }
@@ -1909,11 +1906,17 @@ void ABaseCharacter::OnRep_CurrentHP()
 
 void ABaseCharacter::HealPlayer(float Amount)
 {
-    CurrentHP =
-        FMath::Clamp(
-            CurrentHP + Amount,
-            0.f,
-            MaxHP);
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    CurrentHP = FMath::Clamp(
+        CurrentHP + Amount,
+        0.f,
+        MaxHP);
+
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::SetNearbyAltar(AAltar* Altar)
