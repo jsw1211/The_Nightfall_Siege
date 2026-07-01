@@ -1602,10 +1602,14 @@ void ABaseCharacter::ExecuteE()
                 Player->CurrentHP,
                 FMath::Min(Player->CurrentHP + Heal, Player->MaxHP));
 
-            Player->CurrentHP =
-                FMath::Min(
-                    Player->CurrentHP + Heal,
-                    Player->MaxHP);
+            HealTickCount = 0;
+
+            GetWorldTimerManager().SetTimer(
+                HealOverTimeHandle,
+                this,
+                &ABaseCharacter::HealOverTimeTick,
+                1.f,
+                true);
         }
     }
 }
@@ -1720,9 +1724,7 @@ void ABaseCharacter::ExecuteR()
             Player->CurrentHP,
             FMath::Min(Player->CurrentHP + Heal, Player->MaxHP));
 
-        Player->CurrentHP = FMath::Min(
-            Player->CurrentHP + Heal,
-            Player->MaxHP);
+        Player->HealPlayer(Heal);
 
         UE_LOG(LogTemp, Warning,
             TEXT("R Heal : %s"),
@@ -1909,11 +1911,17 @@ void ABaseCharacter::OnRep_CurrentHP()
 
 void ABaseCharacter::HealPlayer(float Amount)
 {
-    CurrentHP =
-        FMath::Clamp(
-            CurrentHP + Amount,
-            0.f,
-            MaxHP);
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    CurrentHP = FMath::Clamp(
+        CurrentHP + Amount,
+        0.f,
+        MaxHP);
+
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::SetNearbyAltar(AAltar* Altar)
@@ -2401,3 +2409,47 @@ void ABaseCharacter::ServerDebugBossPattern_Implementation(uint8 PatternIndex)
     }
 }
 
+void ABaseCharacter::HealOverTimeTick()
+{
+    HealTickCount++;
+
+    TArray<FOverlapResult> Overlaps;
+
+    FCollisionShape Sphere =
+        FCollisionShape::MakeSphere(ERadius);
+
+    GetWorld()->OverlapMultiByChannel(
+        Overlaps,
+        GetActorLocation(),
+        FQuat::Identity,
+        ECC_Pawn,
+        Sphere);
+
+    TSet<ABaseCharacter*> Players;
+
+    for (auto& Result : Overlaps)
+    {
+        ABaseCharacter* Player =
+            Cast<ABaseCharacter>(Result.GetActor());
+
+        if (!Player)
+            continue;
+
+        if (Players.Contains(Player))
+            continue;
+
+        Players.Add(Player);
+
+        float Heal = Player->MaxHP * 0.02f;
+
+        Player->HealPlayer(Heal);
+    }
+
+    if (HealTickCount >= 5)
+    {
+        GetWorldTimerManager().ClearTimer(
+            HealOverTimeHandle);
+
+        HealTickCount = 0;
+    }
+}
