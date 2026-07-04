@@ -413,21 +413,29 @@ void ABaseCharacter::R(const FInputActionValue& Value)
 void ABaseCharacter::ResetQCooldown()
 {
     bCanUseQ = true;
+    QRemainingCooldown = 0.f;
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::ResetWCooldown()
 {
     bCanUseW = true;
+    WRemainingCooldown = 0.f;
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::ResetECooldown()
 {
     bCanUseE = true;
+    ERemainingCooldown = 0.f;
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::ResetRCooldown()
 {
     bCanUseR = true;
+    RRemainingCooldown = 0.f;
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::ToggleInventory()
@@ -1298,6 +1306,10 @@ void ABaseCharacter::ServerUseQ_Implementation()
 
     UseQ();
 
+    ClientStartSkillCooldown(ESkillType::Q, QCooldown);
+
+    ForceNetUpdate();
+
     ExecuteQDamage();
 }
 
@@ -1448,6 +1460,10 @@ void ABaseCharacter::ServerUseW_Implementation()
         false
     );
 
+    ClientStartSkillCooldown(ESkillType::W, WCooldown);
+
+    ForceNetUpdate();
+
     MulticastPlayW();
 }
 
@@ -1489,6 +1505,10 @@ void ABaseCharacter::ServerUseE_Implementation()
     MulticastPlayE();
 
     ExecuteE();
+
+    ClientStartSkillCooldown(ESkillType::E, ECooldown);
+
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::MulticastPlayE_Implementation()
@@ -1589,7 +1609,46 @@ void ABaseCharacter::ServerUseR_Implementation()
 
     ExecuteR();
 
+    ClientStartSkillCooldown(ESkillType::R, RCooldown);
+
+    ForceNetUpdate();
+
     MulticastPlayR();
+}
+
+void ABaseCharacter::ClientStartSkillCooldown_Implementation(
+    ESkillType SkillType,
+    float Duration)
+{
+    if (HasAuthority())
+    {
+        return;
+    }
+
+    const float CooldownDuration = FMath::Max(0.f, Duration);
+
+    switch (SkillType)
+    {
+    case ESkillType::Q:
+        bCanUseQ = false;
+        QRemainingCooldown = CooldownDuration;
+        break;
+
+    case ESkillType::W:
+        bCanUseW = false;
+        WRemainingCooldown = CooldownDuration;
+        break;
+
+    case ESkillType::E:
+        bCanUseE = false;
+        ERemainingCooldown = CooldownDuration;
+        break;
+
+    case ESkillType::R:
+        bCanUseR = false;
+        RRemainingCooldown = CooldownDuration;
+        break;
+    }
 }
 
 void ABaseCharacter::MulticastPlayR_Implementation()
@@ -1871,6 +1930,14 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABaseCharacter, bPrismPoseActive);
     DOREPLIFETIME(ABaseCharacter, Coin);
     DOREPLIFETIME(ABaseCharacter, bDarknessDebuff);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, QRemainingCooldown, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, WRemainingCooldown, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, ERemainingCooldown, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, RRemainingCooldown, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, bCanUseQ, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, bCanUseW, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, bCanUseE, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, bCanUseR, COND_OwnerOnly);
 }
 
 void ABaseCharacter::OnRep_CurrentHP()

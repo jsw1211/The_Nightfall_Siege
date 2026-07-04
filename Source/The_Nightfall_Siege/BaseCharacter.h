@@ -59,6 +59,9 @@ public:
 	UFUNCTION(Server, Reliable)
 	void ServerUseR();
 
+	UFUNCTION(Client, Reliable)
+	void ClientStartSkillCooldown(ESkillType SkillType, float Duration);
+
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayR();
 
@@ -352,16 +355,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Cooldown")
 	float RCooldown = 20.0f;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(Replicated, BlueprintReadOnly)
 	float QRemainingCooldown = 0.f;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(Replicated, BlueprintReadOnly)
 	float WRemainingCooldown = 0.f;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(Replicated, BlueprintReadOnly)
 	float ERemainingCooldown = 0.f;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(Replicated, BlueprintReadOnly)
 	float RRemainingCooldown = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
@@ -526,9 +529,16 @@ protected:
 	bool bSkillTreeOpen = false;
 
 	// 쿨타임 상태
+	UPROPERTY(Replicated)
 	bool bCanUseQ = true;
+
+	UPROPERTY(Replicated)
 	bool bCanUseW = true;
+
+	UPROPERTY(Replicated)
 	bool bCanUseE = true;
+
+	UPROPERTY(Replicated)
 	bool bCanUseR = true;
 
 	// 데미지
