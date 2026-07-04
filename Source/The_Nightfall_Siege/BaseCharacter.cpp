@@ -57,7 +57,7 @@ ABaseCharacter::ABaseCharacter()
     SpringArm->TargetArmLength = 800.f;
     SpringArm->SetRelativeRotation(FRotator(-60.f, 0.f, 0.f));
 
-    // ?? ÀÌ°Ô Á¦ÀÏ Áß¿ä
+    // ?? ì´ê²Œ ì œì¼ ì¤‘ìš”
     SpringArm->bUsePawnControlRotation = false;
     SpringArm->bInheritPitch = false;
     SpringArm->bInheritYaw = false;
@@ -145,7 +145,7 @@ void ABaseCharacter::BeginPlay()
         break;
     }
 
-    CurrentHP = 200000.f; // ÀÓ½Ã MaxHP¿©¾ßÇÔ
+    CurrentHP = 200000.f; // ìž„ì‹œ MaxHPì—¬ì•¼í•¨
 	
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
@@ -280,7 +280,7 @@ void ABaseCharacter::Die()
 
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-    // ÀÌ°Å Ãß°¡ÇØ¾ß ÇÔ
+    // ì´ê±° ì¶”ê°€í•´ì•¼ í•¨
     PlayAnimMontage(DeathMontage);
 
 }
@@ -289,7 +289,7 @@ void ABaseCharacter::PlayHit()
 {
     bIsHit = true;
 
-    // 0.3ÃÊ ÈÄ ÀÚµ¿ ÇØÁ¦
+    // 0.3ì´ˆ í›„ ìžë™ í•´ì œ
     GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
         {
             bIsHit = false;
@@ -341,7 +341,7 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         EnhancedInput->BindAction(IA_Debug4, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern4);
     }
 
-    if (bIsDead) return; // Á×À¸¸é ÀÔ·Â µî·Ï ¾ÈÇÔ
+    if (bIsDead) return; // ì£½ìœ¼ë©´ ìž…ë ¥ ë“±ë¡ ì•ˆí•¨
 }
 
 void ABaseCharacter::Attack(const FInputActionValue& Value)
@@ -413,21 +413,29 @@ void ABaseCharacter::R(const FInputActionValue& Value)
 void ABaseCharacter::ResetQCooldown()
 {
     bCanUseQ = true;
+    QRemainingCooldown = 0.f;
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::ResetWCooldown()
 {
     bCanUseW = true;
+    WRemainingCooldown = 0.f;
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::ResetECooldown()
 {
     bCanUseE = true;
+    ERemainingCooldown = 0.f;
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::ResetRCooldown()
 {
     bCanUseR = true;
+    RRemainingCooldown = 0.f;
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::ToggleInventory()
@@ -500,7 +508,7 @@ void ABaseCharacter::TakePlayerDamage(float Damage)
         FinalDamage *= (1.f - DefenseRate);
     }
 
-    // º¸È£¸· ¸ÕÀú °¨¼Ò
+    // ë³´í˜¸ë§‰ ë¨¼ì € ê°ì†Œ
     if (ShieldHP > 0)
     {
         float UsedShield = FMath::Min(ShieldHP, FinalDamage);
@@ -510,19 +518,19 @@ void ABaseCharacter::TakePlayerDamage(float Damage)
         FinalDamage -= UsedShield;
     }
 
-    // ³²Àº µ¥¹ÌÁö¸¸ Ã¼·Â °¨¼Ò
+    // ë‚¨ì€ ë°ë¯¸ì§€ë§Œ ì²´ë ¥ ê°ì†Œ
     CurrentHP -= FinalDamage;
 
     ForceNetUpdate();
 
     if (CurrentHP > 0)
     {
-        // »ì¾ÆÀÖÀ» ¶§¸¸ Hit
+        // ì‚´ì•„ìžˆì„ ë•Œë§Œ Hit
         PlayAnimMontage(HitMontage);
     }
     else
     {
-        // Á×À» ¶§¸¸ Death
+        // ì£½ì„ ë•Œë§Œ Death
         Die();
     }
 }
@@ -570,7 +578,7 @@ bool ABaseCharacter::UpgradeSkill(FSkillUpgradeData UpgradeData)
         return false;
     }
 
-    // ÃÖ´ë ·¹º§ Á¦ÇÑ
+    // ìµœëŒ€ ë ˆë²¨ ì œí•œ
     if (SkillLevels[UpgradeData.SkillType] >= 4)
     {
         GEngine->AddOnScreenDebugMessage(
@@ -597,6 +605,11 @@ bool ABaseCharacter::UpgradeSkill(FSkillUpgradeData UpgradeData)
         GI->SkillLevels = SkillLevels;
     }
 
+    if (!HasAuthority())
+    {
+        ServerUpgradeSkill(UpgradeData);
+    }
+
     GEngine->AddOnScreenDebugMessage(
         -1,
         2.f,
@@ -605,6 +618,11 @@ bool ABaseCharacter::UpgradeSkill(FSkillUpgradeData UpgradeData)
     );
 
     return true;
+}
+
+void ABaseCharacter::ServerUpgradeSkill_Implementation(FSkillUpgradeData UpgradeData)
+{
+    UpgradeSkill(UpgradeData);
 }
 
 void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
@@ -1288,6 +1306,10 @@ void ABaseCharacter::ServerUseQ_Implementation()
 
     UseQ();
 
+    ClientStartSkillCooldown(ESkillType::Q, QCooldown);
+
+    ForceNetUpdate();
+
     ExecuteQDamage();
 }
 
@@ -1438,6 +1460,10 @@ void ABaseCharacter::ServerUseW_Implementation()
         false
     );
 
+    ClientStartSkillCooldown(ESkillType::W, WCooldown);
+
+    ForceNetUpdate();
+
     MulticastPlayW();
 }
 
@@ -1479,6 +1505,10 @@ void ABaseCharacter::ServerUseE_Implementation()
     MulticastPlayE();
 
     ExecuteE();
+
+    ClientStartSkillCooldown(ESkillType::E, ECooldown);
+
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::MulticastPlayE_Implementation()
@@ -1557,68 +1587,68 @@ void ABaseCharacter::ExecuteE()
             ShieldHP);
     }
 
-    FVector Start = GetActorLocation();
-
-    TArray<FOverlapResult> Overlaps;
-
-    FCollisionShape Sphere =
-        FCollisionShape::MakeSphere(ERadius);
-
-    bool bHit =
-        GetWorld()->OverlapMultiByChannel(
-            Overlaps,
-            Start,
-            FQuat::Identity,
-            ECC_Pawn,
-            Sphere);
-
-    if (bHit)
+    if (CharacterType == ECharacterType::Paladin && HealAmount > 0.f)
     {
-        TSet<ABaseCharacter*> HealedPlayers;
+        HealTickCount = 0;
 
-        for (auto& Result : Overlaps)
-        {
-            ABaseCharacter* Player =
-                Cast<ABaseCharacter>(Result.GetActor());
-
-            if (!Player)
-            {
-                continue;
-            }
-
-            // ÀÌ¹Ì Ã³¸®ÇÑ ÇÃ·¹ÀÌ¾î¸é °Ç³Ê¶Ü
-            if (HealedPlayers.Contains(Player))
-            {
-                continue;
-            }
-
-            HealedPlayers.Add(Player);
-
-            float Heal = Player->MaxHP * HealAmount;
-
-            UE_LOG(LogTemp, Warning,
-                TEXT("%s HP : %.0f -> %.0f"),
-                *Player->GetName(),
-                Player->CurrentHP,
-                FMath::Min(Player->CurrentHP + Heal, Player->MaxHP));
-
-            HealTickCount = 0;
-
-            GetWorldTimerManager().SetTimer(
-                HealOverTimeHandle,
-                this,
-                &ABaseCharacter::HealOverTimeTick,
-                1.f,
-                true);
-        }
+        GetWorldTimerManager().SetTimer(
+            HealOverTimeHandle,
+            this,
+            &ABaseCharacter::HealOverTimeTick,
+            1.f,
+            true);
     }
 }
 
 void ABaseCharacter::ServerUseR_Implementation()
 {
-    MulticastPlayR();
+    if (!bCanUseR || !CanUseCombatAction())
+    {
+        return;
+    }
 
     ExecuteR();
+
+    ClientStartSkillCooldown(ESkillType::R, RCooldown);
+
+    ForceNetUpdate();
+
+    MulticastPlayR();
+}
+
+void ABaseCharacter::ClientStartSkillCooldown_Implementation(
+    ESkillType SkillType,
+    float Duration)
+{
+    if (HasAuthority())
+    {
+        return;
+    }
+
+    const float CooldownDuration = FMath::Max(0.f, Duration);
+
+    switch (SkillType)
+    {
+    case ESkillType::Q:
+        bCanUseQ = false;
+        QRemainingCooldown = CooldownDuration;
+        break;
+
+    case ESkillType::W:
+        bCanUseW = false;
+        WRemainingCooldown = CooldownDuration;
+        break;
+
+    case ESkillType::E:
+        bCanUseE = false;
+        ERemainingCooldown = CooldownDuration;
+        break;
+
+    case ESkillType::R:
+        bCanUseR = false;
+        RRemainingCooldown = CooldownDuration;
+        break;
+    }
 }
 
 void ABaseCharacter::MulticastPlayR_Implementation()
@@ -1900,6 +1930,14 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABaseCharacter, bPrismPoseActive);
     DOREPLIFETIME(ABaseCharacter, Coin);
     DOREPLIFETIME(ABaseCharacter, bDarknessDebuff);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, QRemainingCooldown, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, WRemainingCooldown, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, ERemainingCooldown, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, RRemainingCooldown, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, bCanUseQ, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, bCanUseW, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, bCanUseE, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, bCanUseR, COND_OwnerOnly);
 }
 
 void ABaseCharacter::OnRep_CurrentHP()
@@ -2440,7 +2478,8 @@ void ABaseCharacter::HealOverTimeTick()
 
         Players.Add(Player);
 
-        float Heal = Player->MaxHP * 0.02f;
+        constexpr float TotalHealTicks = 5.f;
+        const float Heal = Player->MaxHP * HealAmount / TotalHealTicks;
 
         Player->HealPlayer(Heal);
     }

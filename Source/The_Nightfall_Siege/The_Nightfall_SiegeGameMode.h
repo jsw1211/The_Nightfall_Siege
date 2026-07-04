@@ -25,6 +25,12 @@ public:
 
 	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
 
+	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
+
+	virtual APawn* SpawnDefaultPawnAtTransform_Implementation(
+		AController* NewPlayer,
+		const FTransform& SpawnTransform) override;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character")
 	TSubclassOf<APawn> PaladinClass;
 
