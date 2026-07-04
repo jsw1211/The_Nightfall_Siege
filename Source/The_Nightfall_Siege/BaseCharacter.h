@@ -106,13 +106,13 @@ public:
 
 	void ExecuteQDamage();
 
-	// ½ºÅ³ »ç¿ë ÁßÀÎÁö
+	// ìŠ¤í‚¬ ì‚¬ìš© ì¤‘ì¸ì§€
 	bool bIsUsingSkill = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character")
 	ECharacterType CharacterType;
 
-	// ¹èÀ²
+	// ë°°ìœ¨
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	float QMultiplier = 1.0f;
 
@@ -139,19 +139,22 @@ public:
 
 	float BuffAttackSpeed = 1.5f;
 
-	// ÇöÀç º¸À¯ ½ºÅ³ Æ÷ÀÎÆ®
+	// í˜„ì¬ ë³´ìœ  ìŠ¤í‚¬ í¬ì¸íŠ¸
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	int32 SkillPoints = 0;
 
-	// ½ºÅ³ ·¹º§ ÀúÀå
+	// ìŠ¤í‚¬ ë ˆë²¨ ì €ì¥
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	TMap<ESkillType, int32> SkillLevels;
 
-	// ½ºÅ³ ¾÷±×·¹ÀÌµå
+	// ìŠ¤í‚¬ ì—…ê·¸ë ˆì´ë“œ
 	UFUNCTION(BlueprintCallable)
 	bool UpgradeSkill(FSkillUpgradeData UpgradeData);
 
-	// ½ÇÁ¦ ´É·ÂÄ¡ Àû¿ë
+	UFUNCTION(Server, Reliable)
+	void ServerUpgradeSkill(FSkillUpgradeData UpgradeData);
+
+	// ì‹¤ì œ ëŠ¥ë ¥ì¹˜ ì ìš©
 	UFUNCTION(BlueprintCallable)
 	void ApplySkillUpgrade(FSkillUpgradeData UpgradeData);
 
@@ -310,7 +313,7 @@ public:
 	UPROPERTY()
 	UPlayerHUDWidget* HUDWidget;
 
-	// Ã¼·Â
+	// ì²´ë ¥
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float MaxHP = 100.f;
 
@@ -332,11 +335,11 @@ public:
 	virtual void GetLifetimeReplicatedProps(
     TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
-	// º¸È£¸·
+	// ë³´í˜¸ë§‰
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
 	float ShieldHP = 0.f;
 
-	// ÄğÅ¸ÀÓ ½Ã°£
+	// ì¿¨íƒ€ì„ ì‹œê°„
 	UPROPERTY(EditAnywhere, Category = "Cooldown")
 	float QCooldown = 5.0f;
 
@@ -432,7 +435,7 @@ public:
 
 	bool CanUseCombatAction() const;
 
-	// »óÅÂ
+	// ìƒíƒœ
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	bool bIsDead = false;
 
@@ -522,13 +525,13 @@ protected:
 
 	bool bSkillTreeOpen = false;
 
-	// ÄğÅ¸ÀÓ »óÅÂ
+	// ì¿¨íƒ€ì„ ìƒíƒœ
 	bool bCanUseQ = true;
 	bool bCanUseW = true;
 	bool bCanUseE = true;
 	bool bCanUseR = true;
 
-	// µ¥¹ÌÁö
+	// ë°ë¯¸ì§€
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	float QDamage = 10.f;
 
@@ -541,7 +544,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	float RDamage = 50.f;
 
-	// ¹üÀ§
+	// ë²”ìœ„
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	float QRadius = 100.f;
 
@@ -554,13 +557,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	float RRadius = 200.f;
 
-	// Å¸ÀÌ¸Ó ÇÚµé
+	// íƒ€ì´ë¨¸ í•¸ë“¤
 	FTimerHandle QCooldownTimer;
 	FTimerHandle WCooldownTimer;
 	FTimerHandle ECooldownTimer;
 	FTimerHandle RCooldownTimer;
 
-	// ÄğÅ¸ÀÓ ¸®¼Â ÇÔ¼ö
+	// ì¿¨íƒ€ì„ ë¦¬ì…‹ í•¨ìˆ˜
 	void ResetQCooldown();
 	void ResetWCooldown();
 	void ResetECooldown();
@@ -574,19 +577,19 @@ protected:
 	UUserWidget* InventoryWidget;
 	bool bInventoryOpen = false;
 
-	// °ø°İ·Â
+	// ê³µê²©ë ¥
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float AttackPower = 100.f;
 
-	// ¹æ¾îÀ²
+	// ë°©ì–´ìœ¨
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float DefenseRate = 0.f;
 
-	// °ø°İ¼Óµµ
+	// ê³µê²©ì†ë„
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float AttackSpeed = 1.f;
 
-	// ¾Ö´Ï¸ŞÀÌ¼Ç »óÅÂ Àü´Ş¿ë
+	// ì• ë‹ˆë©”ì´ì…˜ ìƒíƒœ ì „ë‹¬ìš©
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	bool bIsHit = false;
 
@@ -635,7 +638,7 @@ protected:
 	UPROPERTY()
 	AActor* LeftHandWeapon;
 
-	////////////////////////////////////////////µğ¹ö±×
+	////////////////////////////////////////////ë””ë²„ê·¸
 	UFUNCTION(Server, Reliable)
 	void ServerDebugBossPattern(uint8 PatternIndex);
 
