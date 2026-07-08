@@ -152,7 +152,7 @@ void APortal::Interact(ABaseCharacter* Player)
                 TEXT("ServerTravel -> Village"));
 
             GetWorld()->ServerTravel(
-                TEXT("/Game/TopDown/Lvl_TopDown?listen"));
+                TEXT("/Game/Map/Village+Forest/Village_Forest?listen"));
         }
 
         break;
@@ -166,7 +166,7 @@ void APortal::Interact(ABaseCharacter* Player)
                 TEXT("ServerTravel -> Boss"));
 
             GetWorld()->ServerTravel(
-                TEXT("/Game/Level/DragonLevelSample?listen"));
+                TEXT("/Game/Map/Boss_Arena/Boss_Arena?listen"));
         }
 
         break;

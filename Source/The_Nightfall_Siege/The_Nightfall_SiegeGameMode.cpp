@@ -21,7 +21,7 @@ void AThe_Nightfall_SiegeGameMode::BeginPlay()
     Super::BeginPlay();
 
     // TopDown 맵에서만 실행
-    if (!GetWorld()->GetMapName().Contains(TEXT("Lvl_TopDown")))
+    if (!GetWorld()->GetMapName().Contains(TEXT("Village_Forest")))
     {
         return;
     }

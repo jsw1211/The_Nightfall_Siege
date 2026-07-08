@@ -232,7 +232,7 @@ void ABaseController::ServerStartGame_Implementation()
             (int32)PS->SelectedCharacter);
     }
 
-    GetWorld()->ServerTravel(TEXT("/Game/TopDown/Lvl_TopDown?listen"));
+    GetWorld()->ServerTravel(TEXT("/Game/Map/Village+Forest/Village_Forest?listen"));
 }
 
 void ABaseController::ServerSelectCharacter_Implementation(ECharacterType NewCharacter)
