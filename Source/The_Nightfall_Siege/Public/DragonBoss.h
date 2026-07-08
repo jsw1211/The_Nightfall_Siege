@@ -99,7 +99,7 @@ public:
 	UFUNCTION()
 	void OnRep_CurrentState();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Boss")
 	bool bIsFlying = false;
 
 	// =========================
@@ -252,8 +252,17 @@ public:
 	UPROPERTY()
 	bool bIsLeaping = false;
 
-	UPROPERTY(EditAnywhere)
-	float AttackRange = 1000.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Movement", meta = (ClampMin = "0.0"))
+	float FlyStartRange = 2000.f;
+
+	// Walking stops and attacks become eligible at this same distance.
+	// Keeping one value avoids a dead zone between movement and attacks.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Movement", meta = (ClampMin = "0.0"))
+	float AttackStartRange = 700.f;
+
+	// Once flight starts it remains latched until this distance is reached.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Movement", meta = (ClampMin = "0.0"))
+	float FlyLandingRange = 700.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
 	TObjectPtr<UNiagaraSystem> BiteFX;
@@ -274,6 +283,9 @@ public:
 	void MulticastPlayAttack(EDragonAttackType AttackType);
 
 	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayMovementTransition(bool bLanding);
+
+	UFUNCTION(NetMulticast, Reliable)
 	void MulticastSpawnBiteFX(FVector Location);
 
 	UFUNCTION(NetMulticast, Reliable)
@@ -282,7 +294,7 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 
-	////////////////////////////////////µð¹ö±×
+	////////////////////////////////////ë””ë²„ê·¸
 	void DebugBite();
 	void DebugCloseBreath();
 	void DebugBreath();

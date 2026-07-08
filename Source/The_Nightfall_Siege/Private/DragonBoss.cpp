@@ -113,6 +113,22 @@ void ADragonBoss::Tick(float DeltaTime)
 		return;
 	}
 
+	if (CurrentState == EDragonState::Leap)
+	{
+		return;
+	}
+
+	if (CurrentState == EDragonState::Flying)
+	{
+		FlyToTarget();
+		return;
+	}
+
+	if (CurrentState == EDragonState::Landing)
+	{
+		return;
+	}
+
 	if (!TargetPlayer || TargetPlayer->IsDead())
 	{
 		ChooseRandomTarget();
@@ -127,23 +143,21 @@ void ADragonBoss::Tick(float DeltaTime)
 	{
 		float Distance = FVector::Dist(GetActorLocation(), TargetPlayer->GetActorLocation());
 
-		const float CombatRange = 700.f;
-
 		if (bIsFlying)
 		{
 			FlyToTarget();
 		}
 		else
 		{
-			if (Distance > 2000.f)
+			if (Distance > FlyStartRange)
 			{
 				FlyToTarget();
 			}
-			else if (Distance > AttackRange)
+			else if (Distance > AttackStartRange)
 			{
 				WalkToTarget();
 			}
-			else
+			else if (Distance <= AttackStartRange)
 			{
 				if (!GetWorldTimerManager().IsTimerActive(AttackTimerHandle))
 				{
@@ -191,7 +205,7 @@ void ADragonBoss::StartAttackCycle()
 	}
 	//ChooseRandomTarget();
 
-	float RandomDelay = FMath::RandRange(1.f, 2.f); // µð¹ö±×¿ëÀ¸·Î 1~2ÃÊ
+	float RandomDelay = FMath::RandRange(1.f, 2.f); // ë””ë²„ê·¸ìš©ìœ¼ë¡œ 1~2ì´ˆ
 
 	GetWorldTimerManager().SetTimer(
 		AttackTimerHandle,
@@ -451,7 +465,7 @@ void ADragonBoss::WalkToTarget()
 	{
 		AIController->MoveToActor(
 			TargetPlayer,
-			AttackRange);
+			AttackStartRange);
 	}
 }
 
@@ -476,7 +490,7 @@ void ADragonBoss::FlyToTarget()
 
 		CurrentState = EDragonState::Leap;
 
-		PlayAnimMontage(LeapMontage);
+		MulticastPlayMovementTransition(false);
 
 		return;
 	}
@@ -486,15 +500,14 @@ void ADragonBoss::FlyToTarget()
 			GetActorLocation(),
 			TargetPlayer->GetActorLocation());
 
-	if (Distance <= AttackRange)
+	if (Distance <= FlyLandingRange)
 	{
 		bIsFlying = false;
 
 		CurrentState =
 			EDragonState::Landing;
 
-		PlayAnimMontage(
-			LandMontage);
+		MulticastPlayMovementTransition(true);
 
 		return;
 	}
@@ -702,7 +715,7 @@ void ADragonBoss::ChooseRandomTarget()
 
 EDragonPatternType ADragonBoss::ChoosePattern()
 {
-	int32 Rand = FMath::RandRange(1, 100);
+	/*int32 Rand = FMath::RandRange(1, 100);
 
 	if (Rand <= 70)
 	{
@@ -714,7 +727,8 @@ EDragonPatternType ADragonBoss::ChoosePattern()
 		return EDragonPatternType::TargetChange;
 	}
 
-	return EDragonPatternType::CenterMechanic;
+	return EDragonPatternType::CenterMechanic;*/
+	return EDragonPatternType::TargetChange;
 }
 
 void ADragonBoss::ExecutePattern()
@@ -750,12 +764,12 @@ void ADragonBoss::ExecutePattern()
 		TEXT("ExecutePattern Distance = %f"),
 		Distance);
 
-	if (Distance > AttackRange)
+	if (Distance > AttackStartRange)
 	{
 		UE_LOG(LogTemp, Warning,
 			TEXT("Target Out Of Range : %f"), Distance);
 
-		if (Distance > 2000.f)
+		if (Distance > FlyStartRange)
 		{
 			FlyToTarget();
 		}
@@ -1145,11 +1159,18 @@ void ADragonBoss::ExecuteTelegraphedAttack(
 
 void ADragonBoss::OnLeapFinished()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	UE_LOG(LogTemp, Error,
 		TEXT("===== LEAP FINISHED ====="));
 
 	bIsLeaping = false;
 	bIsFlying = true;
+
+	UE_LOG(LogTemp, Warning, TEXT("bIsFlying = %d"), bIsFlying);
 
 	CurrentState = EDragonState::Flying;
 
@@ -1158,13 +1179,21 @@ void ADragonBoss::OnLeapFinished()
 
 	UE_LOG(LogTemp, Error,
 		TEXT("Target = %s"),
-		*TargetPlayer->GetName());
+		TargetPlayer ? *TargetPlayer->GetName() : TEXT("None"));
 
-	FlyToTarget();
+	if (TargetPlayer)
+	{
+		FlyToTarget();
+	}
 }
 
 void ADragonBoss::OnLandFinished()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	bIsFlying = false;
 
 	CurrentState = EDragonState::Walking;
@@ -1324,6 +1353,16 @@ void ADragonBoss::MulticastPlayAttack_Implementation(EDragonAttackType AttackTyp
 	}
 }
 
+void ADragonBoss::MulticastPlayMovementTransition_Implementation(bool bLanding)
+{
+	UAnimMontage* Montage = bLanding ? LandMontage : LeapMontage;
+
+	if (Montage)
+	{
+		PlayAnimMontage(Montage);
+	}
+}
+
 void ADragonBoss::MulticastSpawnBiteFX_Implementation(
 	FVector Location)
 {
@@ -1368,6 +1407,7 @@ void ADragonBoss::GetLifetimeReplicatedProps(
 
 	DOREPLIFETIME(ADragonBoss, CurrentState);
 	DOREPLIFETIME(ADragonBoss, CurrentHP);
+	DOREPLIFETIME(ADragonBoss, bIsFlying);
 }
 
 void ADragonBoss::OnRep_CurrentHP()
