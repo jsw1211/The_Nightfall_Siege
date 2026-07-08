@@ -96,6 +96,14 @@ void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// The PlayerState is the server-authoritative character selection. The
+	// visual pawn class can be correct while this property still holds its
+	// blueprint/default value, which applies upgrades for the wrong class.
+	if (ABasePlayerState* InitialPlayerState = GetPlayerState<ABasePlayerState>())
+	{
+		CharacterType = InitialPlayerState->SelectedCharacter;
+	}
+
     switch (CharacterType)
     {
     case ECharacterType::Paladin:
@@ -139,13 +147,15 @@ void ABaseCharacter::BeginPlay()
         MaxHP = 400.f;
         AttackPower = 300.f;
 
-        QMultiplier = 1.2f;
-        EMultiplier = 1.2f;
+		QMultiplier = 1.0f;
+		EMultiplier = 1.0f;
 
         break;
     }
 
     CurrentHP = 200000.f; // 임시 MaxHP여야함
+
+	BaseAttackPower = AttackPower;
 	
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
@@ -199,9 +209,16 @@ void ABaseCharacter::BeginPlay()
     {
         SkillPoints = GI->SkillPoints;
         SkillLevels = GI->SkillLevels;
-
-        RestoreSkillUpgrades();
     }
+
+	// Every skill always starts at level 1, including sessions where no saved
+	// GameInstance entry exists yet.
+	SkillLevels.FindOrAdd(ESkillType::Q) = FMath::Clamp(SkillLevels.FindRef(ESkillType::Q), 1, 4);
+	SkillLevels.FindOrAdd(ESkillType::W) = FMath::Clamp(SkillLevels.FindRef(ESkillType::W), 1, 4);
+	SkillLevels.FindOrAdd(ESkillType::E) = FMath::Clamp(SkillLevels.FindRef(ESkillType::E), 1, 4);
+	SkillLevels.FindOrAdd(ESkillType::R) = FMath::Clamp(SkillLevels.FindRef(ESkillType::R), 1, 4);
+
+	RestoreSkillUpgrades();
 
     ABasePlayerState* PS = GetPlayerState<ABasePlayerState>();
 
@@ -566,6 +583,14 @@ void ABaseCharacter::EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketNa
 
 bool ABaseCharacter::UpgradeSkill(FSkillUpgradeData UpgradeData)
 {
+	// Combat damage and cooldowns are authoritative on the server. Do not only
+	// upgrade the local copy, otherwise the UI changes but gameplay does not.
+	if (!HasAuthority())
+	{
+		ServerUpgradeSkill(UpgradeData);
+		return true;
+	}
+
     if (SkillPoints <= 0)
     {
         GEngine->AddOnScreenDebugMessage(
@@ -605,10 +630,19 @@ bool ABaseCharacter::UpgradeSkill(FSkillUpgradeData UpgradeData)
         GI->SkillLevels = SkillLevels;
     }
 
-    if (!HasAuthority())
-    {
-        ServerUpgradeSkill(UpgradeData);
-    }
+
+	ForceNetUpdate();
+
+	UE_LOG(LogTemp, Log,
+		TEXT("Skill upgraded on server: Character=%d Type=%d Level=%d Points=%d Q=%.2f E=%.2f WReduction=%.1f RBonus=%.2f"),
+		static_cast<int32>(CharacterType),
+		static_cast<int32>(UpgradeData.SkillType),
+		SkillLevels.FindRef(UpgradeData.SkillType),
+		SkillPoints,
+		QMultiplier,
+		EMultiplier,
+		WarriorWCooldownReduction,
+		WarriorRDamageBonus);
 
     GEngine->AddOnScreenDebugMessage(
         -1,
@@ -622,7 +656,43 @@ bool ABaseCharacter::UpgradeSkill(FSkillUpgradeData UpgradeData)
 
 void ABaseCharacter::ServerUpgradeSkill_Implementation(FSkillUpgradeData UpgradeData)
 {
-    UpgradeSkill(UpgradeData);
+	const bool bSuccess = UpgradeSkill(UpgradeData);
+	ClientConfirmSkillUpgrade(
+		bSuccess,
+		UpgradeData.SkillType,
+		SkillLevels.FindRef(UpgradeData.SkillType),
+		SkillPoints);
+}
+
+void ABaseCharacter::ClientConfirmSkillUpgrade_Implementation(
+	bool bSuccess,
+	ESkillType SkillType,
+	int32 NewLevel,
+	int32 NewSkillPoints)
+{
+	SkillPoints = NewSkillPoints;
+
+	if (!bSuccess)
+	{
+		if (SkillTreeWidget)
+		{
+			SkillTreeWidget->UpdateSkillPointText();
+			SkillTreeWidget->UpdateSkillLevelText();
+		}
+		return;
+	}
+
+	SkillLevels.FindOrAdd(SkillType) = NewLevel;
+
+	FSkillUpgradeData UpgradeData;
+	UpgradeData.SkillType = SkillType;
+	ApplySkillUpgrade(UpgradeData);
+
+	if (SkillTreeWidget)
+	{
+		SkillTreeWidget->UpdateSkillPointText();
+		SkillTreeWidget->UpdateSkillLevelText();
+	}
 }
 
 void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
@@ -792,76 +862,34 @@ void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
         switch (UpgradeData.SkillType)
         {
         case ESkillType::Q:
-
-            if (SkillLevel == 2)
-            {
-                QMultiplier = 1.2f;
-            }
-            else if (SkillLevel == 3)
-            {
-                QMultiplier = 1.5f;
-            }
-            else if (SkillLevel == 4)
-            {
-                QMultiplier = 1.8f;
-            }
+			QMultiplier =
+				(SkillLevel >= 4) ? 1.8f :
+				(SkillLevel == 3) ? 1.5f :
+				(SkillLevel == 2) ? 1.2f : 1.0f;
 
             break;
 
         case ESkillType::W:
-
-            if (SkillLevel == 2)
-            {
-                QCooldown -= 2.f;
-                ECooldown -= 2.f;
-                RCooldown -= 2.f;
-            }
-            else if (SkillLevel == 3)
-            {
-                QCooldown -= 3.f;
-                ECooldown -= 3.f;
-                RCooldown -= 3.f;
-            }
-            else if (SkillLevel == 4)
-            {
-                QCooldown -= 4.f;
-                ECooldown -= 4.f;
-                RCooldown -= 4.f;
-            }
+			WarriorWCooldownReduction =
+				(SkillLevel >= 4) ? 4.0f :
+				(SkillLevel == 3) ? 3.0f :
+				(SkillLevel == 2) ? 2.0f : 0.0f;
 
             break;
 
         case ESkillType::E:
-
-            if (SkillLevel == 2)
-            {
-                EMultiplier = 1.2f;
-            }
-            else if (SkillLevel == 3)
-            {
-                EMultiplier = 1.5f;
-            }
-            else if (SkillLevel == 4)
-            {
-                EMultiplier = 1.8f;
-            }
+			EMultiplier =
+				(SkillLevel >= 4) ? 1.8f :
+				(SkillLevel == 3) ? 1.5f :
+				(SkillLevel == 2) ? 1.2f : 1.0f;
 
             break;
 
         case ESkillType::R:
-
-            if (SkillLevel == 2)
-            {
-                AttackPower *= 1.5f;
-            }
-            else if (SkillLevel == 3)
-            {
-                AttackPower *= 1.8f;
-            }
-            else if (SkillLevel == 4)
-            {
-                AttackPower *= 2.0f;
-            }
+			WarriorRDamageBonus =
+				(SkillLevel >= 4) ? 1.0f :
+				(SkillLevel == 3) ? 0.8f :
+				(SkillLevel == 2) ? 0.5f : 0.0f;
 
             break;
         }
@@ -1270,23 +1298,9 @@ void ABaseCharacter::RestoreSkillUpgrades()
 {
     for (const auto& Pair : SkillLevels)
     {
-        ESkillType SkillType = Pair.Key;
-        int32 Level = Pair.Value;
-
-        if (Level <= 1)
-        {
-            continue;
-        }
-
-        for (int32 i = 2; i <= Level; i++)
-        {
-            FSkillUpgradeData Data;
-            Data.SkillType = SkillType;
-
-            SkillLevels[SkillType] = i;
-
-            ApplySkillUpgrade(Data);
-        }
+		FSkillUpgradeData Data;
+		Data.SkillType = Pair.Key;
+		ApplySkillUpgrade(Data);
     }
 }
 
@@ -1460,9 +1474,58 @@ void ABaseCharacter::ServerUseW_Implementation()
         false
     );
 
+	if (CharacterType == ECharacterType::Warrior && WarriorWCooldownReduction > 0.0f)
+	{
+		auto ReduceCooldown = [this](
+			FTimerHandle& TimerHandle,
+			float& RemainingCooldown,
+			void (ABaseCharacter::*ResetFunction)())
+		{
+			if (!GetWorldTimerManager().IsTimerActive(TimerHandle))
+			{
+				return;
+			}
+
+			const float NewRemaining = FMath::Max(
+				0.0f,
+				GetWorldTimerManager().GetTimerRemaining(TimerHandle) - WarriorWCooldownReduction);
+
+			GetWorldTimerManager().ClearTimer(TimerHandle);
+			RemainingCooldown = NewRemaining;
+
+			if (NewRemaining <= 0.0f)
+			{
+				(this->*ResetFunction)();
+			}
+			else
+			{
+				GetWorldTimerManager().SetTimer(
+					TimerHandle,
+					this,
+					ResetFunction,
+					NewRemaining,
+					false);
+			}
+		};
+
+		ReduceCooldown(QCooldownTimer, QRemainingCooldown, &ABaseCharacter::ResetQCooldown);
+		ReduceCooldown(ECooldownTimer, ERemainingCooldown, &ABaseCharacter::ResetECooldown);
+		ReduceCooldown(RCooldownTimer, RRemainingCooldown, &ABaseCharacter::ResetRCooldown);
+	}
+
     ClientStartSkillCooldown(ESkillType::W, WCooldown);
 
     ForceNetUpdate();
+
+	UE_LOG(LogTemp, Log,
+		TEXT("Use W: Character=%d Level=%d Reduction=%.1f WCooldown=%.1f QRemain=%.1f ERemain=%.1f RRemain=%.1f"),
+		static_cast<int32>(CharacterType),
+		SkillLevels.FindRef(ESkillType::W),
+		WarriorWCooldownReduction,
+		WCooldown,
+		QRemainingCooldown,
+		ERemainingCooldown,
+		RRemainingCooldown);
 
     MulticastPlayW();
 }
@@ -1577,6 +1640,42 @@ void ABaseCharacter::ExecuteE()
         ECooldown,
         false
     );
+
+	if (CharacterType == ECharacterType::Warrior)
+	{
+		TArray<FOverlapResult> Overlaps;
+		const FCollisionShape DamageSphere = FCollisionShape::MakeSphere(ERadius);
+
+		GetWorld()->OverlapMultiByChannel(
+			Overlaps,
+			GetActorLocation(),
+			FQuat::Identity,
+			ECC_Pawn,
+			DamageSphere);
+
+		TSet<AActor*> DamagedActors;
+		for (const FOverlapResult& Result : Overlaps)
+		{
+			AActor* HitActor = Result.GetActor();
+			if (!HitActor || DamagedActors.Contains(HitActor))
+			{
+				continue;
+			}
+
+			if (AMonster* Monster = Cast<AMonster>(HitActor))
+			{
+				Monster->TakeMonsterDamage(AttackPower * EMultiplier);
+				DamagedActors.Add(HitActor);
+			}
+			else if (ADragonBoss* Dragon = Cast<ADragonBoss>(HitActor))
+			{
+				Dragon->TakeBossDamage(AttackPower * EMultiplier);
+				DamagedActors.Add(HitActor);
+			}
+		}
+
+		return;
+	}
 
     if (CharacterType == ECharacterType::Paladin)
     {
@@ -1729,6 +1828,26 @@ void ABaseCharacter::ExecuteR()
         false
     );
 
+	if (CharacterType == ECharacterType::Warrior)
+	{
+		// Recasting/resetting can never multiply an already buffed value.
+		AttackPower = BaseAttackPower * (1.0f + WarriorRDamageBonus);
+
+		GetWorldTimerManager().ClearTimer(WarriorRBuffHandle);
+		GetWorldTimerManager().SetTimer(
+			WarriorRBuffHandle,
+			this,
+			&ABaseCharacter::EndWarriorRBuff,
+			10.0f,
+			false);
+
+		UE_LOG(LogTemp, Log,
+			TEXT("Warrior R: Level %d, Damage Bonus %.0f%% for 10 seconds"),
+			SkillLevels.FindRef(ESkillType::R),
+			WarriorRDamageBonus * 100.0f);
+		return;
+	}
+
     TArray<AActor*> Players;
 
     UGameplayStatics::GetAllActorsOfClass(
@@ -1789,6 +1908,11 @@ void ABaseCharacter::ExecuteR()
 
         Monster->ApplyTaunt(this);
     }
+}
+
+void ABaseCharacter::EndWarriorRBuff()
+{
+	AttackPower = BaseAttackPower;
 }
 
 void ABaseCharacter::ServerAttack_Implementation()
@@ -1922,6 +2046,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
     DOREPLIFETIME(ABaseCharacter, CurrentHP);
+	DOREPLIFETIME(ABaseCharacter, CharacterType);
     DOREPLIFETIME(ABaseCharacter, bHasLantern);
     DOREPLIFETIME(ABaseCharacter, bLanternEquipped);
     DOREPLIFETIME(ABaseCharacter, bLanternPoseActive);
@@ -1929,6 +2054,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABaseCharacter, bPrismEquipped);
     DOREPLIFETIME(ABaseCharacter, bPrismPoseActive);
     DOREPLIFETIME(ABaseCharacter, Coin);
+	DOREPLIFETIME_CONDITION(ABaseCharacter, SkillPoints, COND_OwnerOnly);
     DOREPLIFETIME(ABaseCharacter, bDarknessDebuff);
     DOREPLIFETIME_CONDITION(ABaseCharacter, QRemainingCooldown, COND_OwnerOnly);
     DOREPLIFETIME_CONDITION(ABaseCharacter, WRemainingCooldown, COND_OwnerOnly);
@@ -2002,6 +2128,8 @@ void ABaseCharacter::ServerPickupLantern_Implementation(ALantern* Lantern)
 
     if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
     {
+		CharacterType = PS->SelectedCharacter;
+
         PS->bHasLantern = true;
 
         UE_LOG(LogTemp, Warning,
