@@ -85,9 +85,14 @@ ABaseCharacter::ABaseCharacter()
 
     LanternLight->SetVisibility(false);
 
-    LanternLight->SetIntensity(5000.f);
+    LanternLight->SetIntensity(3000.f);
 
     LanternLight->SetAttenuationRadius(1200.f);
+
+    LanternLight->SetLightColor(FLinearColor(0.0f, 1.0f, 0.0f));
+
+    UE_LOG(LogTemp, Warning, TEXT("%s"),
+        *LanternLight->GetLightColor().ToString());
 
 }
 
