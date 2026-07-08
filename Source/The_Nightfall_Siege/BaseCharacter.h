@@ -112,7 +112,7 @@ public:
 	// 스킬 사용 중인지
 	bool bIsUsingSkill = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character")
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Character")
 	ECharacterType CharacterType;
 
 	// 배율
@@ -143,7 +143,7 @@ public:
 	float BuffAttackSpeed = 1.5f;
 
 	// 현재 보유 스킬 포인트
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	int32 SkillPoints = 0;
 
 	// 스킬 레벨 저장
@@ -156,6 +156,9 @@ public:
 
 	UFUNCTION(Server, Reliable)
 	void ServerUpgradeSkill(FSkillUpgradeData UpgradeData);
+
+	UFUNCTION(Client, Reliable)
+	void ClientConfirmSkillUpgrade(bool bSuccess, ESkillType SkillType, int32 NewLevel, int32 NewSkillPoints);
 
 	// 실제 능력치 적용
 	UFUNCTION(BlueprintCallable)
@@ -354,6 +357,16 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Cooldown")
 	float RCooldown = 20.0f;
+
+	// Unmodified values used to apply Warrior upgrades absolutely rather than
+	// accumulating the same upgrade again after travel/load.
+	float BaseAttackPower = 100.0f;
+
+	float WarriorRDamageBonus = 0.0f;
+	float WarriorWCooldownReduction = 0.0f;
+	FTimerHandle WarriorRBuffHandle;
+
+	void EndWarriorRBuff();
 
 	UPROPERTY(Replicated, BlueprintReadOnly)
 	float QRemainingCooldown = 0.f;
