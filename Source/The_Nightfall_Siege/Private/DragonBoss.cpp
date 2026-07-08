@@ -517,12 +517,24 @@ void ADragonBoss::FlyToTarget()
 
 	TargetLoc.Z += 300.f;
 
+	const float DeltaSeconds = GetWorld()->GetDeltaSeconds();
+	const FVector PreviousLocation = GetActorLocation();
+
 	FVector NewLocation =
 		FMath::VInterpConstantTo(
-			GetActorLocation(),
+			PreviousLocation,
 			TargetLoc,
-			GetWorld()->GetDeltaSeconds(),
+			DeltaSeconds,
 			1200.f);
+
+	// SetActorLocation does not provide a stable CharacterMovement velocity.
+	// Keep it updated so animation blueprints never see a zero-speed frame
+	// while the dragon is visibly flying.
+	if (DeltaSeconds > UE_SMALL_NUMBER)
+	{
+		GetCharacterMovement()->Velocity =
+			(NewLocation - PreviousLocation) / DeltaSeconds;
+	}
 
 	SetActorLocation(NewLocation);
 
