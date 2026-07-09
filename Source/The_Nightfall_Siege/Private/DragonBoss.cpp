@@ -43,9 +43,10 @@ void ADragonBoss::BeginPlay()
 
 	ChooseRandomTarget();
 
+	bFirstBreathDone = false;
+
 	StartAttackTelegraph(EDragonAttackType::Breath);
 
-	bFirstBreathDone = true;
 }
 
 // Called every frame
@@ -109,6 +110,11 @@ void ADragonBoss::Tick(float DeltaTime)
 	}
 
 	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
+	if (!bFirstBreathDone)
 	{
 		return;
 	}
@@ -362,7 +368,7 @@ void ADragonBoss::BreathAttack()
 		AIController->StopMovement();
 	}
 
-	CurrentState = EDragonState::Flying;
+	CurrentState = EDragonState::Attacking;
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Breath"));
 
@@ -584,7 +590,9 @@ void ADragonBoss::TakeBossDamage(float Damage)
 		return;
 	}
 
-	CurrentHP -= Damage;
+	CurrentHP = FMath::Max(
+		0.f,
+		CurrentHP - Damage);
 
 	ForceNetUpdate();
 
@@ -610,7 +618,9 @@ void ADragonBoss::OnBreathReflected()
 	{
 		float Damage = MaxHP * 0.1f;
 
-		CurrentHP -= Damage;
+		CurrentHP = FMath::Max(
+			0.f,
+			CurrentHP - Damage);
 
 		UE_LOG(LogTemp, Warning,
 			TEXT("Reflect Damage : %f"),
@@ -727,7 +737,7 @@ void ADragonBoss::ChooseRandomTarget()
 
 EDragonPatternType ADragonBoss::ChoosePattern()
 {
-	/*int32 Rand = FMath::RandRange(1, 100);
+	int32 Rand = FMath::RandRange(1, 100);
 
 	if (Rand <= 70)
 	{
@@ -739,8 +749,7 @@ EDragonPatternType ADragonBoss::ChoosePattern()
 		return EDragonPatternType::TargetChange;
 	}
 
-	return EDragonPatternType::CenterMechanic;*/
-	return EDragonPatternType::TargetChange;
+	return EDragonPatternType::CenterMechanic;
 }
 
 void ADragonBoss::ExecutePattern()
@@ -932,7 +941,15 @@ void ADragonBoss::OnCenterMechanicSuccess()
 
 	float Damage = MaxHP * 0.1f;
 
-	CurrentHP -= Damage;
+	CurrentHP = FMath::Max(
+		0.f,
+		CurrentHP - Damage);
+
+	if (CurrentHP <= 0.f)
+	{
+		Die();
+		return;
+	}
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("Center Mechanic Success"));
@@ -965,16 +982,39 @@ void ADragonBoss::OnAttackFinished()
 
 	bIsAttacking = false;
 
+	if (!bFirstBreathDone)
+	{
+		bFirstBreathDone = true;
+	}
+
 	StartAttackCycle();
 }
 
 void ADragonBoss::Die()
 {
+
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
+	CurrentHP = 0.f;
+
 	CurrentState = EDragonState::Dead;
 
+	bIsFlying = false;
+	bIsLeaping = false;
 	bIsAttacking = false;
 
+	bCenterTracking = false;
+	bCenterMechanicActive = false;
+
 	GetCharacterMovement()->DisableMovement();
+
+	GetCapsuleComponent()->SetCollisionEnabled(
+		ECollisionEnabled::NoCollision);
+
+	MulticastPlayDeath();
 
 	GetWorldTimerManager().ClearTimer(
 		AttackTimerHandle
@@ -1447,5 +1487,13 @@ void ADragonBoss::DebugBreath()
 void ADragonBoss::DebugDebuff()
 {
 	StartAttackTelegraph(EDragonAttackType::Debuff);
+}
+
+void ADragonBoss::MulticastPlayDeath_Implementation()
+{
+	if (DeathMontage)
+	{
+		PlayAnimMontage(DeathMontage);
+	}
 }
 

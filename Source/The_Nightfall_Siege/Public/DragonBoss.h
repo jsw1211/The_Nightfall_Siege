@@ -240,6 +240,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
 	UAnimMontage* LandMontage;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UAnimMontage* DeathMontage;
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayDeath();
+
 	UFUNCTION(BlueprintCallable)
 	void OnLeapFinished();
 
