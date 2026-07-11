@@ -33,6 +33,7 @@
 #include "DungeonPortal.h"
 #include "Coin.h"
 #include "BasePlayerState.h"
+#include "UObject/ConstructorHelpers.h"
 
 
 // Sets default values
@@ -93,6 +94,14 @@ ABaseCharacter::ABaseCharacter()
 
     UE_LOG(LogTemp, Warning, TEXT("%s"),
         *LanternLight->GetLightColor().ToString());
+
+    static ConstructorHelpers::FObjectFinder<UNiagaraSystem> HealEffectAsset(
+        TEXT("/Game/Effects/1_Heal/NS_Heal.NS_Heal"));
+
+    if (HealEffectAsset.Succeeded())
+    {
+        HealEffect = HealEffectAsset.Object;
+    }
 
 }
 
@@ -331,10 +340,6 @@ void ABaseCharacter::Tick(float DeltaTime)
 
     RRemainingCooldown = FMath::Max(0.f, RRemainingCooldown - DeltaTime);
 
-    if (IsLocallyControlled())
-    {
-        RotateToMouseCursor();
-    }
 }
 
 // Called to bind functionality to input
@@ -373,6 +378,8 @@ void ABaseCharacter::Attack(const FInputActionValue& Value)
         return;
     }
 
+    RotateToMouseCursor();
+
     ServerAttack();
 }
 
@@ -383,6 +390,8 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
     if (!CanUseCombatAction())
         return;
+
+    RotateToMouseCursor();
 
     ServerUseQ();
 }
@@ -399,6 +408,8 @@ void ABaseCharacter::W(const FInputActionValue& Value)
         return;
     }
 
+    RotateToMouseCursor();
+
     ServerUseW();
 }
 
@@ -414,6 +425,8 @@ void ABaseCharacter::E(const FInputActionValue& Value)
         return;
     }
 
+    RotateToMouseCursor();
+
     ServerUseE();
 }
 
@@ -428,6 +441,8 @@ void ABaseCharacter::R(const FInputActionValue& Value)
     {
         return;
     }
+
+    RotateToMouseCursor();
 
     ServerUseR();
 }
@@ -1239,6 +1254,9 @@ void ABaseCharacter::RotateToMouseCursor()
         return;
     }
 
+    GetCharacterMovement()->StopMovementImmediately();
+    PC->StopMovement();
+
     FHitResult Hit;
 
     PC->GetHitResultUnderCursor(
@@ -1334,8 +1352,6 @@ void ABaseCharacter::ServerUseQ_Implementation()
 
 void ABaseCharacter::MulticastPlayQ_Implementation()
 {
-    RotateToMouseCursor();
-
     bIsUsingSkill = true;
 
     GetCharacterMovement()->StopMovementImmediately();
@@ -1537,8 +1553,6 @@ void ABaseCharacter::ServerUseW_Implementation()
 
 void ABaseCharacter::MulticastPlayW_Implementation()
 {
-    RotateToMouseCursor();
-
     bIsUsingSkill = true;
 
     GetCharacterMovement()->StopMovementImmediately();
@@ -1581,8 +1595,6 @@ void ABaseCharacter::ServerUseE_Implementation()
 
 void ABaseCharacter::MulticastPlayE_Implementation()
 {
-    RotateToMouseCursor();
-
     bIsUsingSkill = true;
 
     GetCharacterMovement()->StopMovementImmediately();
@@ -1757,8 +1769,6 @@ void ABaseCharacter::ClientStartSkillCooldown_Implementation(
 
 void ABaseCharacter::MulticastPlayR_Implementation()
 {
-    RotateToMouseCursor();
-
     bIsUsingSkill = true;
 
     GetCharacterMovement()->StopMovementImmediately();
@@ -1785,6 +1795,25 @@ void ABaseCharacter::MulticastPlayR_Implementation()
             true
         );
     }
+}
+
+void ABaseCharacter::MulticastPlayRHealEffect_Implementation(
+    FVector Location)
+{
+    if (!HealEffect)
+    {
+        return;
+    }
+
+    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+        GetWorld(),
+        HealEffect,
+        Location,
+        FRotator::ZeroRotator,
+        FVector::OneVector,
+        true,
+        true
+    );
 }
 
 void ABaseCharacter::ExecuteR()
@@ -1880,6 +1909,9 @@ void ABaseCharacter::ExecuteR()
 
         Player->HealPlayer(Heal);
 
+        MulticastPlayRHealEffect(
+            Player->GetActorLocation());
+
         UE_LOG(LogTemp, Warning,
             TEXT("R Heal : %s"),
             *Player->GetName());
@@ -1929,8 +1961,6 @@ void ABaseCharacter::ServerAttack_Implementation()
 
 void ABaseCharacter::MulticastAttack_Implementation()
 {
-    RotateToMouseCursor();
-
     bIsAttacking = true;
 
     GetCharacterMovement()->StopMovementImmediately();
@@ -2040,6 +2070,13 @@ void ABaseCharacter::MulticastQImpact_Implementation(FVector Location)
 
 void ABaseCharacter::ServerRotate_Implementation(FRotator NewRotation)
 {
+    GetCharacterMovement()->StopMovementImmediately();
+
+    if (AController* CurrentController = GetController())
+    {
+        CurrentController->StopMovement();
+    }
+
     SetActorRotation(NewRotation);
 
     ForceNetUpdate();

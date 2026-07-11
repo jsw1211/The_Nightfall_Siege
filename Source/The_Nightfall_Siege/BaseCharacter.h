@@ -67,6 +67,9 @@ public:
 
 	void ExecuteR();
 
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayRHealEffect(FVector Location);
+
 	UFUNCTION(Server, Reliable)
 	void ServerAttack();
 
@@ -78,7 +81,7 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastQImpact(FVector Location);
 
-	UFUNCTION(Server, Unreliable)
+	UFUNCTION(Server, Reliable)
 	void ServerRotate(FRotator NewRotation);
 
 protected:
@@ -635,6 +638,9 @@ protected:
 	UNiagaraSystem* ESkillEffect;
 	UPROPERTY(EditAnywhere, Category = "VFX")
 	UNiagaraSystem* RSkillEffect;
+
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	UNiagaraSystem* HealEffect;
 
 	UPROPERTY()
 	UNiagaraComponent* WAreaComponent;
