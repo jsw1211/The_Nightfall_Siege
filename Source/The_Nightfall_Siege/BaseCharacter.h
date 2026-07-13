@@ -482,8 +482,11 @@ public:
 	bool CanUseCombatAction() const;
 
 	// 상태
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
+	UPROPERTY(ReplicatedUsing = OnRep_IsDead, VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	bool bIsDead = false;
+
+	UFUNCTION()
+	void OnRep_IsDead();
 
 	UPROPERTY(ReplicatedUsing = OnRep_Coin, BlueprintReadOnly)
 	int32 Coin = 0;

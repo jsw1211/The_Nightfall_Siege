@@ -343,7 +343,15 @@ void ABaseCharacter::BeginPlay()
 
 void ABaseCharacter::Die()
 {
+    if (bIsDead)
+    {
+        return;
+    }
+
     bIsDead = true;
+    CurrentHP = 0.f;
+
+    ForceNetUpdate();
 
     GetCharacterMovement()->DisableMovement();
 
@@ -358,6 +366,22 @@ void ABaseCharacter::Die()
     // 이거 추가해야 함
     PlayAnimMontage(DeathMontage);
 
+}
+
+void ABaseCharacter::OnRep_IsDead()
+{
+    if (!bIsDead)
+    {
+        return;
+    }
+
+    GetCharacterMovement()->DisableMovement();
+
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        PC->StopMovement();
+        DisableInput(PC);
+    }
 }
 
 void ABaseCharacter::PlayHit()
@@ -2140,6 +2164,11 @@ void ABaseCharacter::MulticastQImpact_Implementation(FVector Location)
 
 void ABaseCharacter::ServerRotate_Implementation(FRotator NewRotation)
 {
+    if (bIsDead)
+    {
+        return;
+    }
+
     GetCharacterMovement()->StopMovementImmediately();
 
     if (AController* CurrentController = GetController())
@@ -2158,6 +2187,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
     DOREPLIFETIME(ABaseCharacter, CurrentHP);
+    DOREPLIFETIME(ABaseCharacter, bIsDead);
 	DOREPLIFETIME(ABaseCharacter, CharacterType);
     DOREPLIFETIME(ABaseCharacter, bHasLantern);
     DOREPLIFETIME(ABaseCharacter, bLanternEquipped);

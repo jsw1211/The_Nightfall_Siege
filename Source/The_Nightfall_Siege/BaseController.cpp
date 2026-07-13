@@ -20,6 +20,14 @@ void ABaseController::SetupInputComponent()
 
 void ABaseController::OnRightClick()
 {
+    ABaseCharacter* MyCharacter =
+        Cast<ABaseCharacter>(GetPawn());
+
+    if (!MyCharacter || MyCharacter->bIsDead)
+    {
+        return;
+    }
+
     FHitResult Hit;
     if (GetHitResultUnderCursor(ECC_Visibility, false, Hit))
     {
@@ -71,6 +79,8 @@ void ABaseController::MoveToMouse()
         FRotator TargetRotation =
             Direction.Rotation();
 
+        MyCharacter->SetActorRotation(TargetRotation);
+
         ServerMoveToLocation(
             Hit.Location,
             TargetRotation);
@@ -85,6 +95,14 @@ void ABaseController::RotateCharacterToCursor()
 
     APawn* BasePawn = GetPawn();
     if (!BasePawn) return;
+
+    if (ABaseCharacter* BaseCharacter = Cast<ABaseCharacter>(BasePawn))
+    {
+        if (BaseCharacter->bIsDead)
+        {
+            return;
+        }
+    }
 
     FVector Direction = Hit.Location - BasePawn->GetActorLocation();
     Direction.Z = 0.f;
@@ -266,6 +284,15 @@ void ABaseController::ServerMoveToLocation_Implementation(
 
     if (!MyPawn)
     {
+        return;
+    }
+
+    ABaseCharacter* MyCharacter =
+        Cast<ABaseCharacter>(MyPawn);
+
+    if (!MyCharacter || MyCharacter->bIsDead)
+    {
+        StopMovement();
         return;
     }
 
