@@ -55,7 +55,7 @@ ABaseCharacter::ABaseCharacter()
     SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
     SpringArm->SetupAttachment(RootComponent);
 
-    SpringArm->TargetArmLength = 800.f;
+    SpringArm->TargetArmLength = 1500.f;
     SpringArm->SetRelativeRotation(FRotator(-60.f, 0.f, 0.f));
 
     // ?? 이게 제일 중요
