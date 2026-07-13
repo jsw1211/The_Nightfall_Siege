@@ -16,6 +16,7 @@
 #include "Components/PointLightComponent.h"
 #include "NiagaraComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "Components/SphereComponent.h"
 #include "BaseCharacter.generated.h"
 
 class USkillTreeWidget;
@@ -273,6 +274,32 @@ public:
 
 	UPROPERTY(VisibleAnywhere)
 	UPointLightComponent* LanternLight;
+
+	UPROPERTY(VisibleAnywhere)
+	USphereComponent* LanternLightSphere;
+
+	UFUNCTION()
+	void OnLanternLightBegin(
+		UPrimitiveComponent* OverlappedComp,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		int32 OtherBodyIndex,
+		bool bFromSweep,
+		const FHitResult& SweepResult);
+
+	UFUNCTION()
+	void OnLanternLightEnd(
+		UPrimitiveComponent* OverlappedComp,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		int32 OtherBodyIndex);
+
+	FTimerHandle DarknessTimer;
+
+	void CheckDarknessDamage();
+
+	UPROPERTY()
+	bool bInsideLanternLight = false;
 
 	UPROPERTY(VisibleAnywhere)
 	UStaticMeshComponent* EquippedPrismMesh;

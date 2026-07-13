@@ -84,6 +84,30 @@ ABaseCharacter::ABaseCharacter()
 
     LanternLight->SetupAttachment(EquippedLanternMesh);
 
+    LanternLightSphere =
+        CreateDefaultSubobject<USphereComponent>(
+            TEXT("LanternLightSphere"));
+
+    LanternLightSphere->SetupAttachment(
+        EquippedLanternMesh);
+
+    LanternLightSphere->SetSphereRadius(1200.f);
+
+    LanternLightSphere->SetCollisionEnabled(
+        ECollisionEnabled::QueryOnly);
+
+    LanternLightSphere->SetCollisionResponseToAllChannels(
+        ECR_Ignore);
+
+    LanternLightSphere->SetCollisionResponseToChannel(
+        ECC_Pawn,
+        ECR_Overlap);
+
+    LanternLightSphere->SetGenerateOverlapEvents(true);
+
+    LanternLightSphere->SetCollisionEnabled(
+        ECollisionEnabled::NoCollision);
+
     LanternLight->SetVisibility(false);
 
     LanternLight->SetIntensity(3000.f);
@@ -113,6 +137,15 @@ void ABaseCharacter::BeginPlay()
 	// The PlayerState is the server-authoritative character selection. The
 	// visual pawn class can be correct while this property still holds its
 	// blueprint/default value, which applies upgrades for the wrong class.
+
+    LanternLightSphere->OnComponentBeginOverlap.AddDynamic(
+        this,
+        &ABaseCharacter::OnLanternLightBegin);
+
+    LanternLightSphere->OnComponentEndOverlap.AddDynamic(
+        this,
+        &ABaseCharacter::OnLanternLightEnd);
+
 	if (ABasePlayerState* InitialPlayerState = GetPlayerState<ABasePlayerState>())
 	{
 		CharacterType = InitialPlayerState->SelectedCharacter;
@@ -295,6 +328,17 @@ void ABaseCharacter::BeginPlay()
     UE_LOG(LogTemp, Warning,
         TEXT("Authority : %d"),
         HasAuthority());
+
+    if (HasAuthority() &&
+        GetWorld()->GetMapName().Contains(TEXT("Village")))
+    {
+        GetWorldTimerManager().SetTimer(
+            DarknessTimer,
+            this,
+            &ABaseCharacter::CheckDarknessDamage,
+            1.f,
+            true);
+    }
 }
 
 void ABaseCharacter::Die()
@@ -1030,6 +1074,32 @@ void ABaseCharacter::UseSlot3(const FInputActionValue& Value)
     }
 
     ServerUseSlot3();
+}
+
+void ABaseCharacter::OnLanternLightBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+    ABaseCharacter* Player =
+        Cast<ABaseCharacter>(OtherActor);
+
+    if (!Player)
+    {
+        return;
+    }
+
+    Player->bInsideLanternLight = true;
+}
+
+void ABaseCharacter::OnLanternLightEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+    ABaseCharacter* Player =
+        Cast<ABaseCharacter>(OtherActor);
+
+    if (!Player)
+    {
+        return;
+    }
+
+    Player->bInsideLanternLight = false;
 }
 
 void ABaseCharacter::OnLanternEquipped()
@@ -2202,6 +2272,11 @@ void ABaseCharacter::OnRep_LanternEquipped()
 
     LanternLight->SetVisibility(bLanternEquipped);
 
+    LanternLightSphere->SetCollisionEnabled(
+        bLanternEquipped
+        ? ECollisionEnabled::QueryOnly
+        : ECollisionEnabled::NoCollision);
+
     if (CharacterType == ECharacterType::Paladin)
     {
         if (RightHandWeapon)
@@ -2662,3 +2737,26 @@ void ABaseCharacter::HealOverTimeTick()
         HealTickCount = 0;
     }
 }
+
+void ABaseCharacter::CheckDarknessDamage()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    if (IsDead())
+    {
+        return;
+    }
+
+    if (bInsideLanternLight)
+    {
+        return;
+    }
+
+    const float Damage = MaxHP * 0.02f;
+
+    TakePlayerDamage(Damage);
+}
+
