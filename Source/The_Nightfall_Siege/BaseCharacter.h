@@ -611,6 +611,9 @@ protected:
 	float ERadius = 700.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	float WarriorERadius = 400.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	float RRadius = 200.f;
 
 	// 타이머 핸들

@@ -1755,7 +1755,7 @@ void ABaseCharacter::ExecuteE()
 	if (CharacterType == ECharacterType::Warrior)
 	{
 		TArray<FOverlapResult> Overlaps;
-		const FCollisionShape DamageSphere = FCollisionShape::MakeSphere(ERadius);
+		const FCollisionShape DamageSphere = FCollisionShape::MakeSphere(WarriorERadius);
 
 		GetWorld()->OverlapMultiByChannel(
 			Overlaps,
