@@ -36,6 +36,9 @@ APortal::APortal()
         this,
         &APortal::OnEndOverlap);
 
+    PortalMesh->SetWorldScale3D(FVector(2.0f, 2.0f, 2.0f));
+    SetActorRotation(FRotator(0.f, 90.f, 0.f));
+
 }
 
 // Called when the game starts or when spawned
