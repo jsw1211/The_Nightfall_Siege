@@ -76,6 +76,9 @@ public:
 	UFUNCTION()
 	void TakeMonsterDamage(float Damage);
 
+	UFUNCTION(BlueprintImplementableEvent)
+	void ShowDamage(float Damage);
+
 	UPROPERTY()
 	ADungeonManager* DungeonManager;
 

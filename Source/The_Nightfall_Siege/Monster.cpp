@@ -278,6 +278,8 @@ void AMonster::TakeMonsterDamage(float Damage)
 
     CurrentHP -= Damage;
 
+    ShowDamage(Damage);
+
     UE_LOG(LogTemp, Warning, TEXT("Monster HP: %f"), CurrentHP);
 
     if (CurrentHP <= 0)
