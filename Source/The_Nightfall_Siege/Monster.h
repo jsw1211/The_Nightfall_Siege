@@ -81,6 +81,11 @@ public:
 
 	void MulticastShowDamage_Implementation(float Damage);
 
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayDeath();
+
+	void MulticastPlayDeath_Implementation();
+
 	UFUNCTION(BlueprintImplementableEvent)
 	void ShowDamage(float Damage);
 

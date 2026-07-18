@@ -251,6 +251,15 @@ void AMonster::MulticastShowDamage_Implementation(float Damage)
     ShowDamage(Damage);
 }
 
+void AMonster::MulticastPlayDeath_Implementation()
+{
+    if (DeathMontage)
+    {
+        GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        PlayAnimMontage(DeathMontage);
+    }
+}
+
 void AMonster::TakeMonsterDamage(float Damage)
 {
     if (!OwnerAltar)
@@ -354,11 +363,7 @@ void AMonster::TakeMonsterDamage(float Damage)
         }
 
         // 죽는 애니메이션
-        if (DeathMontage)
-        {
-            GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-            PlayAnimMontage(DeathMontage);
-        }
+        MulticastPlayDeath();
     }
 }
 
