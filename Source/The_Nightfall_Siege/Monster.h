@@ -76,6 +76,11 @@ public:
 	UFUNCTION()
 	void TakeMonsterDamage(float Damage);
 
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastShowDamage(float Damage);
+
+	void MulticastShowDamage_Implementation(float Damage);
+
 	UFUNCTION(BlueprintImplementableEvent)
 	void ShowDamage(float Damage);
 

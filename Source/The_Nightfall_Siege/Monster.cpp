@@ -246,6 +246,11 @@ void AMonster::ClearTaunt()
         TEXT("Taunt End"));
 }
 
+void AMonster::MulticastShowDamage_Implementation(float Damage)
+{
+    ShowDamage(Damage);
+}
+
 void AMonster::TakeMonsterDamage(float Damage)
 {
     if (!OwnerAltar)
@@ -278,7 +283,7 @@ void AMonster::TakeMonsterDamage(float Damage)
 
     CurrentHP -= Damage;
 
-    ShowDamage(Damage);
+    MulticastShowDamage(Damage);
 
     UE_LOG(LogTemp, Warning, TEXT("Monster HP: %f"), CurrentHP);
 
