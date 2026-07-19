@@ -10,6 +10,7 @@
 #include "TimerManager.h"
 #include "The_Nightfall_SiegeGameMode.h"
 #include "TheNightfallSiegeInstance.h"
+#include "NiagaraFunctionLibrary.h"
 
 void ABaseController::SetupInputComponent()
 {
@@ -80,6 +81,15 @@ void ABaseController::MoveToMouse()
             Direction.Rotation();
 
         MyCharacter->SetActorRotation(TargetRotation);
+
+        if (ClickFX)
+        {
+            UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+                GetWorld(),
+                ClickFX,
+                Hit.Location,
+                FRotator::ZeroRotator);
+        }
 
         ServerMoveToLocation(
             Hit.Location,

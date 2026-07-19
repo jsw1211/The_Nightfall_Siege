@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Blueprint/UserWidget.h"
 #include "CharacterType.h"
+#include "NiagaraSystem.h"
 #include "BaseController.generated.h"
 
 /**
@@ -55,6 +56,9 @@ protected:
 
 	UFUNCTION(Server, Reliable)
 	void ServerMoveToLocation(FVector TargetLocation, FRotator TargetRotation);
+
+	UPROPERTY(EditAnywhere, Category = "FX")
+	UNiagaraSystem* ClickFX;
 
 public:
 
