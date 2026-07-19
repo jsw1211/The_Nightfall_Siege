@@ -594,6 +594,8 @@ void ADragonBoss::TakeBossDamage(float Damage)
 		0.f,
 		CurrentHP - Damage);
 
+	MulticastShowDamage(Damage);
+
 	ForceNetUpdate();
 
 	UE_LOG(LogTemp, Warning,
@@ -1360,6 +1362,11 @@ void ADragonBoss::BreathFire()
 	FRotator SpawnRotation = GetActorRotation();
 
 	GetWorld()->SpawnActor<ADragonBreathProjectile>(BreathProjectileClass, MouthLocation, SpawnRotation);
+}
+
+void ADragonBoss::MulticastShowDamage_Implementation(float Damage)
+{
+	ShowDamage(Damage);
 }
 
 void ADragonBoss::MulticastPlayAttack_Implementation(EDragonAttackType AttackType)

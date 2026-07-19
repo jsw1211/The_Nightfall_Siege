@@ -179,6 +179,14 @@ public:
 
 	void TakeBossDamage(float Damage);
 
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastShowDamage(float Damage);
+
+	void MulticastShowDamage_Implementation(float Damage);
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void ShowDamage(float Damage);
+
 	void UpdatePlayerList();
 
 	void ChooseRandomTarget();
