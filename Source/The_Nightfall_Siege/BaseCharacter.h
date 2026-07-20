@@ -275,6 +275,23 @@ public:
 	UPROPERTY(VisibleAnywhere)
 	UPointLightComponent* LanternLight;
 
+	// Local-only guide effect. It is rotated toward the active dungeon portal
+	// while the lantern is equipped in the village.
+	UPROPERTY(VisibleAnywhere, Category = "Lantern")
+	UNiagaraComponent* LanternDirectionEffectComponent;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Lantern")
+	UNiagaraSystem* LanternDirectionEffect;
+
+	// NS_Lantern_Direction is authored along its local Y axis, while Unreal's
+	// direction vectors use X as forward.
+	UPROPERTY(EditDefaultsOnly, Category = "Lantern")
+	FRotator LanternDirectionRotationOffset = FRotator(0.f, 90.f, 0.f);
+
+	float LanternDirectionUpdateElapsed = 0.f;
+
+	void UpdateLanternDirectionEffect(float DeltaTime);
+
 	UPROPERTY(VisibleAnywhere)
 	USphereComponent* LanternLightSphere;
 
