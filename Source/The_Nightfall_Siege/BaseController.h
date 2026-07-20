@@ -7,6 +7,9 @@
 #include "Blueprint/UserWidget.h"
 #include "CharacterType.h"
 #include "NiagaraSystem.h"
+
+class UHierarchicalInstancedStaticMeshComponent;
+
 #include "BaseController.generated.h"
 
 /**
@@ -27,6 +30,8 @@ protected:
 	void RotateCharacterToCursor();
 
 	virtual void BeginPlay() override;
+
+	virtual void Tick(float DeltaTime) override;
 
 	UPROPERTY(EditDefaultsOnly, Category = UI)
 	TSubclassOf<class UUserWidget> CharacterSelectWidgetClass;
@@ -60,7 +65,17 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "FX")
 	UNiagaraSystem* ClickFX;
 
+	UPROPERTY()
+	TArray<UHierarchicalInstancedStaticMeshComponent*> TreeComponents;
+
+	void UpdateTreeTransparency();
+
+	TMap<UHierarchicalInstancedStaticMeshComponent*, TSet<int32>> FadedTrees;
+
+
 public:
+
+	ABaseController();
 
 	UFUNCTION(BlueprintCallable)
 	void SelectNextCharacter();

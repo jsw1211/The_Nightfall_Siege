@@ -11,6 +11,10 @@
 #include "The_Nightfall_SiegeGameMode.h"
 #include "TheNightfallSiegeInstance.h"
 #include "NiagaraFunctionLibrary.h"
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "EngineUtils.h"
+#include "DrawDebugHelpers.h"
 
 void ABaseController::SetupInputComponent()
 {
@@ -173,6 +177,31 @@ void ABaseController::BeginPlay()
     DefaultMouseCursor = EMouseCursor::Default;
 
     SetIgnoreLookInput(true);
+
+    TreeComponents.Empty();
+
+    TArray<UHierarchicalInstancedStaticMeshComponent*> Components;
+
+    for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+    {
+        Components.Reset();
+
+        It->GetComponents<UHierarchicalInstancedStaticMeshComponent>(Components);
+
+        for (UHierarchicalInstancedStaticMeshComponent* Comp : Components)
+        {
+            if (!Comp || !Comp->GetStaticMesh())
+                continue;
+
+            const FString MeshName = Comp->GetStaticMesh()->GetName();
+
+            if (MeshName == TEXT("tree_test") ||
+                MeshName == TEXT("realistic_tree"))
+            {
+                TreeComponents.Add(Comp);
+            }
+        }
+    }
 }
 
 void ABaseController::SelectNextCharacter()
@@ -313,3 +342,90 @@ void ABaseController::ServerMoveToLocation_Implementation(
         TargetLocation);
 }
 
+ABaseController::ABaseController()
+{
+    PrimaryActorTick.bCanEverTick = true;
+}
+
+void ABaseController::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    if (IsLocalController())
+    {
+        UpdateTreeTransparency();
+    }
+}
+
+void ABaseController::UpdateTreeTransparency()
+{
+    APawn* MyPawn = GetPawn();
+
+    if (!MyPawn)
+    {
+        return;
+    }
+
+    FVector Start = PlayerCameraManager->GetCameraLocation();
+    FVector End = MyPawn->GetActorLocation();
+
+    // 이전 프레임에 투명했던 나무 복원
+    for (auto& Pair : FadedTrees)
+    {
+        for (int32 Index : Pair.Value)
+        {
+            Pair.Key->SetCustomDataValue(
+                Index,
+                0,
+                0.0f,
+                true);
+        }
+    }
+
+    FadedTrees.Empty();
+
+    TArray<FHitResult> Hits;
+
+    TArray<AActor*> IgnoreActors;
+
+    UKismetSystemLibrary::SphereTraceMulti(
+        GetWorld(),
+        Start,
+        End,
+        75.0f,                         // ← 반지름 (조절 가능)
+        UEngineTypes::ConvertToTraceType(ECC_GameTraceChannel1),
+        false,
+        IgnoreActors,
+        EDrawDebugTrace::None,
+        Hits,
+        true);
+
+
+    for (const FHitResult& Hit : Hits)
+    {
+
+        UHierarchicalInstancedStaticMeshComponent* HISM =
+            Cast<UHierarchicalInstancedStaticMeshComponent>(Hit.Component.Get());
+
+        if (!HISM)
+        {
+            continue;
+        }
+
+        int32 Index = Hit.Item;
+
+        if (Index == INDEX_NONE)
+        {
+            continue;
+        }
+
+        HISM->SetCustomDataValue(
+            Index,
+            0,
+            1.0f,
+            true);
+
+        FadedTrees.FindOrAdd(HISM).Add(Index);
+
+    }
+}

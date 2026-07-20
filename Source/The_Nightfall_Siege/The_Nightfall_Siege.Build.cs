@@ -20,7 +20,8 @@ public class The_Nightfall_Siege : ModuleRules
 			"GameplayStateTreeModule",
 			"Niagara",
 			"UMG",
-			"Slate"
+			"Slate",
+			"Foliage"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
