@@ -392,7 +392,7 @@ void ABaseController::UpdateTreeTransparency()
         GetWorld(),
         Start,
         End,
-        75.0f,                         // ← 반지름 (조절 가능)
+        350.0f,                         // ← 반지름 (조절 가능)
         UEngineTypes::ConvertToTraceType(ECC_GameTraceChannel1),
         false,
         IgnoreActors,
