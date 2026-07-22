@@ -4,6 +4,10 @@
 #include "BaseCharacter.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Engine/DirectionalLight.h"
+#include "Engine/SkyLight.h"
+#include "Components/LightComponent.h"
+#include "Components/SkyLightComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "EnhancedInputComponent.h"
@@ -68,11 +72,6 @@ ABaseCharacter::ABaseCharacter()
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
     Camera->SetupAttachment(SpringArm);
     Camera->bUsePawnControlRotation = false;
-    // Applied only in Village_Forest from Tick. Keeping this on the player's
-    // camera avoids changing the dungeon's carefully limited visibility.
-    Camera->PostProcessSettings.bOverride_AutoExposureBias = true;
-    Camera->PostProcessSettings.AutoExposureBias = -0.75f;
-    Camera->PostProcessBlendWeight = 0.f;
 
     EquippedLanternMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EquippedLanternMesh"));
 
@@ -425,15 +424,16 @@ void ABaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-    if (Camera && GetWorld())
+    const bool bInVillage = GetWorld()
+        && GetWorld()->GetMapName().Contains(TEXT("Village_Forest"));
+    if (IsLocallyControlled() && bInVillage && !bVillageNightLightingApplied)
     {
-        // The village was reading much brighter than the rest of the game.
-        // Use a local camera blend so the adjustment does not affect the
-        // lava dungeon or non-player scene captures.
-        Camera->PostProcessBlendWeight =
-            GetWorld()->GetMapName().Contains(TEXT("Village_Forest"))
-            ? 1.f
-            : 0.f;
+        ApplyVillageNightLighting();
+        bVillageNightLightingApplied = true;
+    }
+    else if (!bInVillage)
+    {
+        bVillageNightLightingApplied = false;
     }
 
     UpdateLanternDirectionEffect(DeltaTime);
@@ -446,6 +446,32 @@ void ABaseCharacter::Tick(float DeltaTime)
 
     RRemainingCooldown = FMath::Max(0.f, RRemainingCooldown - DeltaTime);
 
+}
+
+void ABaseCharacter::ApplyVillageNightLighting()
+{
+    if (!GetWorld())
+    {
+        return;
+    }
+
+    // Darken the map's ambient sources instead of post-processing the whole
+    // camera image. The lantern's point light is intentionally untouched.
+    for (TActorIterator<ADirectionalLight> It(GetWorld()); It; ++It)
+    {
+        if (ULightComponent* Light = It->GetLightComponent())
+        {
+            Light->SetIntensity(0.35f);
+        }
+    }
+
+    for (TActorIterator<ASkyLight> It(GetWorld()); It; ++It)
+    {
+        if (USkyLightComponent* Light = It->GetLightComponent())
+        {
+            Light->SetIntensity(0.08f);
+        }
+    }
 }
 
 void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)
@@ -496,7 +522,10 @@ void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)
         return;
     }
 
-    FVector Direction = ClosestPortal->GetActorLocation() - GetActorLocation();
+    // Calculate from the lantern itself so the visible trail points from the
+    // held light directly to the placed/spawned BP_DungeonPortal actor.
+    FVector Direction = ClosestPortal->GetActorLocation()
+        - LanternDirectionEffectComponent->GetComponentLocation();
     Direction.Z = 0.f;
     if (Direction.IsNearlyZero())
     {
