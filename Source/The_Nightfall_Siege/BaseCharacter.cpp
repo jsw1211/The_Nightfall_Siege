@@ -4,6 +4,10 @@
 #include "BaseCharacter.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Engine/DirectionalLight.h"
+#include "Engine/SkyLight.h"
+#include "Components/LightComponent.h"
+#include "Components/SkyLightComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "EnhancedInputComponent.h"
@@ -34,6 +38,7 @@
 #include "Coin.h"
 #include "BasePlayerState.h"
 #include "UObject/ConstructorHelpers.h"
+#include "EngineUtils.h"
 
 
 // Sets default values
@@ -84,6 +89,14 @@ ABaseCharacter::ABaseCharacter()
 
     LanternLight->SetupAttachment(EquippedLanternMesh);
 
+    LanternDirectionEffectComponent = CreateDefaultSubobject<UNiagaraComponent>(
+        TEXT("LanternDirectionEffectComponent"));
+    // The guide must originate from the held lantern, not from the pawn root.
+    LanternDirectionEffectComponent->SetupAttachment(EquippedLanternMesh);
+    LanternDirectionEffectComponent->SetRelativeLocation(FVector(0.f, 0.f, 15.f));
+    LanternDirectionEffectComponent->SetAutoActivate(false);
+    LanternDirectionEffectComponent->SetVisibility(false);
+
     LanternLightSphere =
         CreateDefaultSubobject<USphereComponent>(
             TEXT("LanternLightSphere"));
@@ -91,7 +104,7 @@ ABaseCharacter::ABaseCharacter()
     LanternLightSphere->SetupAttachment(
         EquippedLanternMesh);
 
-    LanternLightSphere->SetSphereRadius(1200.f);
+    LanternLightSphere->SetSphereRadius(1800.f);
 
     LanternLightSphere->SetCollisionEnabled(
         ECollisionEnabled::QueryOnly);
@@ -110,11 +123,13 @@ ABaseCharacter::ABaseCharacter()
 
     LanternLight->SetVisibility(false);
 
-    LanternLight->SetIntensity(3000.f);
+    // A warm local pool of light keeps nearby enemies readable in the lava
+    // dungeon while the inverse-square falloff preserves the distant darkness.
+    LanternLight->SetIntensity(6500.f);
 
-    LanternLight->SetAttenuationRadius(1200.f);
+    LanternLight->SetAttenuationRadius(1800.f);
 
-    LanternLight->SetLightColor(FLinearColor(0.0f, 1.0f, 0.0f));
+    LanternLight->SetLightColor(FLinearColor(1.0f, 0.55f, 0.18f));
 
     UE_LOG(LogTemp, Warning, TEXT("%s"),
         *LanternLight->GetLightColor().ToString());
@@ -125,6 +140,15 @@ ABaseCharacter::ABaseCharacter()
     if (HealEffectAsset.Succeeded())
     {
         HealEffect = HealEffectAsset.Object;
+    }
+
+    static ConstructorHelpers::FObjectFinder<UNiagaraSystem> LanternDirectionEffectAsset(
+        TEXT("/Game/Effects/91_Lantern_Directions/NS_Lantern_Direction.NS_Lantern_Direction"));
+
+    if (LanternDirectionEffectAsset.Succeeded())
+    {
+        LanternDirectionEffect = LanternDirectionEffectAsset.Object;
+        LanternDirectionEffectComponent->SetAsset(LanternDirectionEffect);
     }
 
 }
@@ -400,6 +424,20 @@ void ABaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+    const bool bInVillage = GetWorld()
+        && GetWorld()->GetMapName().Contains(TEXT("Village_Forest"));
+    if (IsLocallyControlled() && bInVillage && !bVillageNightLightingApplied)
+    {
+        ApplyVillageNightLighting();
+        bVillageNightLightingApplied = true;
+    }
+    else if (!bInVillage)
+    {
+        bVillageNightLightingApplied = false;
+    }
+
+    UpdateLanternDirectionEffect(DeltaTime);
+
     QRemainingCooldown = FMath::Max(0.f, QRemainingCooldown - DeltaTime);
 
     WRemainingCooldown = FMath::Max(0.f, WRemainingCooldown - DeltaTime);
@@ -408,6 +446,99 @@ void ABaseCharacter::Tick(float DeltaTime)
 
     RRemainingCooldown = FMath::Max(0.f, RRemainingCooldown - DeltaTime);
 
+}
+
+void ABaseCharacter::ApplyVillageNightLighting()
+{
+    if (!GetWorld())
+    {
+        return;
+    }
+
+    // Darken the map's ambient sources instead of post-processing the whole
+    // camera image. The lantern's point light is intentionally untouched.
+    for (TActorIterator<ADirectionalLight> It(GetWorld()); It; ++It)
+    {
+        if (ULightComponent* Light = It->GetLightComponent())
+        {
+            Light->SetIntensity(0.35f);
+        }
+    }
+
+    for (TActorIterator<ASkyLight> It(GetWorld()); It; ++It)
+    {
+        if (USkyLightComponent* Light = It->GetLightComponent())
+        {
+            Light->SetIntensity(0.08f);
+        }
+    }
+}
+
+void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)
+{
+    if (!LanternDirectionEffectComponent)
+    {
+        return;
+    }
+
+    // Directional guidance is personal UI-like feedback, so it is shown only
+    // to the owning player and only before entering the dungeon.
+    const bool bCanGuide = IsLocallyControlled()
+        && bLanternEquipped
+        && GetWorld()
+        && GetWorld()->GetMapName().Contains(TEXT("Village_Forest"));
+
+    if (!bCanGuide)
+    {
+        LanternDirectionEffectComponent->Deactivate();
+        LanternDirectionEffectComponent->SetVisibility(false);
+        LanternDirectionUpdateElapsed = 0.f;
+        return;
+    }
+
+    LanternDirectionUpdateElapsed += DeltaTime;
+    if (LanternDirectionUpdateElapsed < 0.15f)
+    {
+        return;
+    }
+    LanternDirectionUpdateElapsed = 0.f;
+
+    ADungeonPortal* ClosestPortal = nullptr;
+    float ClosestDistanceSquared = TNumericLimits<float>::Max();
+    for (TActorIterator<ADungeonPortal> It(GetWorld()); It; ++It)
+    {
+        const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
+        if (DistanceSquared < ClosestDistanceSquared)
+        {
+            ClosestDistanceSquared = DistanceSquared;
+            ClosestPortal = *It;
+        }
+    }
+
+    if (!ClosestPortal)
+    {
+        LanternDirectionEffectComponent->Deactivate();
+        LanternDirectionEffectComponent->SetVisibility(false);
+        return;
+    }
+
+    // Calculate from the lantern itself so the visible trail points from the
+    // held light directly to the placed/spawned BP_DungeonPortal actor.
+    FVector Direction = ClosestPortal->GetActorLocation()
+        - LanternDirectionEffectComponent->GetComponentLocation();
+    Direction.Z = 0.f;
+    if (Direction.IsNearlyZero())
+    {
+        return;
+    }
+
+    LanternDirectionEffectComponent->SetWorldRotation(
+        Direction.Rotation() + LanternDirectionRotationOffset);
+    LanternDirectionEffectComponent->SetVisibility(true);
+    if (!LanternDirectionEffectComponent->IsActive())
+    {
+        LanternDirectionEffectComponent->Activate(true);
+    }
 }
 
 // Called to bind functionality to input
@@ -2301,6 +2432,14 @@ void ABaseCharacter::OnRep_LanternEquipped()
     EquippedLanternMesh->SetVisibility(bLanternEquipped);
 
     LanternLight->SetVisibility(bLanternEquipped);
+
+    // Tick will resolve the portal and activate the local guide effect. Hide
+    // immediately on unequip so it never lingers for one update interval.
+    if (!bLanternEquipped && LanternDirectionEffectComponent)
+    {
+        LanternDirectionEffectComponent->Deactivate();
+        LanternDirectionEffectComponent->SetVisibility(false);
+    }
 
     LanternLightSphere->SetCollisionEnabled(
         bLanternEquipped
