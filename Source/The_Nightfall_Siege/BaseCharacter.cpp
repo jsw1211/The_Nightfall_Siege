@@ -424,18 +424,6 @@ void ABaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-    const bool bInVillage = GetWorld()
-        && GetWorld()->GetMapName().Contains(TEXT("Village_Forest"));
-    if (IsLocallyControlled() && bInVillage && !bVillageNightLightingApplied)
-    {
-        ApplyVillageNightLighting();
-        bVillageNightLightingApplied = true;
-    }
-    else if (!bInVillage)
-    {
-        bVillageNightLightingApplied = false;
-    }
-
     UpdateLanternDirectionEffect(DeltaTime);
 
     QRemainingCooldown = FMath::Max(0.f, QRemainingCooldown - DeltaTime);
@@ -446,32 +434,6 @@ void ABaseCharacter::Tick(float DeltaTime)
 
     RRemainingCooldown = FMath::Max(0.f, RRemainingCooldown - DeltaTime);
 
-}
-
-void ABaseCharacter::ApplyVillageNightLighting()
-{
-    if (!GetWorld())
-    {
-        return;
-    }
-
-    // Darken the map's ambient sources instead of post-processing the whole
-    // camera image. The lantern's point light is intentionally untouched.
-    for (TActorIterator<ADirectionalLight> It(GetWorld()); It; ++It)
-    {
-        if (ULightComponent* Light = It->GetLightComponent())
-        {
-            Light->SetIntensity(0.35f);
-        }
-    }
-
-    for (TActorIterator<ASkyLight> It(GetWorld()); It; ++It)
-    {
-        if (USkyLightComponent* Light = It->GetLightComponent())
-        {
-            Light->SetIntensity(0.08f);
-        }
-    }
 }
 
 void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)

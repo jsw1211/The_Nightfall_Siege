@@ -290,10 +290,7 @@ public:
 
 	float LanternDirectionUpdateElapsed = 0.f;
 
-	bool bVillageNightLightingApplied = false;
-
 	void UpdateLanternDirectionEffect(float DeltaTime);
-	void ApplyVillageNightLighting();
 
 	UPROPERTY(VisibleAnywhere)
 	USphereComponent* LanternLightSphere;
