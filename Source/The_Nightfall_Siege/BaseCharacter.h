@@ -286,7 +286,7 @@ public:
 	// NS_Lantern_Direction is authored along its local Y axis, while Unreal's
 	// direction vectors use X as forward.
 	UPROPERTY(EditDefaultsOnly, Category = "Lantern")
-	FRotator LanternDirectionRotationOffset = FRotator(0.f, 90.f, 0.f);
+	FRotator LanternDirectionRotationOffset = FRotator(90.f, 0.f, 0.f);
 
 	float LanternDirectionUpdateElapsed = 0.f;
 
