@@ -21,6 +21,7 @@ public class The_Nightfall_Siege : ModuleRules
 			"Niagara",
 			"UMG",
 			"Slate",
+			"SlateCore",
 			"Foliage"
 		});
 

@@ -36,6 +36,7 @@
 #include "Altar.h"
 #include "DungeonPortal.h"
 #include "Coin.h"
+#include "ShopWidget.h"
 #include "BasePlayerState.h"
 #include "UObject/ConstructorHelpers.h"
 #include "EngineUtils.h"
@@ -270,8 +271,12 @@ void ABaseCharacter::BeginPlay()
     Slot3Icon = EmptySlotIcon;
     Slot4Icon = EmptySlotIcon;
 
-    PotionCount = 5;
-    Slot2Icon = PotionIcon;
+    if (HasAuthority())
+    {
+        PotionCount = 5;
+    }
+
+    OnRep_PotionCount();
 
     UTheNightfallSiegeInstance* GI =
         Cast<UTheNightfallSiegeInstance>(GetGameInstance());
@@ -529,6 +534,10 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         EnhancedInput->BindAction(IA_Debug4, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern4);
     }
 
+    // The shop is deliberately bound directly so it works without requiring a
+    // new Input Action asset to be configured in every character Blueprint.
+    PlayerInputComponent->BindKey(EKeys::P, IE_Pressed, this, &ABaseCharacter::ToggleShop);
+
     if (bIsDead) return; // 죽으면 입력 등록 안함
 }
 
@@ -662,6 +671,84 @@ void ABaseCharacter::ToggleInventory()
 
         bInventoryOpen = false;
     }
+}
+
+void ABaseCharacter::ToggleShop()
+{
+    if (!IsLocallyControlled())
+    {
+        return;
+    }
+
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (!PC)
+    {
+        return;
+    }
+
+    if (!bShopOpen)
+    {
+        if (!ShopWidget)
+        {
+            TSubclassOf<UShopWidget> WidgetClass = ShopWidgetClass;
+            if (!WidgetClass)
+            {
+                WidgetClass = UShopWidget::StaticClass();
+            }
+
+            ShopWidget = CreateWidget<UShopWidget>(PC, WidgetClass);
+        }
+
+        if (!ShopWidget)
+        {
+            return;
+        }
+
+        ShopWidget->AddToViewport(20);
+        ShopWidget->SetKeyboardFocus();
+
+        FInputModeGameAndUI InputMode;
+        InputMode.SetWidgetToFocus(ShopWidget->TakeWidget());
+        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        PC->SetInputMode(InputMode);
+        PC->SetShowMouseCursor(true);
+        bShopOpen = true;
+        return;
+    }
+
+    if (ShopWidget)
+    {
+        ShopWidget->RemoveFromParent();
+    }
+
+    PC->SetInputMode(FInputModeGameOnly());
+    PC->SetShowMouseCursor(false);
+    bShopOpen = false;
+}
+
+void ABaseCharacter::RequestBuyPotion()
+{
+    if (HasAuthority())
+    {
+        ServerBuyPotion_Implementation();
+        return;
+    }
+
+    ServerBuyPotion();
+}
+
+void ABaseCharacter::ServerBuyPotion_Implementation()
+{
+    if (PotionPrice < 0 || Coin < PotionPrice)
+    {
+        return;
+    }
+
+    Coin -= PotionPrice;
+    ++PotionCount;
+    OnRep_Coin();
+    OnRep_PotionCount();
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::ToggleSkillTree()
@@ -1149,6 +1236,11 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
 
 void ABaseCharacter::UseSlot2(const FInputActionValue& Value)
 {
+    ServerUsePotion();
+}
+
+void ABaseCharacter::ServerUsePotion_Implementation()
+{
     if (PotionCount <= 0)
     {
         return;
@@ -1176,6 +1268,9 @@ void ABaseCharacter::UseSlot2(const FInputActionValue& Value)
     {
         Slot2Icon = EmptySlotIcon;
     }
+
+    OnRep_PotionCount();
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::UseSlot3(const FInputActionValue& Value)
@@ -2289,6 +2384,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABaseCharacter, bPrismEquipped);
     DOREPLIFETIME(ABaseCharacter, bPrismPoseActive);
     DOREPLIFETIME(ABaseCharacter, Coin);
+	DOREPLIFETIME_CONDITION(ABaseCharacter, PotionCount, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, SkillPoints, COND_OwnerOnly);
     DOREPLIFETIME(ABaseCharacter, bDarknessDebuff);
     DOREPLIFETIME_CONDITION(ABaseCharacter, QRemainingCooldown, COND_OwnerOnly);
@@ -2643,6 +2739,11 @@ void ABaseCharacter::OnRep_Coin()
     {
         HUDWidget->UpdateCoin(Coin);
     }
+}
+
+void ABaseCharacter::OnRep_PotionCount()
+{
+    Slot2Icon = PotionCount > 0 ? PotionIcon : EmptySlotIcon;
 }
 
 void ABaseCharacter::OnRep_HasLantern()

@@ -27,6 +27,7 @@ class APortal;
 class AAltar;
 class ADungeonPortal;
 class ADragonBoss;
+class UShopWidget;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABaseCharacter : public ACharacter
@@ -108,6 +109,15 @@ public:
 	void E(const FInputActionValue& Value);
 	void R(const FInputActionValue& Value);
 	void ToggleInventory();
+
+	UFUNCTION(BlueprintCallable, Category = "Shop")
+	void ToggleShop();
+
+	UFUNCTION(BlueprintCallable, Category = "Shop")
+	void RequestBuyPotion();
+
+	UFUNCTION(Server, Reliable)
+	void ServerBuyPotion();
 	UFUNCTION()
 	void TakePlayerDamage(float Damage);
 
@@ -445,8 +455,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Item")
 	UTexture2D* PotionIcon;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(ReplicatedUsing = OnRep_PotionCount, BlueprintReadOnly)
 	int32 PotionCount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop", meta = (ClampMin = "0"))
+	int32 PotionPrice = 5;
+
+	UFUNCTION()
+	void OnRep_PotionCount();
 
 	UPROPERTY(EditAnywhere, Category = "Item")
 	UTexture2D* PrismIcon;
@@ -652,6 +668,17 @@ protected:
 	TSubclassOf<class UUserWidget> InventoryWidgetClass;
 	UUserWidget* InventoryWidget;
 	bool bInventoryOpen = false;
+
+	UPROPERTY(EditAnywhere, Category = "Shop")
+	TSubclassOf<UShopWidget> ShopWidgetClass;
+
+	UPROPERTY()
+	UShopWidget* ShopWidget;
+
+	bool bShopOpen = false;
+
+	UFUNCTION(Server, Reliable)
+	void ServerUsePotion();
 
 	// 공격력
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
