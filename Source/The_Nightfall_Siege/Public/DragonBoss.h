@@ -11,6 +11,7 @@
 
 class ADragonBreathProjectile;
 class ADangerZone;
+class UNiagaraComponent;
 
 UENUM(BlueprintType)
 enum class EDragonState : uint8
@@ -88,6 +89,26 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
 	float AttackPower = 120.f;
+
+	// =========================
+	// Phase Two
+	// =========================
+
+	// Phase two starts once the dragon reaches this fraction of MaxHP.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss|Phase Two", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float PhaseTwoHealthThreshold = 0.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss|Phase Two", meta = (ClampMin = "1.0"))
+	float PhaseTwoDamageMultiplier = 1.5f;
+
+	UPROPERTY(ReplicatedUsing = OnRep_IsPhaseTwo, BlueprintReadOnly, Category = "Boss|Phase Two")
+	bool bIsPhaseTwo = false;
+
+	UFUNCTION()
+	void OnRep_IsPhaseTwo();
+
+	UFUNCTION(BlueprintPure, Category = "Boss|Phase Two")
+	float GetCurrentDamageMultiplier() const;
 
 	// =========================
 	// State
@@ -284,6 +305,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
 	TObjectPtr<UNiagaraSystem> CloseBreathFX;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX|Blackout")
+	TObjectPtr<UNiagaraSystem> BlackoutChargingFX;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX|Blackout")
+	TObjectPtr<UNiagaraSystem> BlackoutReleaseFX;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX|Phase Two")
+	TObjectPtr<UNiagaraSystem> PhaseTwoFX;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UNiagaraComponent> PhaseTwoFXComponent;
+
 	UFUNCTION(BlueprintCallable)
 	void BiteHit();
 
@@ -304,6 +337,18 @@ public:
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastSpawnCloseBreathFX(FVector Location);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastSpawnBlackoutChargingFX();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastSpawnBlackoutReleaseFX(FVector Location);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStartPhaseTwoFX();
+
+	void CheckPhaseTwo();
+	void EnsurePhaseTwoFX();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 

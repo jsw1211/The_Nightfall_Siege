@@ -115,7 +115,7 @@ void ADragonBreathProjectile::OnOverlapBegin(
         UE_LOG(LogTemp, Warning,
             TEXT("Breath Hit Player"));
 
-        float Damage = Player->MaxHP * 0.8f;
+        float Damage = Player->MaxHP * 0.8f * DamageMultiplier;
 
         Player->TakePlayerDamage(Damage);
 

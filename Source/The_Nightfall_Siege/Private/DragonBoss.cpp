@@ -12,13 +12,39 @@
 #include "DragonBreathProjectile.h"
 #include "DangerZone.h"
 #include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "UObject/ConstructorHelpers.h"
 
 // Sets default values
 ADragonBoss::ADragonBoss()
 {
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+
+	// Keep these gameplay effects wired even when the BP defaults have not
+	// explicitly overridden the corresponding C++ properties.
+	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> BlackoutChargingAsset(
+		TEXT("/Game/Effects/6_Dragon/Blackout_Debuff/NS_Dragon_Blackout_Charging.NS_Dragon_Blackout_Charging"));
+	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> BlackoutReleaseAsset(
+		TEXT("/Game/Effects/6_Dragon/Blackout_Debuff/NS_Dragon_Blackout_Release.NS_Dragon_Blackout_Release"));
+	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> PhaseTwoAsset(
+		TEXT("/Game/Effects/6_Dragon/Second_Phase/NS_Dragon_FX.NS_Dragon_FX"));
+
+	if (BlackoutChargingAsset.Succeeded())
+	{
+		BlackoutChargingFX = BlackoutChargingAsset.Object;
+	}
+
+	if (BlackoutReleaseAsset.Succeeded())
+	{
+		BlackoutReleaseFX = BlackoutReleaseAsset.Object;
+	}
+
+	if (PhaseTwoAsset.Succeeded())
+	{
+		PhaseTwoFX = PhaseTwoAsset.Object;
+	}
 
 }
 
@@ -417,6 +443,9 @@ void ADragonBoss::DebuffAttack()
 	UE_LOG(LogTemp, Warning,
 		TEXT("Dragon Used Debuff"));
 
+	// The telegraph has completed: release the blackout before applying it.
+	MulticastSpawnBlackoutReleaseFX(GetActorLocation());
+
 	TArray<AActor*> Prisms;
 
 	UGameplayStatics::GetAllActorsOfClass(
@@ -594,6 +623,8 @@ void ADragonBoss::TakeBossDamage(float Damage)
 		0.f,
 		CurrentHP - Damage);
 
+	CheckPhaseTwo();
+
 	MulticastShowDamage(Damage);
 
 	ForceNetUpdate();
@@ -623,6 +654,8 @@ void ADragonBoss::OnBreathReflected()
 		CurrentHP = FMath::Max(
 			0.f,
 			CurrentHP - Damage);
+
+		CheckPhaseTwo();
 
 		UE_LOG(LogTemp, Warning,
 			TEXT("Reflect Damage : %f"),
@@ -947,6 +980,8 @@ void ADragonBoss::OnCenterMechanicSuccess()
 		0.f,
 		CurrentHP - Damage);
 
+	CheckPhaseTwo();
+
 	if (CurrentHP <= 0.f)
 	{
 		Die();
@@ -1153,6 +1188,10 @@ void ADragonBoss::StartAttackTelegraph(
 			Zone->OnRep_ZoneType();
 		}
 
+		// This effect is only cosmetic; the actual debuff is applied when the
+		// charge finishes in DebuffAttack().
+		MulticastSpawnBlackoutChargingFX();
+
 		break;
 	}
 	}
@@ -1268,7 +1307,7 @@ void ADragonBoss::BiteHit()
 		return;
 	}
 
-	float Damage = AttackPower * 1.0f;
+	float Damage = AttackPower * 1.0f * GetCurrentDamageMultiplier();
 
 	FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
 
@@ -1309,7 +1348,7 @@ void ADragonBoss::CloseBreathFire()
 		return;
 	}
 
-	float Damage = AttackPower * 2.0f;
+	float Damage = AttackPower * 2.0f * GetCurrentDamageMultiplier();
 
 	FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
 
@@ -1361,7 +1400,13 @@ void ADragonBoss::BreathFire()
 
 	FRotator SpawnRotation = GetActorRotation();
 
-	GetWorld()->SpawnActor<ADragonBreathProjectile>(BreathProjectileClass, MouthLocation, SpawnRotation);
+	ADragonBreathProjectile* Projectile =
+		GetWorld()->SpawnActor<ADragonBreathProjectile>(BreathProjectileClass, MouthLocation, SpawnRotation);
+
+	if (Projectile)
+	{
+		Projectile->DamageMultiplier = GetCurrentDamageMultiplier();
+	}
 }
 
 void ADragonBoss::MulticastShowDamage_Implementation(float Damage)
@@ -1452,6 +1497,88 @@ void ADragonBoss::MulticastSpawnCloseBreathFX_Implementation(
 		Location);
 }
 
+void ADragonBoss::MulticastSpawnBlackoutChargingFX_Implementation()
+{
+	if (!BlackoutChargingFX || !GetMesh())
+	{
+		return;
+	}
+
+	UNiagaraFunctionLibrary::SpawnSystemAttached(
+		BlackoutChargingFX,
+		GetMesh(),
+		NAME_None,
+		FVector::ZeroVector,
+		FRotator::ZeroRotator,
+		EAttachLocation::KeepRelativeOffset,
+		true);
+}
+
+void ADragonBoss::MulticastSpawnBlackoutReleaseFX_Implementation(FVector Location)
+{
+	if (!BlackoutReleaseFX)
+	{
+		return;
+	}
+
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		GetWorld(),
+		BlackoutReleaseFX,
+		Location);
+}
+
+void ADragonBoss::MulticastStartPhaseTwoFX_Implementation()
+{
+	EnsurePhaseTwoFX();
+}
+
+void ADragonBoss::EnsurePhaseTwoFX()
+{
+	if (!PhaseTwoFX || !GetMesh() || IsValid(PhaseTwoFXComponent))
+	{
+		return;
+	}
+
+	// The phase effect remains attached to the mesh for the rest of the fight.
+	PhaseTwoFXComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+		PhaseTwoFX,
+		GetMesh(),
+		NAME_None,
+		FVector::ZeroVector,
+		FRotator::ZeroRotator,
+		EAttachLocation::KeepRelativeOffset,
+		false);
+}
+
+float ADragonBoss::GetCurrentDamageMultiplier() const
+{
+	return bIsPhaseTwo ? PhaseTwoDamageMultiplier : 1.f;
+}
+
+void ADragonBoss::CheckPhaseTwo()
+{
+	if (bIsPhaseTwo || MaxHP <= 0.f || CurrentHP > MaxHP * PhaseTwoHealthThreshold)
+	{
+		return;
+	}
+
+	bIsPhaseTwo = true;
+	ForceNetUpdate();
+	MulticastStartPhaseTwoFX();
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Dragon entered phase two. Damage multiplier: %.2f"),
+		PhaseTwoDamageMultiplier);
+}
+
+void ADragonBoss::OnRep_IsPhaseTwo()
+{
+	if (bIsPhaseTwo)
+	{
+		EnsurePhaseTwoFX();
+	}
+}
+
 void ADragonBoss::OnRep_CurrentState()
 {
 	UE_LOG(LogTemp, Warning,
@@ -1467,6 +1594,7 @@ void ADragonBoss::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ADragonBoss, CurrentState);
 	DOREPLIFETIME(ADragonBoss, CurrentHP);
 	DOREPLIFETIME(ADragonBoss, bIsFlying);
+	DOREPLIFETIME(ADragonBoss, bIsPhaseTwo);
 }
 
 void ADragonBoss::OnRep_CurrentHP()

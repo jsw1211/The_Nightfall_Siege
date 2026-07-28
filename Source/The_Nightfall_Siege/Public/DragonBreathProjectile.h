@@ -52,4 +52,8 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	// Set by the dragon when the projectile is spawned. Damage is resolved on
+	// the server, so this does not need to be replicated.
+	float DamageMultiplier = 1.f;
+
 };
