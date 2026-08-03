@@ -37,8 +37,10 @@
 #include "DungeonPortal.h"
 #include "Coin.h"
 #include "Components/Button.h"
+#include "Components/GridPanel.h"
 #include "Components/Image.h"
 #include "Blueprint/WidgetTree.h"
+#include "InventoryItemSlotWidget.h"
 #include "BasePlayerState.h"
 #include "UObject/ConstructorHelpers.h"
 #include "EngineUtils.h"
@@ -741,7 +743,11 @@ void ABaseCharacter::ToggleShop()
         PC->SetShowMouseCursor(true);
         PC->SetIgnoreMoveInput(true);
         PC->SetIgnoreLookInput(true);
-        GetCharacterMovement()->StopMovementImmediately();
+        UCharacterMovementComponent* Movement = GetCharacterMovement();
+        Movement->StopMovementImmediately();
+        // Enhanced Input may bypass controller-level ignore flags, so disable
+        // the movement component as the authoritative movement lock as well.
+        Movement->DisableMovement();
         bShopOpen = true;
         return;
     }
@@ -755,6 +761,7 @@ void ABaseCharacter::ToggleShop()
     PC->SetShowMouseCursor(false);
     PC->SetIgnoreMoveInput(false);
     PC->SetIgnoreLookInput(false);
+    GetCharacterMovement()->SetMovementMode(MOVE_Walking);
     bShopOpen = false;
 }
 
@@ -803,6 +810,29 @@ bool ABaseCharacter::GetPurchasedItem(int32 Index, FShopInventoryItem& Item) con
 
     Item = PurchasedItems[Index];
     return true;
+}
+
+void ABaseCharacter::MovePurchasedItem(int32 FromIndex, int32 ToIndex)
+{
+    if (HasAuthority())
+    {
+        ServerMovePurchasedItem_Implementation(FromIndex, ToIndex);
+        return;
+    }
+
+    ServerMovePurchasedItem(FromIndex, ToIndex);
+}
+
+void ABaseCharacter::ServerMovePurchasedItem_Implementation(int32 FromIndex, int32 ToIndex)
+{
+    if (FromIndex == ToIndex || !PurchasedItems.IsValidIndex(FromIndex) || !PurchasedItems.IsValidIndex(ToIndex))
+    {
+        return;
+    }
+
+    PurchasedItems.Swap(FromIndex, ToIndex);
+    OnRep_PurchasedItems();
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::ServerBuyShopItem_Implementation(EShopItemType ItemType)
@@ -864,24 +894,35 @@ void ABaseCharacter::RefreshInventoryWidget()
         return;
     }
 
-    // WBP_Inventory creates WBP_ItemSlot children in its GridPanel.  Each slot
-    // contains an Image, so assigning them in traversal order mirrors the
-    // exact order of the purchase array.
-    TArray<UWidget*> Widgets;
-    InventoryWidget->WidgetTree->GetAllWidgets(Widgets);
-    int32 ItemIndex = 0;
-    for (UWidget* Widget : Widgets)
+    UGridPanel* InventoryGrid = Cast<UGridPanel>(InventoryWidget->GetWidgetFromName(TEXT("GridPanel_0")));
+    if (!InventoryGrid)
     {
-        UImage* Image = Cast<UImage>(Widget);
-        if (!Image)
+        UE_LOG(LogTemp, Warning, TEXT("WBP_Inventory is missing GridPanel_0."));
+        return;
+    }
+
+    // Replace the old placeholder WBP_ItemSlot children with slots that own
+    // their drag/drop logic.  Array index == visible slot order at all times.
+    InventoryGrid->ClearChildren();
+
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (!PC)
+    {
+        return;
+    }
+
+    constexpr int32 Columns = 4;
+    for (int32 ItemIndex = 0; ItemIndex < PurchasedItems.Num(); ++ItemIndex)
+    {
+        const FShopInventoryItem& Item = PurchasedItems[ItemIndex];
+        UInventoryItemSlotWidget* Slot = CreateWidget<UInventoryItemSlotWidget>(PC, UInventoryItemSlotWidget::StaticClass());
+        if (!Slot)
         {
             continue;
         }
 
-        Image->SetBrushFromTexture(PurchasedItems.IsValidIndex(ItemIndex)
-            ? PurchasedItems[ItemIndex].Icon.Get()
-            : EmptySlotIcon);
-        ++ItemIndex;
+        Slot->Configure(this, ItemIndex, Item.DisplayName, Item.Icon.Get());
+        InventoryGrid->AddChildToGrid(Slot, ItemIndex / Columns, ItemIndex % Columns);
     }
 }
 

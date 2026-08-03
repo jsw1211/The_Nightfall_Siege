@@ -163,11 +163,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	bool GetPurchasedItem(int32 Index, FShopInventoryItem& Item) const;
 
+	// Called by an inventory slot after a successful drag-and-drop operation.
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void MovePurchasedItem(int32 FromIndex, int32 ToIndex);
+
 	UFUNCTION(Server, Reliable)
 	void ServerBuyPotion();
 
 	UFUNCTION(Server, Reliable)
 	void ServerBuyShopItem(EShopItemType ItemType);
+
+	UFUNCTION(Server, Reliable)
+	void ServerMovePurchasedItem(int32 FromIndex, int32 ToIndex);
 	UFUNCTION()
 	void TakePlayerDamage(float Damage);
 
@@ -593,7 +600,7 @@ public:
 	void OnRep_IsDead();
 
 	UPROPERTY(ReplicatedUsing = OnRep_Coin, BlueprintReadOnly)
-	int32 Coin = 0;
+	int32 Coin = 15;
 
 	UFUNCTION()
 	void OnRep_Coin();
