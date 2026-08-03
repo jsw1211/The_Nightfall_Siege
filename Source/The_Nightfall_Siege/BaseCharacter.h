@@ -27,7 +27,31 @@ class APortal;
 class AAltar;
 class ADungeonPortal;
 class ADragonBoss;
-class UShopWidget;
+
+UENUM(BlueprintType)
+enum class EShopItemType : uint8
+{
+	HealPotion UMETA(DisplayName = "Heal Potion"),
+	HPPotion UMETA(DisplayName = "HP Potion"),
+	AttackPotion UMETA(DisplayName = "Attack Potion")
+};
+
+// One entry is added for every successful purchase.  Entries are deliberately
+// not stacked: the inventory can therefore display its slots in purchase order.
+USTRUCT(BlueprintType)
+struct FShopInventoryItem
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	EShopItemType ItemType = EShopItemType::HealPotion;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	FText DisplayName;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	TObjectPtr<UTexture2D> Icon = nullptr;
+};
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABaseCharacter : public ACharacter
@@ -116,8 +140,34 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Shop")
 	void RequestBuyPotion();
 
+	// Call these from WBP_Shop's three existing buy buttons.  The resulting
+	// item is appended to PurchasedItems, never inserted or sorted.
+	UFUNCTION(BlueprintCallable, Category = "Shop")
+	void BuyShopItem(EShopItemType ItemType);
+
+	UFUNCTION()
+	void BuyHealPotionFromShop();
+
+	UFUNCTION()
+	void BuyHPPotionFromShop();
+
+	UFUNCTION()
+	void BuyAttackPotionFromShop();
+
+	UFUNCTION(BlueprintPure, Category = "Inventory")
+	const TArray<FShopInventoryItem>& GetPurchasedItems() const { return PurchasedItems; }
+
+	UFUNCTION(BlueprintPure, Category = "Inventory")
+	int32 GetPurchasedItemCount() const { return PurchasedItems.Num(); }
+
+	UFUNCTION(BlueprintPure, Category = "Inventory")
+	bool GetPurchasedItem(int32 Index, FShopInventoryItem& Item) const;
+
 	UFUNCTION(Server, Reliable)
 	void ServerBuyPotion();
+
+	UFUNCTION(Server, Reliable)
+	void ServerBuyShopItem(EShopItemType ItemType);
 	UFUNCTION()
 	void TakePlayerDamage(float Damage);
 
@@ -461,6 +511,27 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop", meta = (ClampMin = "0"))
 	int32 PotionPrice = 5;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop", meta = (ClampMin = "0"))
+	int32 HPPotionPrice = 10;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop", meta = (ClampMin = "0"))
+	int32 AttackPotionPrice = 15;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop")
+	TObjectPtr<UTexture2D> HPPotionIcon = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop")
+	TObjectPtr<UTexture2D> AttackPotionIcon = nullptr;
+
+	UPROPERTY(ReplicatedUsing = OnRep_PurchasedItems, BlueprintReadOnly, Category = "Inventory")
+	TArray<FShopInventoryItem> PurchasedItems;
+
+	UFUNCTION()
+	void OnRep_PurchasedItems();
+
+	void RefreshInventoryWidget();
+	void BindShopButtons();
+
 	UFUNCTION()
 	void OnRep_PotionCount();
 
@@ -670,10 +741,10 @@ protected:
 	bool bInventoryOpen = false;
 
 	UPROPERTY(EditAnywhere, Category = "Shop")
-	TSubclassOf<UShopWidget> ShopWidgetClass;
+	TSubclassOf<class UUserWidget> ShopWidgetClass;
 
 	UPROPERTY()
-	UShopWidget* ShopWidget;
+	UUserWidget* ShopWidget;
 
 	bool bShopOpen = false;
 

@@ -36,7 +36,9 @@
 #include "Altar.h"
 #include "DungeonPortal.h"
 #include "Coin.h"
-#include "ShopWidget.h"
+#include "Components/Button.h"
+#include "Components/Image.h"
+#include "Blueprint/WidgetTree.h"
 #include "BasePlayerState.h"
 #include "UObject/ConstructorHelpers.h"
 #include "EngineUtils.h"
@@ -50,6 +52,26 @@ ABaseCharacter::ABaseCharacter()
 
     bReplicates = true;
     SetReplicateMovement(true);
+
+    // WBP_Shop is the authored shop UI.  Keeping the assignment here means
+    // every BaseCharacter-derived Blueprint opens it without per-BP setup.
+    static ConstructorHelpers::FClassFinder<UUserWidget> ShopWidgetBP(TEXT("/Game/BP/WBP_Shop"));
+    if (ShopWidgetBP.Succeeded())
+    {
+        ShopWidgetClass = ShopWidgetBP.Class;
+    }
+
+    static ConstructorHelpers::FObjectFinder<UTexture2D> HPPotionTexture(TEXT("/Game/Asset/UI/items/HP_Potion"));
+    if (HPPotionTexture.Succeeded())
+    {
+        HPPotionIcon = HPPotionTexture.Object;
+    }
+
+    static ConstructorHelpers::FObjectFinder<UTexture2D> AttackPotionTexture(TEXT("/Game/Asset/UI/items/ATK_Potion"));
+    if (AttackPotionTexture.Succeeded())
+    {
+        AttackPotionIcon = AttackPotionTexture.Object;
+    }
 
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationPitch = false;
@@ -658,6 +680,7 @@ void ABaseCharacter::ToggleInventory()
         if (InventoryWidget)
         {
             InventoryWidget->AddToViewport();
+            RefreshInventoryWidget();
         }
 
         bInventoryOpen = true;
@@ -690,13 +713,13 @@ void ABaseCharacter::ToggleShop()
     {
         if (!ShopWidget)
         {
-            TSubclassOf<UShopWidget> WidgetClass = ShopWidgetClass;
+            TSubclassOf<UUserWidget> WidgetClass = ShopWidgetClass;
             if (!WidgetClass)
             {
-                WidgetClass = UShopWidget::StaticClass();
+                return;
             }
 
-            ShopWidget = CreateWidget<UShopWidget>(PC, WidgetClass);
+            ShopWidget = CreateWidget<UUserWidget>(PC, WidgetClass);
         }
 
         if (!ShopWidget)
@@ -704,7 +727,11 @@ void ABaseCharacter::ToggleShop()
             return;
         }
 
+        // WBP_Shop is a mouse-driven widget by default.  Enable focus before
+        // assigning it so PIE does not emit the "does not support focus" warning.
+        ShopWidget->SetIsFocusable(true);
         ShopWidget->AddToViewport(20);
+        BindShopButtons();
         ShopWidget->SetKeyboardFocus();
 
         FInputModeGameAndUI InputMode;
@@ -712,6 +739,9 @@ void ABaseCharacter::ToggleShop()
         InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
         PC->SetInputMode(InputMode);
         PC->SetShowMouseCursor(true);
+        PC->SetIgnoreMoveInput(true);
+        PC->SetIgnoreLookInput(true);
+        GetCharacterMovement()->StopMovementImmediately();
         bShopOpen = true;
         return;
     }
@@ -723,32 +753,163 @@ void ABaseCharacter::ToggleShop()
 
     PC->SetInputMode(FInputModeGameOnly());
     PC->SetShowMouseCursor(false);
+    PC->SetIgnoreMoveInput(false);
+    PC->SetIgnoreLookInput(false);
     bShopOpen = false;
 }
 
 void ABaseCharacter::RequestBuyPotion()
 {
-    if (HasAuthority())
-    {
-        ServerBuyPotion_Implementation();
-        return;
-    }
-
-    ServerBuyPotion();
+    BuyShopItem(EShopItemType::HealPotion);
 }
 
 void ABaseCharacter::ServerBuyPotion_Implementation()
 {
-    if (PotionPrice < 0 || Coin < PotionPrice)
+    ServerBuyShopItem_Implementation(EShopItemType::HealPotion);
+}
+
+void ABaseCharacter::BuyShopItem(EShopItemType ItemType)
+{
+    if (HasAuthority())
+    {
+        ServerBuyShopItem_Implementation(ItemType);
+        return;
+    }
+
+    ServerBuyShopItem(ItemType);
+}
+
+void ABaseCharacter::BuyHealPotionFromShop()
+{
+    BuyShopItem(EShopItemType::HealPotion);
+}
+
+void ABaseCharacter::BuyHPPotionFromShop()
+{
+    BuyShopItem(EShopItemType::HPPotion);
+}
+
+void ABaseCharacter::BuyAttackPotionFromShop()
+{
+    BuyShopItem(EShopItemType::AttackPotion);
+}
+
+bool ABaseCharacter::GetPurchasedItem(int32 Index, FShopInventoryItem& Item) const
+{
+    if (!PurchasedItems.IsValidIndex(Index))
+    {
+        return false;
+    }
+
+    Item = PurchasedItems[Index];
+    return true;
+}
+
+void ABaseCharacter::ServerBuyShopItem_Implementation(EShopItemType ItemType)
+{
+    int32 Price = 0;
+    UTexture2D* Icon = nullptr;
+    FText Name;
+
+    switch (ItemType)
+    {
+    case EShopItemType::HealPotion:
+        Price = PotionPrice;
+        Icon = PotionIcon;
+        Name = FText::FromString(TEXT("회복 포션"));
+        break;
+    case EShopItemType::HPPotion:
+        Price = HPPotionPrice;
+        Icon = HPPotionIcon;
+        Name = FText::FromString(TEXT("체력 포션"));
+        break;
+    case EShopItemType::AttackPotion:
+        Price = AttackPotionPrice;
+        Icon = AttackPotionIcon;
+        Name = FText::FromString(TEXT("공격 포션"));
+        break;
+    default:
+        return;
+    }
+
+    if (Price < 0 || Coin < Price)
     {
         return;
     }
 
-    Coin -= PotionPrice;
-    ++PotionCount;
+    Coin -= Price;
+    PurchasedItems.Add({ ItemType, Name, Icon });
+
+    // The existing quick-use action consumes only healing potions.
+    if (ItemType == EShopItemType::HealPotion)
+    {
+        ++PotionCount;
+        OnRep_PotionCount();
+    }
+
     OnRep_Coin();
-    OnRep_PotionCount();
+    OnRep_PurchasedItems();
     ForceNetUpdate();
+}
+
+void ABaseCharacter::OnRep_PurchasedItems()
+{
+    RefreshInventoryWidget();
+}
+
+void ABaseCharacter::RefreshInventoryWidget()
+{
+    if (!InventoryWidget)
+    {
+        return;
+    }
+
+    // WBP_Inventory creates WBP_ItemSlot children in its GridPanel.  Each slot
+    // contains an Image, so assigning them in traversal order mirrors the
+    // exact order of the purchase array.
+    TArray<UWidget*> Widgets;
+    InventoryWidget->WidgetTree->GetAllWidgets(Widgets);
+    int32 ItemIndex = 0;
+    for (UWidget* Widget : Widgets)
+    {
+        UImage* Image = Cast<UImage>(Widget);
+        if (!Image)
+        {
+            continue;
+        }
+
+        Image->SetBrushFromTexture(PurchasedItems.IsValidIndex(ItemIndex)
+            ? PurchasedItems[ItemIndex].Icon.Get()
+            : EmptySlotIcon);
+        ++ItemIndex;
+    }
+}
+
+void ABaseCharacter::BindShopButtons()
+{
+    if (!ShopWidget)
+    {
+        return;
+    }
+
+    if (UButton* Button = Cast<UButton>(ShopWidget->GetWidgetFromName(TEXT("Btn_Buy_Heal_Potion"))))
+    {
+        // WBP_Shop was copied from the title screen and still carries its old
+        // Blueprint click handlers (including Quit).  They must not run in
+        // parallel with a purchase click.
+        Button->OnClicked.Clear();
+        Button->OnClicked.AddDynamic(this, &ABaseCharacter::BuyHealPotionFromShop);
+    }
+    if (UButton* Button = Cast<UButton>(ShopWidget->GetWidgetFromName(TEXT("Btn_Buy_HP_Potion"))))
+    {
+        Button->OnClicked.Clear();
+        Button->OnClicked.AddDynamic(this, &ABaseCharacter::BuyHPPotionFromShop);
+    }
+    if (UButton* Button = Cast<UButton>(ShopWidget->GetWidgetFromName(TEXT("Btn_Buy_ATK_Potion"))))
+    {
+        Button->OnClicked.Clear();
+        Button->OnClicked.AddDynamic(this, &ABaseCharacter::BuyAttackPotionFromShop);
+    }
 }
 
 void ABaseCharacter::ToggleSkillTree()
@@ -2383,8 +2544,9 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABaseCharacter, bHasPrism);
     DOREPLIFETIME(ABaseCharacter, bPrismEquipped);
     DOREPLIFETIME(ABaseCharacter, bPrismPoseActive);
-    DOREPLIFETIME(ABaseCharacter, Coin);
+	DOREPLIFETIME(ABaseCharacter, Coin);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, PotionCount, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(ABaseCharacter, PurchasedItems, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, SkillPoints, COND_OwnerOnly);
     DOREPLIFETIME(ABaseCharacter, bDarknessDebuff);
     DOREPLIFETIME_CONDITION(ABaseCharacter, QRemainingCooldown, COND_OwnerOnly);
