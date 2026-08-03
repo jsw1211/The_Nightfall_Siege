@@ -40,6 +40,16 @@ public:
 	UPROPERTY(Replicated, BlueprintReadWrite)
 	int32 SkillPoints = 0;
 
+	// Permanent shop upgrades survive pawn replacement and seamless map travel.
+	UPROPERTY(Replicated, BlueprintReadWrite)
+	bool bHasShopStatBonuses = false;
+
+	UPROPERTY(Replicated, BlueprintReadWrite)
+	float SavedMaxHP = 0.f;
+
+	UPROPERTY(Replicated, BlueprintReadWrite)
+	float SavedAttackPower = 0.f;
+
 	UFUNCTION()
 	void OnRep_SelectedCharacter();
 

@@ -528,10 +528,10 @@ public:
 	int32 PotionPrice = 5;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop", meta = (ClampMin = "0"))
-	int32 HPPotionPrice = 10;
+	int32 HPPotionPrice = 5;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop", meta = (ClampMin = "0"))
-	int32 AttackPotionPrice = 15;
+	int32 AttackPotionPrice = 5;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop")
 	TObjectPtr<UTexture2D> HPPotionIcon = nullptr;

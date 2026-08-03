@@ -249,6 +249,14 @@ void ABaseCharacter::BeginPlay()
         break;
     }
 
+    // PlayerState stays with the player when the pawn is recreated for the
+    // next map, so it is the authoritative home for permanent shop bonuses.
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>(); PS && PS->bHasShopStatBonuses)
+    {
+        MaxHP = PS->SavedMaxHP;
+        AttackPower = PS->SavedAttackPower;
+    }
+
     CurrentHP = MaxHP;
 
 	BaseAttackPower = AttackPower;
@@ -1593,17 +1601,15 @@ void ABaseCharacter::ServerUseSlot4_Implementation()
         return;
     }
 
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        PS->bHasShopStatBonuses = true;
+        PS->SavedMaxHP = MaxHP;
+        PS->SavedAttackPower = AttackPower;
+    }
+
     PurchasedItems.RemoveAt(Slot4PurchasedItemIndex);
     Slot4PurchasedItemIndex = INDEX_NONE;
-    for (int32 Index = PurchasedItems.Num() - 1; Index >= 0; --Index)
-    {
-        if (PurchasedItems[Index].ItemType == EShopItemType::HPPotion ||
-            PurchasedItems[Index].ItemType == EShopItemType::AttackPotion)
-        {
-            Slot4PurchasedItemIndex = Index;
-            break;
-        }
-    }
 
     OnRep_PurchasedItems();
     OnRep_Slot4PurchasedItemIndex();

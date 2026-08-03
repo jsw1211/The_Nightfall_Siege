@@ -27,6 +27,9 @@ void ABasePlayerState::GetLifetimeReplicatedProps(
 
     DOREPLIFETIME(ABasePlayerState, Coin);
     DOREPLIFETIME(ABasePlayerState, SkillPoints);
+    DOREPLIFETIME(ABasePlayerState, bHasShopStatBonuses);
+    DOREPLIFETIME(ABasePlayerState, SavedMaxHP);
+    DOREPLIFETIME(ABasePlayerState, SavedAttackPower);
 }
 
 void ABasePlayerState::OnRep_SelectedCharacter()
@@ -74,6 +77,9 @@ void ABasePlayerState::CopyProperties(APlayerState* PlayerState)
 
     NewPS->Coin = Coin;
     NewPS->SkillPoints = SkillPoints;
+    NewPS->bHasShopStatBonuses = bHasShopStatBonuses;
+    NewPS->SavedMaxHP = SavedMaxHP;
+    NewPS->SavedAttackPower = SavedAttackPower;
 
     UE_LOG(LogTemp, Warning,
         TEXT("Copy Lantern : %d"),
