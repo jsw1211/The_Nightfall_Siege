@@ -1541,6 +1541,24 @@ void ADragonBoss::MulticastStartPhaseTwoFX_Implementation()
 	ApplyPhaseTwoMaterial();
 }
 
+bool ADragonBoss::TakeArcherQVolleyDamage(ABaseCharacter* Attacker, int32 VolleyId, float Damage)
+{
+	if (!Attacker || VolleyId == INDEX_NONE || !HasAuthority())
+	{
+		return false;
+	}
+
+	int32& LastVolleyId = LastArcherQVolleyByAttacker.FindOrAdd(Attacker, INDEX_NONE);
+	if (LastVolleyId == VolleyId)
+	{
+		return false;
+	}
+
+	LastVolleyId = VolleyId;
+	TakeBossDamage(Damage);
+	return true;
+}
+
 void ADragonBoss::EnsurePhaseTwoFX()
 {
 	if (!PhaseTwoFX || !GetMesh() || IsValid(PhaseTwoFXComponent))

@@ -91,6 +91,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
 	float AttackPower = 120.f;
 
+	// A Q volley is allowed to damage the boss once regardless of how many
+	// projectiles or overlapping explosions from that volley connect.
+	bool TakeArcherQVolleyDamage(ABaseCharacter* Attacker, int32 VolleyId, float Damage);
+
 	// =========================
 	// Phase Two
 	// =========================
@@ -287,6 +291,8 @@ public:
 
 	UPROPERTY()
 	bool bIsLeaping = false;
+
+	TMap<TObjectPtr<ABaseCharacter>, int32> LastArcherQVolleyByAttacker;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Movement", meta = (ClampMin = "0.0"))
 	float FlyStartRange = 2000.f;

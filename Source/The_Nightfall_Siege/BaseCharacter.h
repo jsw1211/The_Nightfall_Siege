@@ -592,6 +592,8 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SpawnEArrow();
+	void ApplyArcherERainDamage();
+	void EndArcherERainDamage();
 
 	UFUNCTION(BlueprintCallable)
 	bool IsDead() const;
@@ -726,6 +728,17 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	float EDamage = 30.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Archer|E")
+	float ArcherERainDamagePerSecond = 20.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Archer|E")
+	float ArcherERainDuration = 3.f;
+
+	FTimerHandle ArcherERainDamageTimer;
+	FTimerHandle ArcherERainEndTimer;
+	FVector ArcherERainCenter = FVector::ZeroVector;
+	int32 NextArcherQVolleyId = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	float RDamage = 50.f;

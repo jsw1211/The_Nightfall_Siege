@@ -1736,6 +1736,7 @@ void ABaseCharacter::SpawnQArrow()
 
     const int32 ArrowCount = 5;
     const float SpreadAngle = 30.f;
+    const int32 VolleyId = ++NextArcherQVolleyId;
 
     for (int32 i = 0; i < ArrowCount; i++)
     {
@@ -1751,6 +1752,7 @@ void ABaseCharacter::SpawnQArrow()
         {
             Arrow->OwnerCharacter = this;
             Arrow->ArrowType = EArrowType::QExplosive;
+            Arrow->QVolleyId = VolleyId;
             Arrow->SetupTrail();
 
             Arrow->DamageMultiplier = QMultiplier;
@@ -1831,8 +1833,37 @@ void ABaseCharacter::SpawnEArrow()
         {
             Arrow->ProjectileMovement->ProjectileGravityScale = 1.f;
             Arrow->ProjectileMovement->Velocity = LaunchVelocity;
+
+            if (HasAuthority())
+            {
+                ArcherERainCenter = TargetLocation;
+                GetWorldTimerManager().ClearTimer(ArcherERainDamageTimer);
+                GetWorldTimerManager().ClearTimer(ArcherERainEndTimer);
+                ApplyArcherERainDamage();
+                GetWorldTimerManager().SetTimer(ArcherERainDamageTimer, this, &ABaseCharacter::ApplyArcherERainDamage, 1.f, true);
+                GetWorldTimerManager().SetTimer(ArcherERainEndTimer, this, &ABaseCharacter::EndArcherERainDamage, ArcherERainDuration, false);
+            }
         }
     }
+}
+
+void ABaseCharacter::ApplyArcherERainDamage()
+{
+    if (!HasAuthority()) return;
+
+    for (TActorIterator<ADragonBoss> It(GetWorld()); It; ++It)
+    {
+        ADragonBoss* Dragon = *It;
+        if (Dragon && FVector::DistSquared(Dragon->GetActorLocation(), ArcherERainCenter) <= FMath::Square(ERadius))
+        {
+            Dragon->TakeBossDamage(ArcherERainDamagePerSecond);
+        }
+    }
+}
+
+void ABaseCharacter::EndArcherERainDamage()
+{
+    GetWorldTimerManager().ClearTimer(ArcherERainDamageTimer);
 }
 
 bool ABaseCharacter::IsDead() const

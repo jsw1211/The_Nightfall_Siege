@@ -57,6 +57,10 @@ public:
 	UPROPERTY()
 	float DamageMultiplier = 1.f;
 
+	// All five arrows spawned by one Archer Q share this identifier.
+	UPROPERTY()
+	int32 QVolleyId = INDEX_NONE;
+
 	void Explode();
 
 	UPROPERTY(EditAnywhere)

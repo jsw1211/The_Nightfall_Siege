@@ -109,6 +109,12 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 
 	if (Dragon && OwnerCharacter)
 	{
+		if (ArrowType == EArrowType::QExplosive || ArrowType == EArrowType::Explosive)
+		{
+			Explode();
+			return;
+		}
+
 		float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
 		if (ArrowType == EArrowType::Pierce &&
 			OwnerCharacter->bRBonusDamage)
@@ -206,6 +212,16 @@ void AArrowProjectile::Explode()
 			if (Dragon && OwnerCharacter)
 			{
 				float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
+				if (ArrowType == EArrowType::QExplosive)
+				{
+					Dragon->TakeArcherQVolleyDamage(OwnerCharacter, QVolleyId, Damage);
+					continue;
+				}
+				if (ArrowType == EArrowType::Explosive)
+				{
+					// Archer E's boss damage is dealt by its falling-arrow area over time.
+					continue;
+				}
 
 				if (ArrowType == EArrowType::Pierce &&
 					OwnerCharacter->bRBonusDamage)
