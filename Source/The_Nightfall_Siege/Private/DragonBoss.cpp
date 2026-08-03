@@ -182,6 +182,7 @@ void ADragonBoss::Tick(float DeltaTime)
 	if (TargetPlayer && !bIsAttacking && !bStunned && !bIsTelegraphing)
 	{
 		float Distance = FVector::Dist(GetActorLocation(), TargetPlayer->GetActorLocation());
+		const float EffectiveEngageRange = FMath::Max(AttackEngageRange, AttackStartRange + 150.f);
 
 		if (bIsFlying)
 		{
@@ -193,11 +194,11 @@ void ADragonBoss::Tick(float DeltaTime)
 			{
 				FlyToTarget();
 			}
-			else if (Distance > AttackStartRange)
+			else if (Distance > EffectiveEngageRange)
 			{
 				WalkToTarget();
 			}
-			else if (Distance <= AttackStartRange)
+			else if (Distance <= EffectiveEngageRange)
 			{
 				if (!GetWorldTimerManager().IsTimerActive(AttackTimerHandle))
 				{
@@ -506,9 +507,10 @@ void ADragonBoss::WalkToTarget()
 
 	if (AIController && TargetPlayer)
 	{
+		const float EffectiveChaseStopRange = FMath::Clamp(ChaseStopRange, 100.f, AttackStartRange * 0.8f);
 		AIController->MoveToActor(
 			TargetPlayer,
-			AttackStartRange);
+			EffectiveChaseStopRange);
 	}
 }
 
@@ -534,6 +536,8 @@ void ADragonBoss::FlyToTarget()
 		CurrentState = EDragonState::Leap;
 
 		MulticastPlayMovementTransition(false);
+		// Fallback for missing/failed animation notifies: never remain in Leap.
+		GetWorldTimerManager().SetTimer(LeapRecoveryHandle, this, &ADragonBoss::OnLeapFinished, 2.f, false);
 
 		return;
 	}
@@ -551,6 +555,7 @@ void ADragonBoss::FlyToTarget()
 			EDragonState::Landing;
 
 		MulticastPlayMovementTransition(true);
+		GetWorldTimerManager().SetTimer(LandingRecoveryHandle, this, &ADragonBoss::OnLandFinished, 2.f, false);
 
 		return;
 	}
@@ -823,12 +828,13 @@ void ADragonBoss::ExecutePattern()
 		FVector::Dist(
 			GetActorLocation(),
 			TargetPlayer->GetActorLocation());
+	const float EffectiveEngageRange = FMath::Max(AttackEngageRange, AttackStartRange + 150.f);
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("ExecutePattern Distance = %f"),
 		Distance);
 
-	if (Distance > AttackStartRange)
+	if (Distance > EffectiveEngageRange)
 	{
 		UE_LOG(LogTemp, Warning,
 			TEXT("Target Out Of Range : %f"), Distance);
@@ -842,7 +848,8 @@ void ADragonBoss::ExecutePattern()
 			WalkToTarget();
 		}
 
-		StartAttackCycle();
+		// Tick keeps the boss chasing and will start a new cycle only after it
+		// enters the attack envelope.  Rescheduling here caused boundary spam.
 		return;
 	}
 
@@ -961,6 +968,11 @@ void ADragonBoss::CenterMechanicPattern()
 	FlyToCenter();
 
 	ChooseRandomTarget();
+	if (!TargetPlayer)
+	{
+		FailCenterMechanic();
+		return;
+	}
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("Center Target : %s"),
@@ -969,10 +981,33 @@ void ADragonBoss::CenterMechanicPattern()
 	GetWorldTimerManager().SetTimer(
 		CenterFailHandle,
 		this,
-		&ADragonBoss::StartAttackCycle,
+		&ADragonBoss::FailCenterMechanic,
 		8.f,
 		false
 	);
+}
+
+void ADragonBoss::FailCenterMechanic()
+{
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
+	// The former timeout scheduled an attack but left bCenterMechanicActive
+	// true, so Tick returned forever and the boss stopped attacking.
+	bCenterMechanicActive = false;
+	bCenterBreathStarted = false;
+	bCenterTracking = false;
+	bIsAttacking = false;
+	bIsTelegraphing = false;
+	bIsLeaping = false;
+	bIsFlying = false;
+	CurrentState = EDragonState::Walking;
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	GetWorldTimerManager().ClearTimer(CenterFailHandle);
+	ChooseRandomTarget();
+	StartAttackCycle();
 }
 
 void ADragonBoss::OnCenterMechanicSuccess()
@@ -1008,6 +1043,10 @@ void ADragonBoss::OnCenterMechanicSuccess()
 		CurrentHP);
 
 	bCenterMechanicActive = false;
+	bCenterTracking = false;
+	bCenterBreathStarted = false;
+	bIsAttacking = false;
+	CurrentState = EDragonState::Walking;
 
 	StartAttackCycle();
 
@@ -1018,6 +1057,11 @@ void ADragonBoss::OnCenterMechanicSuccess()
 
 void ADragonBoss::OnAttackFinished()
 {
+	if (CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
 	UpdatePlayerList();
 
 	if (!TargetPlayer || TargetPlayer->IsDead())
@@ -1026,6 +1070,11 @@ void ADragonBoss::OnAttackFinished()
 	}
 
 	bIsAttacking = false;
+	bIsTelegraphing = false;
+	if (!bIsFlying && !bCenterMechanicActive)
+	{
+		CurrentState = EDragonState::Walking;
+	}
 
 	if (!bFirstBreathDone)
 	{
@@ -1081,6 +1130,23 @@ void ADragonBoss::Die()
 void ADragonBoss::StartAttackTelegraph(
 	EDragonAttackType AttackType)
 {
+	if (!HasAuthority() || CurrentState == EDragonState::Dead || bStunned)
+	{
+		return;
+	}
+
+	if (!TargetPlayer || TargetPlayer->IsDead())
+	{
+		ChooseRandomTarget();
+		if (!TargetPlayer)
+		{
+			bIsTelegraphing = false;
+			bIsAttacking = false;
+			CurrentState = EDragonState::Idle;
+			return;
+		}
+	}
+
 	AAIController* AIController =
 		Cast<AAIController>(GetController());
 
@@ -1269,6 +1335,7 @@ void ADragonBoss::OnLeapFinished()
 		TEXT("===== LEAP FINISHED ====="));
 
 	bIsLeaping = false;
+	GetWorldTimerManager().ClearTimer(LeapRecoveryHandle);
 	bIsFlying = true;
 
 	UE_LOG(LogTemp, Warning, TEXT("bIsFlying = %d"), bIsFlying);
@@ -1296,6 +1363,7 @@ void ADragonBoss::OnLandFinished()
 	}
 
 	bIsFlying = false;
+	GetWorldTimerManager().ClearTimer(LandingRecoveryHandle);
 
 	CurrentState = EDragonState::Walking;
 

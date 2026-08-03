@@ -233,10 +233,13 @@ public:
 	void OnAttackFinished();
 
 	FTimerHandle CenterFailHandle;
+	FTimerHandle LeapRecoveryHandle;
+	FTimerHandle LandingRecoveryHandle;
 
 	FTimerHandle StunTimerHandle;
 
 	void Die();
+	void FailCenterMechanic();
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<ADragonBreathProjectile> BreathProjectileClass;
@@ -301,6 +304,14 @@ public:
 	// Keeping one value avoids a dead zone between movement and attacks.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Movement", meta = (ClampMin = "0.0"))
 	float AttackStartRange = 700.f;
+
+	// Hysteresis prevents the boss from stopping exactly on the old 700-unit
+	// boundary and endlessly re-entering StartAttackCycle without attacking.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Movement", meta = (ClampMin = "0.0"))
+	float AttackEngageRange = 850.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Movement", meta = (ClampMin = "0.0"))
+	float ChaseStopRange = 500.f;
 
 	// Once flight starts it remains latched until this distance is reached.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Movement", meta = (ClampMin = "0.0"))
