@@ -10,6 +10,7 @@
 #include "DragonBoss.generated.h"
 
 class ADragonBreathProjectile;
+class UMaterialInterface;
 class ADangerZone;
 class UNiagaraComponent;
 
@@ -314,6 +315,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX|Phase Two")
 	TObjectPtr<UNiagaraSystem> PhaseTwoFX;
 
+	// Applied as a mesh overlay so the dragon keeps its base texture while the
+	// phase-two shader remains visible across every client.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX|Phase Two")
+	TObjectPtr<UMaterialInterface> PhaseTwoOverlayMaterial;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UNiagaraComponent> PhaseTwoFXComponent;
 
@@ -349,6 +355,7 @@ public:
 
 	void CheckPhaseTwo();
 	void EnsurePhaseTwoFX();
+	void ApplyPhaseTwoMaterial();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 

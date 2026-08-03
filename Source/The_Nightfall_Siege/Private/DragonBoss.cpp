@@ -13,6 +13,7 @@
 #include "DangerZone.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
+#include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -30,6 +31,8 @@ ADragonBoss::ADragonBoss()
 		TEXT("/Game/Effects/6_Dragon/Blackout_Debuff/NS_Dragon_Blackout_Release.NS_Dragon_Blackout_Release"));
 	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> PhaseTwoAsset(
 		TEXT("/Game/Effects/6_Dragon/Second_Phase/NS_Dragon_FX.NS_Dragon_FX"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> PhaseTwoMaterialAsset(
+		TEXT("/Game/Effects/6_Dragon/Second_Phase/M_Dragon_FX.M_Dragon_FX"));
 
 	if (BlackoutChargingAsset.Succeeded())
 	{
@@ -44,6 +47,11 @@ ADragonBoss::ADragonBoss()
 	if (PhaseTwoAsset.Succeeded())
 	{
 		PhaseTwoFX = PhaseTwoAsset.Object;
+	}
+
+	if (PhaseTwoMaterialAsset.Succeeded())
+	{
+		PhaseTwoOverlayMaterial = PhaseTwoMaterialAsset.Object;
 	}
 
 }
@@ -1530,6 +1538,7 @@ void ADragonBoss::MulticastSpawnBlackoutReleaseFX_Implementation(FVector Locatio
 void ADragonBoss::MulticastStartPhaseTwoFX_Implementation()
 {
 	EnsurePhaseTwoFX();
+	ApplyPhaseTwoMaterial();
 }
 
 void ADragonBoss::EnsurePhaseTwoFX()
@@ -1548,6 +1557,14 @@ void ADragonBoss::EnsurePhaseTwoFX()
 		FRotator::ZeroRotator,
 		EAttachLocation::KeepRelativeOffset,
 		false);
+}
+
+void ADragonBoss::ApplyPhaseTwoMaterial()
+{
+	if (GetMesh() && PhaseTwoOverlayMaterial)
+	{
+		GetMesh()->SetOverlayMaterial(PhaseTwoOverlayMaterial);
+	}
 }
 
 float ADragonBoss::GetCurrentDamageMultiplier() const
@@ -1576,6 +1593,7 @@ void ADragonBoss::OnRep_IsPhaseTwo()
 	if (bIsPhaseTwo)
 	{
 		EnsurePhaseTwoFX();
+		ApplyPhaseTwoMaterial();
 	}
 }
 
