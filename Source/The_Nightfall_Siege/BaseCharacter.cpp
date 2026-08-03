@@ -550,7 +550,7 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         EnhancedInput->BindAction(IA_Slot1, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot1);
         EnhancedInput->BindAction(IA_Slot2, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot2);
         EnhancedInput->BindAction(IA_Slot3, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot3);
-        //EnhancedInput->BindAction(IA_Slot4, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot4);
+        EnhancedInput->BindAction(IA_Slot4, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot4);
 
         EnhancedInput->BindAction(IA_Debug1, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern1);
         EnhancedInput->BindAction(IA_Debug2, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern2);
@@ -677,12 +677,23 @@ void ABaseCharacter::ToggleInventory()
 
     if (!bInventoryOpen)
     {
-        InventoryWidget = CreateWidget<UUserWidget>(GetWorld(), InventoryWidgetClass);
+        APlayerController* PC = Cast<APlayerController>(GetController());
+        InventoryWidget = CreateWidget<UUserWidget>(PC, InventoryWidgetClass);
 
         if (InventoryWidget)
         {
             InventoryWidget->AddToViewport();
             RefreshInventoryWidget();
+
+            if (PC)
+            {
+                FInputModeGameAndUI InputMode;
+                InputMode.SetWidgetToFocus(InventoryWidget->TakeWidget());
+                InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+                InputMode.SetHideCursorDuringCapture(false);
+                PC->SetInputMode(InputMode);
+                PC->SetShowMouseCursor(true);
+            }
         }
 
         bInventoryOpen = true;
@@ -692,6 +703,15 @@ void ABaseCharacter::ToggleInventory()
         if (InventoryWidget)
         {
             InventoryWidget->RemoveFromParent();
+        }
+
+        if (!bShopOpen)
+        {
+            if (APlayerController* PC = Cast<APlayerController>(GetController()))
+            {
+                PC->SetInputMode(FInputModeGameOnly());
+                PC->SetShowMouseCursor(false);
+            }
         }
 
         bInventoryOpen = false;
@@ -739,6 +759,7 @@ void ABaseCharacter::ToggleShop()
         FInputModeGameAndUI InputMode;
         InputMode.SetWidgetToFocus(ShopWidget->TakeWidget());
         InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        InputMode.SetHideCursorDuringCapture(false);
         PC->SetInputMode(InputMode);
         PC->SetShowMouseCursor(true);
         PC->SetIgnoreMoveInput(true);
@@ -823,6 +844,35 @@ void ABaseCharacter::MovePurchasedItem(int32 FromIndex, int32 ToIndex)
     ServerMovePurchasedItem(FromIndex, ToIndex);
 }
 
+void ABaseCharacter::AssignPurchasedItemToSlot4(int32 ItemIndex)
+{
+    if (HasAuthority())
+    {
+        ServerAssignPurchasedItemToSlot4_Implementation(ItemIndex);
+        return;
+    }
+
+    ServerAssignPurchasedItemToSlot4(ItemIndex);
+}
+
+void ABaseCharacter::ServerAssignPurchasedItemToSlot4_Implementation(int32 ItemIndex)
+{
+    if (!PurchasedItems.IsValidIndex(ItemIndex))
+    {
+        return;
+    }
+
+    const EShopItemType Type = PurchasedItems[ItemIndex].ItemType;
+    if (Type != EShopItemType::HPPotion && Type != EShopItemType::AttackPotion)
+    {
+        return;
+    }
+
+    Slot4PurchasedItemIndex = ItemIndex;
+    OnRep_Slot4PurchasedItemIndex();
+    ForceNetUpdate();
+}
+
 void ABaseCharacter::ServerMovePurchasedItem_Implementation(int32 FromIndex, int32 ToIndex)
 {
     if (FromIndex == ToIndex || !PurchasedItems.IsValidIndex(FromIndex) || !PurchasedItems.IsValidIndex(ToIndex))
@@ -831,7 +881,18 @@ void ABaseCharacter::ServerMovePurchasedItem_Implementation(int32 FromIndex, int
     }
 
     PurchasedItems.Swap(FromIndex, ToIndex);
+
+    if (Slot4PurchasedItemIndex == FromIndex)
+    {
+        Slot4PurchasedItemIndex = ToIndex;
+    }
+    else if (Slot4PurchasedItemIndex == ToIndex)
+    {
+        Slot4PurchasedItemIndex = FromIndex;
+    }
+
     OnRep_PurchasedItems();
+    OnRep_Slot4PurchasedItemIndex();
     ForceNetUpdate();
 }
 
@@ -870,6 +931,12 @@ void ABaseCharacter::ServerBuyShopItem_Implementation(EShopItemType ItemType)
     Coin -= Price;
     PurchasedItems.Add({ ItemType, Name, Icon });
 
+    if (ItemType == EShopItemType::HPPotion || ItemType == EShopItemType::AttackPotion)
+    {
+        Slot4PurchasedItemIndex = PurchasedItems.Num() - 1;
+        OnRep_Slot4PurchasedItemIndex();
+    }
+
     // The existing quick-use action consumes only healing potions.
     if (ItemType == EShopItemType::HealPotion)
     {
@@ -885,6 +952,13 @@ void ABaseCharacter::ServerBuyShopItem_Implementation(EShopItemType ItemType)
 void ABaseCharacter::OnRep_PurchasedItems()
 {
     RefreshInventoryWidget();
+}
+
+void ABaseCharacter::OnRep_Slot4PurchasedItemIndex()
+{
+    Slot4Icon = PurchasedItems.IsValidIndex(Slot4PurchasedItemIndex)
+        ? PurchasedItems[Slot4PurchasedItemIndex].Icon.Get()
+        : EmptySlotIcon;
 }
 
 void ABaseCharacter::RefreshInventoryWidget()
@@ -1488,6 +1562,52 @@ void ABaseCharacter::UseSlot3(const FInputActionValue& Value)
     }
 
     ServerUseSlot3();
+}
+
+void ABaseCharacter::UseSlot4(const FInputActionValue& Value)
+{
+    ServerUseSlot4();
+}
+
+void ABaseCharacter::ServerUseSlot4_Implementation()
+{
+    if (!PurchasedItems.IsValidIndex(Slot4PurchasedItemIndex))
+    {
+        return;
+    }
+
+    const EShopItemType ItemType = PurchasedItems[Slot4PurchasedItemIndex].ItemType;
+    if (ItemType == EShopItemType::HPPotion)
+    {
+        const float BonusHP = MaxHP * 0.2f;
+        MaxHP += BonusHP;
+        CurrentHP += BonusHP;
+        OnRep_CurrentHP();
+    }
+    else if (ItemType == EShopItemType::AttackPotion)
+    {
+        AttackPower *= 1.2f;
+    }
+    else
+    {
+        return;
+    }
+
+    PurchasedItems.RemoveAt(Slot4PurchasedItemIndex);
+    Slot4PurchasedItemIndex = INDEX_NONE;
+    for (int32 Index = PurchasedItems.Num() - 1; Index >= 0; --Index)
+    {
+        if (PurchasedItems[Index].ItemType == EShopItemType::HPPotion ||
+            PurchasedItems[Index].ItemType == EShopItemType::AttackPotion)
+        {
+            Slot4PurchasedItemIndex = Index;
+            break;
+        }
+    }
+
+    OnRep_PurchasedItems();
+    OnRep_Slot4PurchasedItemIndex();
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::OnLanternLightBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -2577,6 +2697,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
     DOREPLIFETIME(ABaseCharacter, CurrentHP);
+    DOREPLIFETIME(ABaseCharacter, MaxHP);
     DOREPLIFETIME(ABaseCharacter, bIsDead);
 	DOREPLIFETIME(ABaseCharacter, CharacterType);
     DOREPLIFETIME(ABaseCharacter, bHasLantern);
@@ -2588,6 +2709,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ABaseCharacter, Coin);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, PotionCount, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, PurchasedItems, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(ABaseCharacter, Slot4PurchasedItemIndex, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, SkillPoints, COND_OwnerOnly);
     DOREPLIFETIME(ABaseCharacter, bDarknessDebuff);
     DOREPLIFETIME_CONDITION(ABaseCharacter, QRemainingCooldown, COND_OwnerOnly);

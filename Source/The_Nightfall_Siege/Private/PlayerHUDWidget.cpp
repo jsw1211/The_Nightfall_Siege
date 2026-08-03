@@ -7,6 +7,26 @@
 #include "Components/TextBlock.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Image.h"
+#include "Blueprint/DragDropOperation.h"
+#include "InventoryItemSlotWidget.h"
+
+bool UPlayerHUDWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+    UInventoryItemSlotWidget* SourceSlot = InOperation ? Cast<UInventoryItemSlotWidget>(InOperation->Payload) : nullptr;
+    ABaseCharacter* Player = Cast<ABaseCharacter>(GetOwningPlayerPawn());
+    if (!SourceSlot || !Player || SourceSlot->GetOwnerCharacter() != Player || !Item4)
+    {
+        return Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
+    }
+
+    if (Item4->GetCachedGeometry().IsUnderLocation(InDragDropEvent.GetScreenSpacePosition()))
+    {
+        Player->AssignPurchasedItemToSlot4(SourceSlot->GetItemIndex());
+        return true;
+    }
+
+    return Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
+}
 
 void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
 {
@@ -122,6 +142,8 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
 
     if (Item4 && Player->Slot4Icon)
     {
+        // Item4 is a valid drop target for HP/attack potions from the inventory.
+        Item4->SetVisibility(ESlateVisibility::Visible);
         Item4->SetBrushFromTexture(Player->Slot4Icon);
     }
 

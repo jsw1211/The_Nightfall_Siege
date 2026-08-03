@@ -167,6 +167,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void MovePurchasedItem(int32 FromIndex, int32 ToIndex);
 
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void AssignPurchasedItemToSlot4(int32 ItemIndex);
+
 	UFUNCTION(Server, Reliable)
 	void ServerBuyPotion();
 
@@ -175,6 +178,9 @@ public:
 
 	UFUNCTION(Server, Reliable)
 	void ServerMovePurchasedItem(int32 FromIndex, int32 ToIndex);
+
+	UFUNCTION(Server, Reliable)
+	void ServerAssignPurchasedItemToSlot4(int32 ItemIndex);
 	UFUNCTION()
 	void TakePlayerDamage(float Damage);
 
@@ -335,6 +341,9 @@ public:
 	void UseSlot2(const FInputActionValue& Value);
 
 	void UseSlot3(const FInputActionValue& Value);
+	void UseSlot4(const FInputActionValue& Value);
+	UFUNCTION(Server, Reliable)
+	void ServerUseSlot4();
 
 	UPROPERTY(VisibleAnywhere)
 	UStaticMeshComponent* EquippedLanternMesh;
@@ -434,7 +443,7 @@ public:
 	UPlayerHUDWidget* HUDWidget;
 
 	// 체력
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float MaxHP = 100.f;
 
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentHP, VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
@@ -532,6 +541,12 @@ public:
 
 	UPROPERTY(ReplicatedUsing = OnRep_PurchasedItems, BlueprintReadOnly, Category = "Inventory")
 	TArray<FShopInventoryItem> PurchasedItems;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Slot4PurchasedItemIndex, BlueprintReadOnly, Category = "Inventory")
+	int32 Slot4PurchasedItemIndex = INDEX_NONE;
+
+	UFUNCTION()
+	void OnRep_Slot4PurchasedItemIndex();
 
 	UFUNCTION()
 	void OnRep_PurchasedItems();

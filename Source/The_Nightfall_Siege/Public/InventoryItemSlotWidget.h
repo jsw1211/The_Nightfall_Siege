@@ -18,6 +18,8 @@ class THE_NIGHTFALL_SIEGE_API UInventoryItemSlotWidget : public UUserWidget
 
 public:
 	void Configure(ABaseCharacter* InOwner, int32 InIndex, const FText& InName, UTexture2D* InIcon);
+	int32 GetItemIndex() const { return ItemIndex; }
+	ABaseCharacter* GetOwnerCharacter() const { return OwnerCharacter; }
 
 protected:
 	virtual bool Initialize() override;

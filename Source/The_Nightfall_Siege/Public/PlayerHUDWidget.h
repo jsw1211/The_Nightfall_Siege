@@ -13,6 +13,8 @@
 class UProgressBar;
 class UTextBlock;
 class UImage;
+class UDragDropOperation;
+class FDragDropEvent;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API UPlayerHUDWidget : public UUserWidget
@@ -21,6 +23,7 @@ class THE_NIGHTFALL_SIEGE_API UPlayerHUDWidget : public UUserWidget
 public:
 
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 
     UPROPERTY(meta = (BindWidget))
     UProgressBar* HPBar;
