@@ -461,6 +461,16 @@ void ABaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	// PIE can recapture the mouse after a click.  Keep the cursor visible for
+	// as long as either interactive UI remains on screen.
+	if ((bInventoryOpen || bShopOpen) && IsLocallyControlled())
+	{
+		if (APlayerController* PC = Cast<APlayerController>(GetController()))
+		{
+			PC->SetShowMouseCursor(true);
+		}
+	}
+
     UpdateLanternDirectionEffect(DeltaTime);
 
     QRemainingCooldown = FMath::Max(0.f, QRemainingCooldown - DeltaTime);
@@ -3042,12 +3052,32 @@ void ABaseCharacter::ServerInteractDungeonPortal_Implementation()
     UE_LOG(LogTemp, Warning,
         TEXT("ServerInteractDungeonPortal"));
 
-    if (!NearbyDungeonPortal)
-    {
-        return;
-    }
+	if (!NearbyDungeonPortal)
+	{
+		return;
+	}
 
-    NearbyDungeonPortal->ServerEnterDungeon();
+	PrepareForPortalTravel();
+	NearbyDungeonPortal->ServerEnterDungeon();
+}
+
+void ABaseCharacter::PrepareForPortalTravel()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	bLanternEquipped = false;
+	bLanternPoseActive = false;
+	bIsEquippingLantern = false;
+	if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+	{
+		PS->bLanternEquipped = false;
+	}
+
+	OnRep_LanternEquipped();
+	ForceNetUpdate();
 }
 
 void ABaseCharacter::ServerPickupCoin_Implementation(ACoin* CoinActor)

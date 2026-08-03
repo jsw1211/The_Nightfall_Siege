@@ -145,6 +145,9 @@ void APortal::Interact(ABaseCharacter* Player)
         return;
     }
 
+    // The next-map pawn must always start with the lantern put away.
+    Player->PrepareForPortalTravel();
+
     switch (PortalType)
     {
     case EPortalType::ReturnVillage:

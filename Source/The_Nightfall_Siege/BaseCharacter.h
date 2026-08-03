@@ -137,6 +137,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Shop")
 	void ToggleShop();
 
+	// Called immediately before portal travel so no newly spawned pawn restores
+	// the lantern in its hand.
+	void PrepareForPortalTravel();
+
 	UFUNCTION(BlueprintCallable, Category = "Shop")
 	void RequestBuyPotion();
 
