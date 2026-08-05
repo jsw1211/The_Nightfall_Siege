@@ -873,6 +873,17 @@ void ABaseCharacter::AssignPurchasedItemToSlot4(int32 ItemIndex)
     ServerAssignPurchasedItemToSlot4(ItemIndex);
 }
 
+void ABaseCharacter::UsePurchasedItemAtIndex(int32 ItemIndex)
+{
+    if (HasAuthority())
+    {
+        ServerUsePurchasedItem_Implementation(ItemIndex);
+        return;
+    }
+
+    ServerUsePurchasedItem(ItemIndex);
+}
+
 void ABaseCharacter::ServerAssignPurchasedItemToSlot4_Implementation(int32 ItemIndex)
 {
     if (!PurchasedItems.IsValidIndex(ItemIndex))
@@ -947,11 +958,25 @@ void ABaseCharacter::ServerBuyShopItem_Implementation(EShopItemType ItemType)
     }
 
     Coin -= Price;
-    PurchasedItems.Add({ ItemType, Name, Icon });
+
+    int32 ItemIndex = PurchasedItems.IndexOfByPredicate(
+        [ItemType](const FShopInventoryItem& Item)
+        {
+            return Item.ItemType == ItemType;
+        });
+
+    if (ItemIndex == INDEX_NONE)
+    {
+        ItemIndex = PurchasedItems.Add({ ItemType, Name, Icon, 1 });
+    }
+    else
+    {
+        ++PurchasedItems[ItemIndex].Quantity;
+    }
 
     if (ItemType == EShopItemType::HPPotion || ItemType == EShopItemType::AttackPotion)
     {
-        Slot4PurchasedItemIndex = PurchasedItems.Num() - 1;
+        Slot4PurchasedItemIndex = ItemIndex;
         OnRep_Slot4PurchasedItemIndex();
     }
 
@@ -1013,7 +1038,11 @@ void ABaseCharacter::RefreshInventoryWidget()
             continue;
         }
 
-        Slot->Configure(this, ItemIndex, Item.DisplayName, Item.Icon.Get());
+        const FText SlotText = FText::FromString(FString::Printf(
+            TEXT("%s x%d"),
+            *Item.DisplayName.ToString(),
+            Item.Quantity));
+        Slot->Configure(this, ItemIndex, SlotText, Item.Icon.Get());
         InventoryGrid->AddChildToGrid(Slot, ItemIndex / Columns, ItemIndex % Columns);
     }
 }
@@ -1589,12 +1618,17 @@ void ABaseCharacter::UseSlot4(const FInputActionValue& Value)
 
 void ABaseCharacter::ServerUseSlot4_Implementation()
 {
-    if (!PurchasedItems.IsValidIndex(Slot4PurchasedItemIndex))
+    ServerUsePurchasedItem_Implementation(Slot4PurchasedItemIndex);
+}
+
+void ABaseCharacter::ServerUsePurchasedItem_Implementation(int32 ItemIndex)
+{
+    if (!PurchasedItems.IsValidIndex(ItemIndex) || PurchasedItems[ItemIndex].Quantity <= 0)
     {
         return;
     }
 
-    const EShopItemType ItemType = PurchasedItems[Slot4PurchasedItemIndex].ItemType;
+    const EShopItemType ItemType = PurchasedItems[ItemIndex].ItemType;
     if (ItemType == EShopItemType::HPPotion)
     {
         const float BonusHP = MaxHP * 0.2f;
@@ -1618,8 +1652,20 @@ void ABaseCharacter::ServerUseSlot4_Implementation()
         PS->SavedAttackPower = AttackPower;
     }
 
-    PurchasedItems.RemoveAt(Slot4PurchasedItemIndex);
-    Slot4PurchasedItemIndex = INDEX_NONE;
+    --PurchasedItems[ItemIndex].Quantity;
+    if (PurchasedItems[ItemIndex].Quantity <= 0)
+    {
+        PurchasedItems.RemoveAt(ItemIndex);
+
+        if (Slot4PurchasedItemIndex == ItemIndex)
+        {
+            Slot4PurchasedItemIndex = INDEX_NONE;
+        }
+        else if (Slot4PurchasedItemIndex > ItemIndex)
+        {
+            --Slot4PurchasedItemIndex;
+        }
+    }
 
     OnRep_PurchasedItems();
     OnRep_Slot4PurchasedItemIndex();

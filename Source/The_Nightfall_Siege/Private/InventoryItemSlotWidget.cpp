@@ -52,6 +52,17 @@ FReply UInventoryItemSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeom
 	return UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::LeftMouseButton).NativeReply;
 }
 
+FReply UInventoryItemSlotWidget::NativeOnMouseButtonDoubleClick(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && OwnerCharacter)
+	{
+		OwnerCharacter->UsePurchasedItemAtIndex(ItemIndex);
+		return FReply::Handled();
+	}
+
+	return Super::NativeOnMouseButtonDoubleClick(InGeometry, InMouseEvent);
+}
+
 void UInventoryItemSlotWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
 {
 	UDragDropOperation* Operation = NewObject<UDragDropOperation>(this);

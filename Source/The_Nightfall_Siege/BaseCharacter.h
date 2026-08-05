@@ -51,6 +51,9 @@ struct FShopInventoryItem
 
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
 	TObjectPtr<UTexture2D> Icon = nullptr;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	int32 Quantity = 1;
 };
 
 UCLASS()
@@ -174,6 +177,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void AssignPurchasedItemToSlot4(int32 ItemIndex);
 
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void UsePurchasedItemAtIndex(int32 ItemIndex);
+
 	UFUNCTION(Server, Reliable)
 	void ServerBuyPotion();
 
@@ -185,6 +191,9 @@ public:
 
 	UFUNCTION(Server, Reliable)
 	void ServerAssignPurchasedItemToSlot4(int32 ItemIndex);
+
+	UFUNCTION(Server, Reliable)
+	void ServerUsePurchasedItem(int32 ItemIndex);
 	UFUNCTION()
 	void TakePlayerDamage(float Damage);
 
