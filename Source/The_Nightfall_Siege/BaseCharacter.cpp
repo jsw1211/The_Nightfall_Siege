@@ -35,6 +35,8 @@
 #include "Net/UnrealNetwork.h"
 #include "Altar.h"
 #include "DungeonPortal.h"
+#include "QuestGiver.h"
+#include "QuestWidget.h"
 #include "Coin.h"
 #include "Components/Button.h"
 #include "Components/GridPanel.h"
@@ -61,6 +63,12 @@ ABaseCharacter::ABaseCharacter()
     if (ShopWidgetBP.Succeeded())
     {
         ShopWidgetClass = ShopWidgetBP.Class;
+    }
+
+    static ConstructorHelpers::FClassFinder<UQuestWidget> QuestWidgetBP(TEXT("/Game/BP_Character/WBP_Quest"));
+    if (QuestWidgetBP.Succeeded())
+    {
+        QuestWidgetClass = QuestWidgetBP.Class;
     }
 
     static ConstructorHelpers::FObjectFinder<UTexture2D> HPPotionTexture(TEXT("/Game/Asset/UI/items/HP_Potion"));
@@ -294,6 +302,19 @@ void ABaseCharacter::BeginPlay()
             if (HUDWidget)
             {
                 HUDWidget->AddToViewport();
+            }
+        }
+    }
+
+    if (QuestWidgetClass)
+    {
+        APlayerController* PC = Cast<APlayerController>(GetController());
+        if (PC && PC->IsLocalController() && !QuestWidget)
+        {
+            QuestWidget = CreateWidget<UQuestWidget>(PC, QuestWidgetClass);
+            if (QuestWidget)
+            {
+                QuestWidget->AddToViewport(5);
             }
         }
     }
@@ -579,6 +600,7 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     // The shop is deliberately bound directly so it works without requiring a
     // new Input Action asset to be configured in every character Blueprint.
     PlayerInputComponent->BindKey(EKeys::P, IE_Pressed, this, &ABaseCharacter::ToggleShop);
+    PlayerInputComponent->BindKey(EKeys::F, IE_Pressed, this, &ABaseCharacter::InteractWithQuestGiver);
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
 }
@@ -1214,6 +1236,11 @@ bool ABaseCharacter::UpgradeSkill(FSkillUpgradeData UpgradeData)
 
     ApplySkillUpgrade(UpgradeData);
 
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        PS->NotifySkillPointSpent();
+    }
+
     if (UTheNightfallSiegeInstance* GI =
         Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
     {
@@ -1534,6 +1561,14 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
     {
         ServerPickupPrism(NearbyPrism);
         return;
+    }
+}
+
+void ABaseCharacter::InteractWithQuestGiver()
+{
+    if (NearbyQuestGiver)
+    {
+        ServerInteractQuestGiver(NearbyQuestGiver);
     }
 }
 
@@ -3107,6 +3142,12 @@ void ABaseCharacter::ServerPickupPrism_Implementation(ADungeonPrism* Prism)
         GI->ClearCurrentDungeon();
     }
 
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        PS->NotifyPrismCollected();
+        ClientShowQuestMessage(PS->GetQuestObjectiveText().ToString());
+    }
+
     Prism->SpawnReturnPortal();
 
     Prism->Destroy();
@@ -3119,6 +3160,14 @@ void ABaseCharacter::ServerInteractPortal_Implementation(APortal* Portal)
     if (!Portal)
     {
         return;
+    }
+
+    if (Portal->PortalType == EPortalType::Boss)
+    {
+        if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+        {
+            PS->NotifyBossPortalEntered();
+        }
     }
 
     Portal->Interact(this);
@@ -3134,8 +3183,34 @@ void ABaseCharacter::ServerInteractDungeonPortal_Implementation()
 		return;
 	}
 
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        PS->NotifyDungeonEntered();
+    }
+
 	PrepareForPortalTravel();
 	NearbyDungeonPortal->ServerEnterDungeon();
+}
+
+void ABaseCharacter::ServerInteractQuestGiver_Implementation(AQuestGiver* QuestGiver)
+{
+    if (QuestGiver)
+    {
+        QuestGiver->Interact(this);
+    }
+}
+
+void ABaseCharacter::ClientShowQuestMessage_Implementation(const FString& Message)
+{
+    if (QuestWidget)
+    {
+        QuestWidget->ShowObjective(FText::FromString(Message));
+    }
+}
+
+void ABaseCharacter::SetNearbyQuestGiver(AQuestGiver* QuestGiver)
+{
+    NearbyQuestGiver = QuestGiver;
 }
 
 void ABaseCharacter::PrepareForPortalTravel()

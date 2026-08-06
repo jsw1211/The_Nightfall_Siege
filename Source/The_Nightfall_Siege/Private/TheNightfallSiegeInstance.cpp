@@ -21,7 +21,8 @@ void UTheNightfallSiegeInstance::StartRaid()
 {
     RemainingDungeons.Empty();
 
-    RemainingDungeons.Add("LV_Dungeon1");
+    // The same dungeon map is used for the three required quest clears.
+    RemainingDungeons = { "LV_Dungeon1", "LV_Dungeon1", "LV_Dungeon1" };
 
     ClearedDungeonCount = 0;
 }
@@ -45,11 +46,11 @@ bool UTheNightfallSiegeInstance::ClearCurrentDungeon()
 {
     UE_LOG(LogTemp, Warning, TEXT("CurrentDungeon : %s"), *CurrentDungeon.ToString());
 
-    RemainingDungeons.Remove(CurrentDungeon);
+    RemainingDungeons.RemoveSingle(CurrentDungeon);
 
     UE_LOG(LogTemp, Warning, TEXT("Remaining : %d"), RemainingDungeons.Num());
 
     ClearedDungeonCount++;
 
-    return ClearedDungeonCount >= 1;
+    return ClearedDungeonCount >= 3;
 }

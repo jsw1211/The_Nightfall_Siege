@@ -7,6 +7,7 @@
 	#include "VillageManager.generated.h"
 
 	class APortal;
+	class AQuestGiver;
 
 	UCLASS()
 	class THE_NIGHTFALL_SIEGE_API AVillageManager : public AActor
@@ -31,6 +32,16 @@
 		UPROPERTY(EditAnywhere, Category = "Portal")
 		FVector BossPortalLocation;
 
+        // One quest giver is spawned each time the village map is loaded.
+        UPROPERTY(EditAnywhere, Category = "Quest")
+        TSubclassOf<AQuestGiver> QuestGiverClass;
+
+        UPROPERTY(EditAnywhere, Category = "Quest")
+        FVector QuestGiverOffset = FVector(250.f, 0.f, 0.f);
+
 		UFUNCTION()
 		void SpawnBossPortal();
+
+        UFUNCTION()
+        void EnsureQuestGiver();
 	};

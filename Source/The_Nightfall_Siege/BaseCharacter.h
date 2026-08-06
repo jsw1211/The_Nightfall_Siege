@@ -27,6 +27,8 @@ class APortal;
 class AAltar;
 class ADungeonPortal;
 class ADragonBoss;
+class AQuestGiver;
+class UQuestWidget;
 
 UENUM(BlueprintType)
 enum class EShopItemType : uint8
@@ -305,6 +307,19 @@ public:
 	UFUNCTION(Server, Reliable)
 	void ServerInteractDungeonPortal();
 
+    UFUNCTION(Server, Reliable)
+    void ServerInteractQuestGiver(AQuestGiver* QuestGiver);
+
+    UFUNCTION(Client, Reliable)
+    void ClientShowQuestMessage(const FString& Message);
+
+    void InteractWithQuestGiver();
+
+    UPROPERTY()
+    AQuestGiver* NearbyQuestGiver = nullptr;
+
+    void SetNearbyQuestGiver(AQuestGiver* QuestGiver);
+
 	UPROPERTY(ReplicatedUsing = OnRep_HasLantern, BlueprintReadOnly)
 	bool bHasLantern = false;
 
@@ -454,6 +469,12 @@ public:
 
 	UPROPERTY()
 	UPlayerHUDWidget* HUDWidget;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
+    TSubclassOf<UQuestWidget> QuestWidgetClass;
+
+    UPROPERTY()
+    UQuestWidget* QuestWidget;
 
 	// 체력
 	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Stats")

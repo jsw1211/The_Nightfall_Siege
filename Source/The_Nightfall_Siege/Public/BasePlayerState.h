@@ -7,9 +7,13 @@
 #include "CharacterType.h"
 #include "BasePlayerState.generated.h"
 
-/**
- * 
- */
+UENUM(BlueprintType)
+enum class EQuestStage : uint8
+{
+    NotAccepted, FindDungeonPortal, ClearDungeon, SpendSkillPoint,
+    CollectPrism, FindBossPortal, DefeatBoss, Completed
+};
+
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABasePlayerState : public APlayerState
 {
@@ -39,6 +43,24 @@ public:
 
 	UPROPERTY(Replicated, BlueprintReadWrite)
 	int32 SkillPoints = 0;
+
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Quest")
+    EQuestStage QuestStage = EQuestStage::NotAccepted;
+
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Quest")
+    int32 ClearedDungeonCount = 0;
+
+    UFUNCTION(BlueprintCallable, Category = "Quest")
+    void AcceptMainQuest();
+    void NotifyDungeonEntered();
+    void NotifyDungeonCleared();
+    void NotifySkillPointSpent();
+    void NotifyPrismCollected();
+    void NotifyBossPortalEntered();
+    void NotifyBossDefeated();
+
+    UFUNCTION(BlueprintPure, Category = "Quest")
+    FText GetQuestObjectiveText() const;
 
 	// Permanent shop upgrades survive pawn replacement and seamless map travel.
 	UPROPERTY(Replicated, BlueprintReadWrite)

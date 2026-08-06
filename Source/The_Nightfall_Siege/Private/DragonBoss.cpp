@@ -9,6 +9,7 @@
 #include "AIController.h"
 #include "Components/CapsuleComponent.h"
 #include "DungeonPrism.h"
+#include "BasePlayerState.h"
 #include "DragonBreathProjectile.h"
 #include "DangerZone.h"
 #include "NiagaraFunctionLibrary.h"
@@ -1116,6 +1117,20 @@ void ADragonBoss::Die()
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("Dragon Dead"));
+
+    TArray<AActor*> Players;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+    for (AActor* Actor : Players)
+    {
+        if (ABaseCharacter* Player = Cast<ABaseCharacter>(Actor))
+        {
+            if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
+            {
+                PS->NotifyBossDefeated();
+                Player->ClientShowQuestMessage(PS->GetQuestObjectiveText().ToString());
+            }
+        }
+    }
 
 	GetWorldTimerManager().ClearTimer(
 		TelegraphHandle);

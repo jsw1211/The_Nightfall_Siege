@@ -15,6 +15,7 @@
 #include "AIController.h"
 #include "Coin.h"
 #include "DungeonPrism.h"
+#include "BasePlayerState.h"
 #include "TheNightfallSiegeInstance.h"
 #include "Net/UnrealNetwork.h"
 
@@ -341,6 +342,13 @@ void AMonster::TakeMonsterDamage(float Damage)
                     }
 
                     Player->SkillPoints = GI->SkillPoints;
+
+                    if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
+                    {
+                        PS->SkillPoints = Player->SkillPoints;
+                        PS->NotifyDungeonCleared();
+                        Player->ClientShowQuestMessage(PS->GetQuestObjectiveText().ToString());
+                    }
                 }
             }
         }
