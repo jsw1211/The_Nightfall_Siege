@@ -10,8 +10,9 @@
 UENUM(BlueprintType)
 enum class EQuestStage : uint8
 {
-    NotAccepted, FindDungeonPortal, ClearDungeon, SpendSkillPoint,
-    CollectPrism, FindBossPortal, DefeatBoss, Completed
+    NotAccepted, FindDungeonPortal, ClearDungeon, CollectPrism, ReturnToVillage,
+    SpendSkillPoint,
+    FindBossPortal, DefeatBoss, Completed
 };
 
 UCLASS()
@@ -56,6 +57,7 @@ public:
     void NotifyDungeonCleared();
     void NotifySkillPointSpent();
     void NotifyPrismCollected();
+    void NotifyReturnedToVillage();
     void NotifyBossPortalEntered();
     void NotifyBossDefeated();
 

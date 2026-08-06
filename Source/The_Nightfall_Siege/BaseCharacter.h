@@ -476,6 +476,10 @@ public:
     UPROPERTY()
     UQuestWidget* QuestWidget;
 
+    // Loads WBP_Quest even when a child character Blueprint has an older,
+    // serialized default value for QuestWidgetClass.
+    void EnsureQuestWidget();
+
 	// 체력
 	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float MaxHP = 100.f;

@@ -306,18 +306,7 @@ void ABaseCharacter::BeginPlay()
         }
     }
 
-    if (QuestWidgetClass)
-    {
-        APlayerController* PC = Cast<APlayerController>(GetController());
-        if (PC && PC->IsLocalController() && !QuestWidget)
-        {
-            QuestWidget = CreateWidget<UQuestWidget>(PC, QuestWidgetClass);
-            if (QuestWidget)
-            {
-                QuestWidget->AddToViewport(5);
-            }
-        }
-    }
+    EnsureQuestWidget();
 
     Slot1Icon = EmptySlotIcon;
     Slot2Icon = EmptySlotIcon;
@@ -3134,17 +3123,24 @@ void ABaseCharacter::ServerPickupPrism_Implementation(ADungeonPrism* Prism)
 
     OnRep_HasPrism();
 
+    int32 RaidClearCount = INDEX_NONE;
     if (UTheNightfallSiegeInstance* GI =
         Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
     {
         GI->bHasPrism = true;
 
         GI->ClearCurrentDungeon();
+        RaidClearCount = GI->ClearedDungeonCount;
     }
 
     if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
     {
         PS->NotifyPrismCollected();
+        // GameInstance owns the authoritative raid count across map travel.
+        if (RaidClearCount != INDEX_NONE)
+        {
+            PS->ClearedDungeonCount = RaidClearCount;
+        }
         ClientShowQuestMessage(PS->GetQuestObjectiveText().ToString());
     }
 
@@ -3167,6 +3163,13 @@ void ABaseCharacter::ServerInteractPortal_Implementation(APortal* Portal)
         if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
         {
             PS->NotifyBossPortalEntered();
+        }
+    }
+    else if (Portal->PortalType == EPortalType::ReturnVillage)
+    {
+        if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+        {
+            PS->NotifyReturnedToVillage();
         }
     }
 
@@ -3202,9 +3205,47 @@ void ABaseCharacter::ServerInteractQuestGiver_Implementation(AQuestGiver* QuestG
 
 void ABaseCharacter::ClientShowQuestMessage_Implementation(const FString& Message)
 {
+    EnsureQuestWidget();
     if (QuestWidget)
     {
         QuestWidget->ShowObjective(FText::FromString(Message));
+    }
+}
+
+void ABaseCharacter::EnsureQuestWidget()
+{
+    if (QuestWidget)
+    {
+        return;
+    }
+
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (!PC || !PC->IsLocalController())
+    {
+        return;
+    }
+
+    // Character Blueprints can preserve old null defaults after a new native
+    // property is added.  Load the authored WBP explicitly in that case.
+    if (!QuestWidgetClass)
+    {
+        QuestWidgetClass = LoadClass<UQuestWidget>(
+            nullptr,
+            TEXT("/Game/BP_Character/WBP_Quest.WBP_Quest_C"));
+    }
+
+    TSubclassOf<UQuestWidget> ClassToCreate = QuestWidgetClass;
+    if (!ClassToCreate)
+    {
+        // The native widget builds the same layout, so the objective remains
+        // usable even if the asset was moved or failed to load.
+        ClassToCreate = UQuestWidget::StaticClass();
+    }
+
+    QuestWidget = CreateWidget<UQuestWidget>(PC, ClassToCreate);
+    if (QuestWidget)
+    {
+        QuestWidget->AddToViewport(50);
     }
 }
 
