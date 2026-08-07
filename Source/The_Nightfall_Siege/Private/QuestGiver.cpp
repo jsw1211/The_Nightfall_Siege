@@ -19,7 +19,7 @@ AQuestGiver::AQuestGiver()
     DummyMesh->SetRelativeLocation(FVector(0.f, 0.f, 90.f));
     DummyMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     DummyMesh->SetVisibility(true, true);
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Game/Asset/npc/npc_1"));
     if (Cube.Succeeded()) DummyMesh->SetStaticMesh(Cube.Object);
 
     InteractionRange = CreateDefaultSubobject<USphereComponent>(TEXT("InteractionRange"));
