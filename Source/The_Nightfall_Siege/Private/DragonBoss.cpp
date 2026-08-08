@@ -21,7 +21,7 @@
 // Sets default values
 ADragonBoss::ADragonBoss()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	// Keep these gameplay effects wired even when the BP defaults have not
@@ -68,7 +68,7 @@ void ADragonBoss::BeginPlay()
 	}
 
 	ArenaCenter = FVector(0.f, 0.f, 0.f);
-	
+
 	bShielded = true;
 	bCanTakeDamage = false;
 
@@ -216,6 +216,7 @@ void ADragonBoss::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
 }
+
 
 void ADragonBoss::StartAttackCycle()
 {
@@ -917,7 +918,7 @@ void ADragonBoss::ExecutePattern()
 	UE_LOG(LogTemp, Warning,
 		TEXT("Total            : %d"),
 		TotalPatternCount);
-	
+
 	///////////////////////////////////////////
 }
 
@@ -1118,19 +1119,19 @@ void ADragonBoss::Die()
 	UE_LOG(LogTemp, Warning,
 		TEXT("Dragon Dead"));
 
-    TArray<AActor*> Players;
-    UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
-    for (AActor* Actor : Players)
-    {
-        if (ABaseCharacter* Player = Cast<ABaseCharacter>(Actor))
-        {
-            if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
-            {
-                PS->NotifyBossDefeated();
-                Player->ClientShowQuestMessage(PS->GetQuestObjectiveText().ToString());
-            }
-        }
-    }
+	TArray<AActor*> Players;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+	for (AActor* Actor : Players)
+	{
+		if (ABaseCharacter* Player = Cast<ABaseCharacter>(Actor))
+		{
+			if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
+			{
+				PS->NotifyBossDefeated();
+				Player->ClientShowQuestMessage(PS->GetQuestObjectiveText().ToString());
+			}
+		}
+	}
 
 	GetWorldTimerManager().ClearTimer(
 		TelegraphHandle);
@@ -1497,6 +1498,8 @@ void ADragonBoss::BreathFire()
 	if (Projectile)
 	{
 		Projectile->DamageMultiplier = GetCurrentDamageMultiplier();
+
+		Projectile->LaunchInDirection(GetActorForwardVector());
 	}
 }
 
@@ -1750,4 +1753,3 @@ void ADragonBoss::MulticastPlayDeath_Implementation()
 		PlayAnimMontage(DeathMontage);
 	}
 }
-

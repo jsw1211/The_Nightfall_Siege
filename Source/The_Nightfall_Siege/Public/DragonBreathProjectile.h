@@ -8,52 +8,72 @@
 #include "DragonBreathProjectile.generated.h"
 
 class USphereComponent;
+class UStaticMeshComponent;
 class UProjectileMovementComponent;
+class ADragonBoss;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ADragonBreathProjectile : public AActor
 {
 	GENERATED_BODY()
-	
-public:	
+
+public:
 	// Sets default values for this actor's properties
 	ADragonBreathProjectile();
+
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+
+	// 발사 방향을 설정하고 해당 방향으로 투사체를 발사
+	void LaunchInDirection(const FVector& Direction);
+
+	// Reflector에 맞았을 때 드래곤 방향으로 화염구를 반사
+	void ReflectTowardDragon(ADragonBoss* TargetDragon);
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-    UPROPERTY(VisibleAnywhere)
-    USphereComponent* Collision;
+	// 네트워크 복제 변수 등록
+	virtual void GetLifetimeReplicatedProps(
+		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-    UPROPERTY(VisibleAnywhere)
-    UStaticMeshComponent* Mesh;
+	UPROPERTY(VisibleAnywhere)
+	USphereComponent* Collision;
 
-    UPROPERTY(VisibleAnywhere)
-    UProjectileMovementComponent* ProjectileMovement;
+	UPROPERTY(VisibleAnywhere)
+	UStaticMeshComponent* Mesh;
 
-    UFUNCTION()
-    void OnOverlapBegin(
-        UPrimitiveComponent* OverlappedComp,
-        AActor* OtherActor,
-        UPrimitiveComponent* OtherComp,
-        int32 OtherBodyIndex,
-        bool bFromSweep,
-        const FHitResult& SweepResult
-    );
+	UPROPERTY(VisibleAnywhere)
+	UProjectileMovementComponent* ProjectileMovement;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
-    TObjectPtr<UNiagaraSystem> ProjectileFX;
+	UFUNCTION()
+	void OnOverlapBegin(
+		UPrimitiveComponent* OverlappedComp,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		int32 OtherBodyIndex,
+		bool bFromSweep,
+		const FHitResult& SweepResult
+	);
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
-    TObjectPtr<UNiagaraSystem> ExplosionFX;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
+	TObjectPtr<UNiagaraSystem> ProjectileFX;
 
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
+	TObjectPtr<UNiagaraSystem> ExplosionFX;
 
-	// Set by the dragon when the projectile is spawned. Damage is resolved on
-	// the server, so this does not need to be replicated.
+	// 반사된 화염구인지 여부
+	// 반사된 화염구는 플레이어에게 다시 피해를 주지 않음
+	UPROPERTY(Replicated)
+	bool bReflected = false;
+
+	// 반사된 화염구가 보스에게 돌아가는 속도
+	UPROPERTY(EditAnywhere, Category = "Projectile")
+	float ReturnSpeed = 2800.f;
+
+public:
+	// Set by the dragon when the projectile is spawned.
+	// Damage is resolved on the server, so this does not need to be replicated.
 	float DamageMultiplier = 1.f;
-
 };
