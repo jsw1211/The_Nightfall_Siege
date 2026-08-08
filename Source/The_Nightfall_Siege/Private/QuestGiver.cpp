@@ -15,8 +15,8 @@ AQuestGiver::AQuestGiver()
 
     DummyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DummyMesh"));
     DummyMesh->SetupAttachment(SceneRoot);
-    DummyMesh->SetWorldScale3D(FVector(0.75f, 0.75f, 1.8f));
-    DummyMesh->SetRelativeLocation(FVector(0.f, 0.f, 90.f));
+    DummyMesh->SetWorldScale3D(FVector(1.0f, 1.0f, 1.0f));
+    DummyMesh->SetRelativeLocation(FVector(0.f, 0.f, 0.f));
     DummyMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     DummyMesh->SetVisibility(true, true);
     static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Game/Asset/npc/npc_1"));

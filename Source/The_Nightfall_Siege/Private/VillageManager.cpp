@@ -97,7 +97,7 @@ void AVillageManager::EnsureQuestGiver()
 
         AQuestGiver* SpawnedGiver = GetWorld()->SpawnActor<AQuestGiver>(
             ClassToSpawn,
-            GetActorLocation() + QuestGiverOffset + FVector(0.f, 0.f, 110.f),
+            GetActorLocation() + QuestGiverOffset + FVector(0.f, 0.f, 0.f),
             GetActorRotation(),
             SpawnParams);
 
