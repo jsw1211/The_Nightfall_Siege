@@ -2,7 +2,6 @@
 
 #include "DragonBreathProjectile.h"
 #include "Components/SphereComponent.h"
-#include "Components/StaticMeshComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Reflector.h"
 #include "DragonBoss.h"
@@ -29,13 +28,15 @@ ADragonBreathProjectile::ADragonBreathProjectile()
 
 	Collision->SetCollisionResponseToAllChannels(ECR_Overlap);
 
-	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
-
-	Mesh->SetupAttachment(RootComponent);
-
 	ProjectileMovement =
 		CreateDefaultSubobject<UProjectileMovementComponent>(
 			TEXT("ProjectileMovement"));
+
+	FireballFXComponent =
+		CreateDefaultSubobject<UNiagaraComponent>(TEXT("FireballFX"));
+
+	FireballFXComponent->SetupAttachment(RootComponent);
+	FireballFXComponent->SetAutoActivate(false);
 
 	// 화염구 속도
 	ProjectileMovement->InitialSpeed = 2200.f;
@@ -63,18 +64,26 @@ void ADragonBreathProjectile::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (ProjectileFX)
+	if (!ProjectileFX)
 	{
-		UNiagaraFunctionLibrary::SpawnSystemAttached(
-			ProjectileFX,
-			RootComponent,
-			NAME_None,
-			FVector::ZeroVector,
-			FRotator::ZeroRotator,
-			EAttachLocation::KeepRelativeOffset,
-			true
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("ProjectileFX is not assigned on %s"),
+			*GetName()
 		);
+		return;
 	}
+
+	FireballFXComponent->SetAsset(ProjectileFX);
+	FireballFXComponent->Activate(true);
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Fireball Niagara started: %s"),
+		*ProjectileFX->GetName()
+	);
 }
 
 // Called every frame

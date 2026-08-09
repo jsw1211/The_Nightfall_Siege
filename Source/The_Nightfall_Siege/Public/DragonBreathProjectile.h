@@ -10,6 +10,7 @@
 class USphereComponent;
 class UStaticMeshComponent;
 class UProjectileMovementComponent;
+class UNiagaraComponent;
 class ADragonBoss;
 
 UCLASS()
@@ -42,10 +43,10 @@ protected:
 	USphereComponent* Collision;
 
 	UPROPERTY(VisibleAnywhere)
-	UStaticMeshComponent* Mesh;
-
-	UPROPERTY(VisibleAnywhere)
 	UProjectileMovementComponent* ProjectileMovement;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VFX")
+	TObjectPtr<UNiagaraComponent> FireballFXComponent;
 
 	UFUNCTION()
 	void OnOverlapBegin(
@@ -77,3 +78,5 @@ public:
 	// Damage is resolved on the server, so this does not need to be replicated.
 	float DamageMultiplier = 1.f;
 };
+
+
