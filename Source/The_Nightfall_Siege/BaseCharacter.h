@@ -870,6 +870,9 @@ protected:
 	UPROPERTY()
 	UAltarProgressWidget* AltarProgressWidget = nullptr;
 
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Altar")
+	bool bIsPlacingLantern = false;
+
 	FTimerHandle AltarPlacementTimer;
 	TWeakObjectPtr<AAltar> AltarBeingPlaced;
 	void FinishAltarPlacement();

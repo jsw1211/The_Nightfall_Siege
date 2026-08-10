@@ -1529,6 +1529,11 @@ void ABaseCharacter::SetNearbyLantern(ALantern* Lantern)
 
 void ABaseCharacter::Interact(const FInputActionValue& Value)
 {
+    if (bIsPlacingLantern)
+    {
+        return;
+    }
+
     if (NearbyAltar)
     {
         ServerInteractAltar();
@@ -2930,6 +2935,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ABaseCharacter, Coin);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, PotionCount, COND_OwnerOnly);
 	DOREPLIFETIME(ABaseCharacter, bIsUsingPotion);
+	DOREPLIFETIME(ABaseCharacter, bIsPlacingLantern);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, PurchasedItems, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, Slot4PurchasedItemIndex, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, SkillPoints, COND_OwnerOnly);
@@ -2992,6 +2998,9 @@ void ABaseCharacter::ServerInteractAltar_Implementation()
         if (bHasLantern && bLanternEquipped)
         {
             AltarBeingPlaced = NearbyAltar;
+            bIsPlacingLantern = true;
+            GetCharacterMovement()->StopMovementImmediately();
+            GetCharacterMovement()->DisableMovement();
             ClientShowAltarPlacementProgress(3.f);
             GetWorldTimerManager().SetTimer(
                 AltarPlacementTimer, this, &ABaseCharacter::FinishAltarPlacement, 3.f, false);
@@ -3007,6 +3016,8 @@ void ABaseCharacter::FinishAltarPlacement()
 {
     AAltar* Altar = AltarBeingPlaced.Get();
     AltarBeingPlaced.Reset();
+    bIsPlacingLantern = false;
+    GetCharacterMovement()->SetMovementMode(MOVE_Walking);
     ClientHideAltarPlacementProgress();
 
     if (Altar && !Altar->bLanternPlaced && bHasLantern && bLanternEquipped)
@@ -3017,6 +3028,12 @@ void ABaseCharacter::FinishAltarPlacement()
 
 void ABaseCharacter::ClientShowAltarPlacementProgress_Implementation(float Duration)
 {
+    GetCharacterMovement()->StopMovementImmediately();
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        DisableInput(PC);
+    }
+
     if (!AltarProgressWidget)
     {
         if (APlayerController* PC = Cast<APlayerController>(GetController()))
@@ -3039,6 +3056,10 @@ void ABaseCharacter::ClientHideAltarPlacementProgress_Implementation()
     if (AltarProgressWidget)
     {
         AltarProgressWidget->StopProgress();
+    }
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        EnableInput(PC);
     }
 }
 
