@@ -1606,7 +1606,10 @@ void ABaseCharacter::UseSlot2(const FInputActionValue& Value)
 
 void ABaseCharacter::ServerUsePotion_Implementation()
 {
-    if (bIsUsingPotion || PotionCount <= 0 || CurrentHP >= MaxHP || bIsDead)
+    // Potions require both hands.  The player must put away the lantern or
+    // prism before drinking, just as other held-item actions are gated.
+    if (bIsUsingPotion || PotionCount <= 0 || CurrentHP >= MaxHP || bIsDead
+        || bLanternEquipped || bPrismEquipped)
     {
         return;
     }
@@ -1634,6 +1637,17 @@ UAnimSequenceBase* ABaseCharacter::GetPotionAnimation() const
 
 void ABaseCharacter::MulticastStartPotionUse_Implementation()
 {
+    // Keep movement enabled, but hide equipped weapons for the drinking pose.
+    // They are restored when the potion completes or is interrupted.
+    for (AActor* Weapon : { RightHandWeapon, LeftHandWeapon })
+    {
+        if (Weapon)
+        {
+            Weapon->SetActorHiddenInGame(true);
+            Weapon->SetActorEnableCollision(false);
+        }
+    }
+
     if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
     {
         if (UAnimSequenceBase* PotionAnimation = GetPotionAnimation())
@@ -1697,6 +1711,15 @@ void ABaseCharacter::MulticastCancelPotionUse_Implementation()
     {
         PotionHealEffectComponent->DeactivateImmediate();
         PotionHealEffectComponent = nullptr;
+    }
+
+    for (AActor* Weapon : { RightHandWeapon, LeftHandWeapon })
+    {
+        if (Weapon)
+        {
+            Weapon->SetActorHiddenInGame(false);
+            Weapon->SetActorEnableCollision(true);
+        }
     }
 }
 
