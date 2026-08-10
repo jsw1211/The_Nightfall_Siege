@@ -24,6 +24,17 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Quest")
     void Interact(ABaseCharacter* Player);
 
+    // Called only by the accepting player's server RPC.
+    void ResolveQuestDecision(ABaseCharacter* Player, bool bAccepted);
+    bool CanInteractWith(const ABaseCharacter* Player) const;
+
+    // These can be authored in BP_QuestGiver; add or remove lines freely.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest|Dialogue")
+    FText SpeakerName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest|Dialogue", meta = (MultiLine = "true"))
+    TArray<FText> DialogueLines;
+
 protected:
     UPROPERTY(VisibleAnywhere, Category = "Quest")
     USceneComponent* SceneRoot;

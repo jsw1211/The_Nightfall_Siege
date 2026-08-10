@@ -37,6 +37,7 @@
 #include "DungeonPortal.h"
 #include "QuestGiver.h"
 #include "QuestWidget.h"
+#include "QuestDialogueWidget.h"
 #include "Coin.h"
 #include "Components/Button.h"
 #include "Components/GridPanel.h"
@@ -3203,6 +3204,83 @@ void ABaseCharacter::ServerInteractQuestGiver_Implementation(AQuestGiver* QuestG
     }
 }
 
+void ABaseCharacter::ServerSubmitQuestDecision_Implementation(AQuestGiver* QuestGiver, bool bAccepted)
+{
+    if (QuestGiver)
+    {
+        QuestGiver->ResolveQuestDecision(this, bAccepted);
+    }
+}
+
+void ABaseCharacter::ClientOpenQuestDialogue_Implementation(AQuestGiver* QuestGiver, const TArray<FText>& DialogueLines, const FText& SpeakerName)
+{
+    EnsureQuestDialogueWidget();
+    if (!QuestDialogueWidget)
+    {
+        return;
+    }
+
+    QuestDialogueWidget->ConfigureDialogue(QuestGiver, DialogueLines, SpeakerName);
+    QuestDialogueWidget->SetVisibility(ESlateVisibility::Visible);
+    QuestDialogueWidget->SetKeyboardFocus();
+
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        PC->bShowMouseCursor = true;
+        FInputModeGameAndUI InputMode;
+        InputMode.SetWidgetToFocus(QuestDialogueWidget->TakeWidget());
+        PC->SetInputMode(InputMode);
+    }
+}
+
+void ABaseCharacter::ClientFinishQuestDialogue_Implementation(bool bAccepted, const FText& ResultMessage)
+{
+    if (QuestDialogueWidget)
+    {
+        QuestDialogueWidget->RemoveFromParent();
+        QuestDialogueWidget = nullptr;
+    }
+
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        PC->bShowMouseCursor = false;
+        PC->SetInputMode(FInputModeGameOnly());
+    }
+
+    ClientShowQuestMessage(ResultMessage.ToString());
+}
+
+void ABaseCharacter::GrantQuestLantern()
+{
+    if (!HasAuthority() || bHasLantern)
+    {
+        return;
+    }
+
+    bHasLantern = true;
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        PS->bHasLantern = true;
+    }
+    if (UTheNightfallSiegeInstance* GI = Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+    {
+        GI->bHasLantern = true;
+        GI->bWorldLanternDestroyed = true;
+    }
+
+    // The quest reward replaces the old world pickup, preventing a second
+    // party member from acquiring another slot-1 lantern afterwards.
+    TArray<AActor*> WorldLanterns;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), ALantern::StaticClass(), WorldLanterns);
+    for (AActor* WorldLantern : WorldLanterns)
+    {
+        WorldLantern->Destroy();
+    }
+
+    OnRep_HasLantern();
+    ForceNetUpdate();
+}
+
 void ABaseCharacter::ClientShowQuestMessage_Implementation(const FString& Message)
 {
     EnsureQuestWidget();
@@ -3246,6 +3324,40 @@ void ABaseCharacter::EnsureQuestWidget()
     if (QuestWidget)
     {
         QuestWidget->AddToViewport(50);
+    }
+}
+
+void ABaseCharacter::EnsureQuestDialogueWidget()
+{
+    if (QuestDialogueWidget)
+    {
+        return;
+    }
+
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (!PC || !PC->IsLocalController())
+    {
+        return;
+    }
+
+    // WBP_QuestDialogue can be authored later; this native class remains a
+    // usable fallback until the asset is created.
+    if (!QuestDialogueWidgetClass)
+    {
+        QuestDialogueWidgetClass = LoadClass<UQuestDialogueWidget>(
+            nullptr,
+            TEXT("/Game/BP_Character/WBP_QuestDialogue.WBP_QuestDialogue_C"));
+    }
+
+    TSubclassOf<UQuestDialogueWidget> ClassToCreate = QuestDialogueWidgetClass;
+    if (!ClassToCreate)
+    {
+        ClassToCreate = UQuestDialogueWidget::StaticClass();
+    }
+    QuestDialogueWidget = CreateWidget<UQuestDialogueWidget>(PC, ClassToCreate);
+    if (QuestDialogueWidget)
+    {
+        QuestDialogueWidget->AddToViewport(100);
     }
 }
 

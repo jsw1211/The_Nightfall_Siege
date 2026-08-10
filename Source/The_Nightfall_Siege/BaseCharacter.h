@@ -29,6 +29,7 @@ class ADungeonPortal;
 class ADragonBoss;
 class AQuestGiver;
 class UQuestWidget;
+class UQuestDialogueWidget;
 
 UENUM(BlueprintType)
 enum class EShopItemType : uint8
@@ -310,6 +311,18 @@ public:
     UFUNCTION(Server, Reliable)
     void ServerInteractQuestGiver(AQuestGiver* QuestGiver);
 
+    UFUNCTION(Server, Reliable)
+    void ServerSubmitQuestDecision(AQuestGiver* QuestGiver, bool bAccepted);
+
+    UFUNCTION(Client, Reliable)
+    void ClientOpenQuestDialogue(AQuestGiver* QuestGiver, const TArray<FText>& DialogueLines, const FText& SpeakerName);
+
+    UFUNCTION(Client, Reliable)
+    void ClientFinishQuestDialogue(bool bAccepted, const FText& ResultMessage);
+
+    // Server-only reward helper. The lantern occupies item slot 1.
+    void GrantQuestLantern();
+
     UFUNCTION(Client, Reliable)
     void ClientShowQuestMessage(const FString& Message);
 
@@ -479,6 +492,14 @@ public:
     // Loads WBP_Quest even when a child character Blueprint has an older,
     // serialized default value for QuestWidgetClass.
     void EnsureQuestWidget();
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
+    TSubclassOf<UQuestDialogueWidget> QuestDialogueWidgetClass;
+
+    UPROPERTY()
+    UQuestDialogueWidget* QuestDialogueWidget = nullptr;
+
+    void EnsureQuestDialogueWidget();
 
 	// 체력
 	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Stats")
