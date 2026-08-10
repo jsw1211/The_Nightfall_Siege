@@ -324,7 +324,10 @@ void ABaseCharacter::BeginPlay()
 
     if (HasAuthority())
     {
-        PotionCount = 5;
+        if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+        {
+            PotionCount = PS->PotionCount;
+        }
     }
 
     OnRep_PotionCount();
@@ -480,9 +483,8 @@ void ABaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// PIE can recapture the mouse after a click.  Keep the cursor visible for
-	// as long as either interactive UI remains on screen.
-	if ((bInventoryOpen || bShopOpen) && IsLocallyControlled())
+	// This game is mouse-directed, so never hide the cursor after UI transitions.
+	if (IsLocallyControlled())
 	{
 		if (APlayerController* PC = Cast<APlayerController>(GetController()))
 		{
@@ -756,7 +758,7 @@ void ABaseCharacter::ToggleInventory()
             if (APlayerController* PC = Cast<APlayerController>(GetController()))
             {
                 PC->SetInputMode(FInputModeGameOnly());
-                PC->SetShowMouseCursor(false);
+                PC->SetShowMouseCursor(true);
             }
         }
 
@@ -779,6 +781,12 @@ void ABaseCharacter::ToggleShop()
 
     if (!bShopOpen)
     {
+        // The shop is available only while standing in NPC1's interaction range.
+        if (!NearbyQuestGiver || !NearbyQuestGiver->bIsShopkeeper)
+        {
+            return;
+        }
+
         if (!ShopWidget)
         {
             TSubclassOf<UUserWidget> WidgetClass = ShopWidgetClass;
@@ -825,7 +833,9 @@ void ABaseCharacter::ToggleShop()
     }
 
     PC->SetInputMode(FInputModeGameOnly());
-    PC->SetShowMouseCursor(false);
+    // This is a mouse-directed game.  Keep the cursor visible after closing
+    // the shop instead of leaving the player without a visible pointer.
+    PC->SetShowMouseCursor(true);
     PC->SetIgnoreMoveInput(false);
     PC->SetIgnoreLookInput(false);
     GetCharacterMovement()->SetMovementMode(MOVE_Walking);
@@ -1012,6 +1022,10 @@ void ABaseCharacter::ServerBuyShopItem_Implementation(EShopItemType ItemType)
     if (ItemType == EShopItemType::HealPotion)
     {
         ++PotionCount;
+        if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+        {
+            PS->PotionCount = PotionCount;
+        }
         OnRep_PotionCount();
     }
 
@@ -1678,6 +1692,10 @@ void ABaseCharacter::FinishPotionUse()
 
     bIsUsingPotion = false;
     --PotionCount;
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        PS->PotionCount = PotionCount;
+    }
     HealPlayer(MaxHP * PotionHealPercent);
     OnRep_PotionCount();
     MulticastCancelPotionUse();
