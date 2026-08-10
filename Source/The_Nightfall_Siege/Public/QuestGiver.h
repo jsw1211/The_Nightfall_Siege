@@ -24,6 +24,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Quest")
     void Interact(ABaseCharacter* Player);
 
+    // NPC1 is the default shopkeeper.  Other quest-giver Blueprints can turn
+    // this off in their Details panel without changing player code.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop")
+    bool bIsShopkeeper = true;
+
     // Called only by the accepting player's server RPC.
     void ResolveQuestDecision(ABaseCharacter* Player, bool bAccepted);
     bool CanInteractWith(const ABaseCharacter* Player) const;

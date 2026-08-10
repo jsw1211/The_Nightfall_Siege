@@ -24,6 +24,11 @@ public:
 	UPROPERTY(BlueprintReadWrite)
 	TArray<FName> RemainingDungeons;
 
+	// Each village portal consumes one of these locations for the current raid.
+	// A location is never selected twice until StartRaid resets the raid.
+	UPROPERTY(BlueprintReadWrite)
+	TArray<FVector> RemainingDungeonPortalLocations;
+
 	UPROPERTY(BlueprintReadWrite)
 	FName CurrentDungeon;
 
@@ -33,6 +38,8 @@ public:
 	void StartRaid();
 
 	FName SelectNextDungeon();
+
+	bool SelectNextDungeonPortalLocation(FVector& OutLocation);
 
 	bool ClearCurrentDungeon();
 

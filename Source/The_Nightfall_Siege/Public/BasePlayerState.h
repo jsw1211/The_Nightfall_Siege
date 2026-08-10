@@ -43,6 +43,9 @@ public:
 	int32 Coin = 0;
 
 	UPROPERTY(Replicated, BlueprintReadWrite)
+	int32 PotionCount = 5;
+
+	UPROPERTY(Replicated, BlueprintReadWrite)
 	int32 SkillPoints = 0;
 
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Quest")

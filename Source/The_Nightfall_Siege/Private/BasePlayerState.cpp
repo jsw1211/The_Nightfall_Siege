@@ -26,6 +26,7 @@ void ABasePlayerState::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABasePlayerState, bPrismEquipped);
 
     DOREPLIFETIME(ABasePlayerState, Coin);
+    DOREPLIFETIME(ABasePlayerState, PotionCount);
     DOREPLIFETIME(ABasePlayerState, SkillPoints);
     DOREPLIFETIME(ABasePlayerState, QuestStage);
     DOREPLIFETIME(ABasePlayerState, ClearedDungeonCount);
@@ -145,6 +146,7 @@ void ABasePlayerState::CopyProperties(APlayerState* PlayerState)
     NewPS->bPrismEquipped = bPrismEquipped;
 
     NewPS->Coin = Coin;
+    NewPS->PotionCount = PotionCount;
     NewPS->SkillPoints = SkillPoints;
     NewPS->QuestStage = QuestStage;
     NewPS->ClearedDungeonCount = ClearedDungeonCount;

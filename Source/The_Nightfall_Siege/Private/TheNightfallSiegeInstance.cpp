@@ -13,18 +13,28 @@ void UTheNightfallSiegeInstance::Init()
     SkillLevels.Add(ESkillType::R, 1);
 
     StartRaid();
-
-    SelectNextDungeon();
 }
 
 void UTheNightfallSiegeInstance::StartRaid()
 {
     RemainingDungeons.Empty();
 
-    // The same dungeon map is used for the three required quest clears.
-    RemainingDungeons = { "LV_Dungeon1", "LV_Dungeon1", "LV_Dungeon1" };
+    // Draw without replacement so every required clear uses a different dungeon.
+    RemainingDungeons = { "LV_Dungeon1", "LV_Dungeon2", "LV_Dungeon3" };
+
+    RemainingDungeonPortalLocations =
+    {
+        FVector(27900.f, 28190.f, 870.f),
+        FVector(-440.f, 13730.f, 0.f),
+        FVector(26900.f, 14330.f, 0.f),
+        FVector(31450.f, 1070.f, 2290.f),
+        FVector(19370.f, 6540.f, 1980.f),
+        FVector(6360.f, 25440.f, 0.f)
+    };
 
     ClearedDungeonCount = 0;
+    CurrentDungeon = NAME_None;
+    bBossPortalSpawned = false;
 }
 
 FName UTheNightfallSiegeInstance::SelectNextDungeon()
@@ -42,11 +52,27 @@ FName UTheNightfallSiegeInstance::SelectNextDungeon()
     return CurrentDungeon;
 }
 
+bool UTheNightfallSiegeInstance::SelectNextDungeonPortalLocation(FVector& OutLocation)
+{
+    if (RemainingDungeonPortalLocations.IsEmpty())
+    {
+        return false;
+    }
+
+    const int32 RandomIndex = FMath::RandRange(0, RemainingDungeonPortalLocations.Num() - 1);
+    OutLocation = RemainingDungeonPortalLocations[RandomIndex];
+    RemainingDungeonPortalLocations.RemoveAtSwap(RandomIndex);
+    return true;
+}
+
 bool UTheNightfallSiegeInstance::ClearCurrentDungeon()
 {
     UE_LOG(LogTemp, Warning, TEXT("CurrentDungeon : %s"), *CurrentDungeon.ToString());
 
-    RemainingDungeons.RemoveSingle(CurrentDungeon);
+    if (CurrentDungeon.IsNone() || !RemainingDungeons.RemoveSingle(CurrentDungeon))
+    {
+        return ClearedDungeonCount >= 3;
+    }
 
     UE_LOG(LogTemp, Warning, TEXT("Remaining : %d"), RemainingDungeons.Num());
 
