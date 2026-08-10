@@ -31,6 +31,11 @@ void AForestManager::Tick(float DeltaTime)
 
 void AForestManager::SpawnDungeonPortal()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	UTheNightfallSiegeInstance* GI =
 		Cast<UTheNightfallSiegeInstance>(GetGameInstance());
 
@@ -39,24 +44,44 @@ void AForestManager::SpawnDungeonPortal()
 		return;
 	}
 
-	FName NextDungeon =
-		GI->SelectNextDungeon();
-
-	if (PortalSpawnPoints.Num() <= 0)
+	if (GI->SelectNextDungeon().IsNone())
 	{
 		return;
 	}
 
-	int32 RandomIndex =
-		FMath::RandRange(
-			0,
-			PortalSpawnPoints.Num() - 1);
+	FVector SpawnLocation;
+	if (!GI->SelectNextDungeonPortalLocation(SpawnLocation))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No unused dungeon portal locations remain."));
+		return;
+	}
 
-	FVector SpawnLocation =
-		PortalSpawnPoints[RandomIndex]->GetActorLocation();
+	// The placed BP_ForestManager may have been saved before PortalClass was
+	// assigned.  Fall back to the visible dungeon portal Blueprint so deleting
+	// a previously placed portal never prevents the runtime portal from spawning.
+	TSubclassOf<ADungeonPortal> PortalClassToSpawn = PortalClass;
+	if (!PortalClassToSpawn)
+	{
+		PortalClassToSpawn = LoadClass<ADungeonPortal>(
+			nullptr,
+			TEXT("/Game/BP/BP_DungeonPortal.BP_DungeonPortal_C"));
+	}
 
-	GetWorld()->SpawnActor<ADungeonPortal>(
-		PortalClass,
+	if (!PortalClassToSpawn)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Unable to load BP_DungeonPortal for runtime spawning."));
+		return;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	ADungeonPortal* SpawnedPortal = GetWorld()->SpawnActor<ADungeonPortal>(
+		PortalClassToSpawn,
 		SpawnLocation,
-		FRotator::ZeroRotator);
+		FRotator::ZeroRotator,
+		SpawnParams);
+
+	UE_LOG(LogTemp, Warning, TEXT("Dungeon portal spawned: %s at %s for %s"),
+		*GetNameSafe(SpawnedPortal), *SpawnLocation.ToString(), *GI->CurrentDungeon.ToString());
 }
