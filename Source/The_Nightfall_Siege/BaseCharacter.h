@@ -29,6 +29,8 @@ class ADungeonPortal;
 class ADragonBoss;
 class AQuestGiver;
 class UQuestWidget;
+class UAltarProgressWidget;
+class UAnimSequenceBase;
 
 UENUM(BlueprintType)
 enum class EShopItemType : uint8
@@ -282,6 +284,12 @@ public:
 
 	UFUNCTION(Server, Reliable)
 	void ServerInteractAltar();
+
+	UFUNCTION(Client, Reliable)
+	void ClientShowAltarPlacementProgress(float Duration);
+
+	UFUNCTION(Client, Reliable)
+	void ClientHideAltarPlacementProgress();
 
 	UFUNCTION(Server, Reliable)
 	void ServerPickupLantern(ALantern* Lantern);
@@ -562,6 +570,41 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_PotionCount, BlueprintReadOnly)
 	int32 PotionCount = 0;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Potion")
+	float PotionHealPercent = 0.3f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Potion")
+	float PotionUseDuration = 1.25f;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Potion")
+	bool bIsUsingPotion = false;
+
+	UPROPERTY(EditAnywhere, Category = "Potion")
+	TObjectPtr<UAnimSequenceBase> PaladinPotionAnimation = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Potion")
+	TObjectPtr<UAnimSequenceBase> ArcherPotionAnimation = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Potion")
+	TObjectPtr<UAnimSequenceBase> WarriorPotionAnimation = nullptr;
+
+	FTimerHandle PotionUseTimer;
+	TObjectPtr<UAnimMontage> ActivePotionMontage = nullptr;
+	TObjectPtr<UNiagaraComponent> PotionHealEffectComponent = nullptr;
+
+	UFUNCTION(Server, Reliable)
+	void ServerCancelPotionUse();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStartPotionUse();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastCancelPotionUse();
+
+	void FinishPotionUse();
+	void CancelPotionUse();
+	UAnimSequenceBase* GetPotionAnimation() const;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop", meta = (ClampMin = "0"))
 	int32 PotionPrice = 5;
 
@@ -824,6 +867,13 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerUsePotion();
 
+	UPROPERTY()
+	UAltarProgressWidget* AltarProgressWidget = nullptr;
+
+	FTimerHandle AltarPlacementTimer;
+	TWeakObjectPtr<AAltar> AltarBeingPlaced;
+	void FinishAltarPlacement();
+
 	// 공격력
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float AttackPower = 100.f;
@@ -892,6 +942,10 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerDebugBossPattern(uint8 PatternIndex);
 
+	// Development-only shortcut: teleports the player beside the active dungeon portal.
+	UFUNCTION(Server, Reliable)
+	void ServerDebugTeleportToDungeonPortal();
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_Debug1;
 
@@ -908,4 +962,5 @@ protected:
 	void DebugBossPattern2();
 	void DebugBossPattern3();
 	void DebugBossPattern4();
+	void DebugTeleportToDungeonPortal();
 };

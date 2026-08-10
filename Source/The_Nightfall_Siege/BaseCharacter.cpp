@@ -37,6 +37,8 @@
 #include "DungeonPortal.h"
 #include "QuestGiver.h"
 #include "QuestWidget.h"
+#include "AltarProgressWidget.h"
+#include "Animation/AnimSequenceBase.h"
 #include "Coin.h"
 #include "Components/Button.h"
 #include "Components/GridPanel.h"
@@ -174,6 +176,13 @@ ABaseCharacter::ABaseCharacter()
     {
         HealEffect = HealEffectAsset.Object;
     }
+
+    static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> PaladinPotionAsset(TEXT("/Game/Asset/paladin/Animation/paladin_potion"));
+    static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> ArcherPotionAsset(TEXT("/Game/Asset/archer/Animation/archer_potion"));
+    static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> WarriorPotionAsset(TEXT("/Game/Asset/Warrior/Animation/warrior_potion"));
+    PaladinPotionAnimation = PaladinPotionAsset.Object;
+    ArcherPotionAnimation = ArcherPotionAsset.Object;
+    WarriorPotionAnimation = WarriorPotionAsset.Object;
 
     static ConstructorHelpers::FObjectFinder<UNiagaraSystem> LanternDirectionEffectAsset(
         TEXT("/Game/Effects/91_Lantern_Directions/NS_Lantern_Direction.NS_Lantern_Direction"));
@@ -590,12 +599,16 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     // new Input Action asset to be configured in every character Blueprint.
     PlayerInputComponent->BindKey(EKeys::P, IE_Pressed, this, &ABaseCharacter::ToggleShop);
     PlayerInputComponent->BindKey(EKeys::F, IE_Pressed, this, &ABaseCharacter::InteractWithQuestGiver);
+#if !UE_BUILD_SHIPPING
+    PlayerInputComponent->BindKey(EKeys::Equals, IE_Pressed, this, &ABaseCharacter::DebugTeleportToDungeonPortal);
+#endif
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
 }
 
 void ABaseCharacter::Attack(const FInputActionValue& Value)
 {
+    ServerCancelPotionUse();
     if (!CanUseCombatAction())
     {
         return;
@@ -608,6 +621,7 @@ void ABaseCharacter::Attack(const FInputActionValue& Value)
 
 void ABaseCharacter::Q(const FInputActionValue& Value)
 {
+    ServerCancelPotionUse();
     if (!bCanUseQ)
         return;
 
@@ -621,6 +635,7 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
 void ABaseCharacter::W(const FInputActionValue& Value)
 {
+    ServerCancelPotionUse();
     if (!bCanUseW)
     {
         return;
@@ -638,6 +653,7 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
 void ABaseCharacter::E(const FInputActionValue& Value)
 {
+    ServerCancelPotionUse();
     if (!bCanUseE)
     {
         return;
@@ -655,6 +671,7 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
 void ABaseCharacter::R(const FInputActionValue& Value)
 {
+    ServerCancelPotionUse();
     if (!bCanUseR)
     {
         return;
@@ -1563,6 +1580,7 @@ void ABaseCharacter::InteractWithQuestGiver()
 
 void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
 {
+    ServerCancelPotionUse();
     UE_LOG(LogTemp, Warning,
         TEXT("UseSlot1 HasLantern=%d Equipped=%d"),
         bHasLantern,
@@ -1588,40 +1606,103 @@ void ABaseCharacter::UseSlot2(const FInputActionValue& Value)
 
 void ABaseCharacter::ServerUsePotion_Implementation()
 {
-    if (PotionCount <= 0)
+    if (bIsUsingPotion || PotionCount <= 0 || CurrentHP >= MaxHP || bIsDead)
     {
         return;
     }
 
-    if (CurrentHP >= MaxHP)
-    {
-        return;
-    }
-
-    PotionCount--;
-
-    CurrentHP = FMath::Min(
-        CurrentHP + MaxHP * 0.3f,
-        MaxHP);
-
-    UE_LOG(LogTemp, Warning,
-        TEXT("Potion Used"));
-
-    UE_LOG(LogTemp, Warning,
-        TEXT("Potion Left : %d"),
-        PotionCount);
-
-    if (PotionCount <= 0)
-    {
-        Slot2Icon = EmptySlotIcon;
-    }
-
-    OnRep_PotionCount();
+    bIsUsingPotion = true;
+    MulticastStartPotionUse();
+    const float AnimationDuration = GetPotionAnimation()
+        ? GetPotionAnimation()->GetPlayLength()
+        : PotionUseDuration;
+    GetWorldTimerManager().SetTimer(PotionUseTimer, this, &ABaseCharacter::FinishPotionUse,
+        FMath::Max(AnimationDuration, KINDA_SMALL_NUMBER), false);
     ForceNetUpdate();
+}
+
+UAnimSequenceBase* ABaseCharacter::GetPotionAnimation() const
+{
+    switch (CharacterType)
+    {
+    case ECharacterType::Paladin: return PaladinPotionAnimation;
+    case ECharacterType::Archer: return ArcherPotionAnimation;
+    case ECharacterType::Warrior: return WarriorPotionAnimation;
+    default: return nullptr;
+    }
+}
+
+void ABaseCharacter::MulticastStartPotionUse_Implementation()
+{
+    if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+    {
+        if (UAnimSequenceBase* PotionAnimation = GetPotionAnimation())
+        {
+            ActivePotionMontage = AnimInstance->PlaySlotAnimationAsDynamicMontage(PotionAnimation, TEXT("DefaultSlot"));
+        }
+    }
+
+    if (HealEffect)
+    {
+        PotionHealEffectComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+            HealEffect, GetRootComponent(), NAME_None, FVector::ZeroVector,
+            FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
+    }
+}
+
+void ABaseCharacter::FinishPotionUse()
+{
+    if (!bIsUsingPotion)
+    {
+        return;
+    }
+
+    bIsUsingPotion = false;
+    --PotionCount;
+    HealPlayer(MaxHP * PotionHealPercent);
+    OnRep_PotionCount();
+    MulticastCancelPotionUse();
+    ForceNetUpdate();
+}
+
+void ABaseCharacter::ServerCancelPotionUse_Implementation()
+{
+    CancelPotionUse();
+}
+
+void ABaseCharacter::CancelPotionUse()
+{
+    if (!bIsUsingPotion)
+    {
+        return;
+    }
+
+    bIsUsingPotion = false;
+    GetWorldTimerManager().ClearTimer(PotionUseTimer);
+    MulticastCancelPotionUse();
+    ForceNetUpdate();
+}
+
+void ABaseCharacter::MulticastCancelPotionUse_Implementation()
+{
+    if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+    {
+        if (ActivePotionMontage)
+        {
+            AnimInstance->Montage_Stop(0.15f, ActivePotionMontage);
+        }
+    }
+    ActivePotionMontage = nullptr;
+    if (PotionHealEffectComponent)
+    {
+        PotionHealEffectComponent->DeactivateImmediate();
+        PotionHealEffectComponent = nullptr;
+    }
 }
 
 void ABaseCharacter::UseSlot3(const FInputActionValue& Value)
 {
+    ServerCancelPotionUse();
     if (bLanternEquipped)
     {
         return;
@@ -2825,6 +2906,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABaseCharacter, bPrismPoseActive);
 	DOREPLIFETIME(ABaseCharacter, Coin);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, PotionCount, COND_OwnerOnly);
+	DOREPLIFETIME(ABaseCharacter, bIsUsingPotion);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, PurchasedItems, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, Slot4PurchasedItemIndex, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, SkillPoints, COND_OwnerOnly);
@@ -2877,16 +2959,63 @@ void ABaseCharacter::ServerInteractAltar_Implementation()
         return;
     }
 
+    if (AltarBeingPlaced.IsValid())
+    {
+        return;
+    }
+
     if (!NearbyAltar->bLanternPlaced)
     {
         if (bHasLantern && bLanternEquipped)
         {
-            NearbyAltar->PlaceLantern(this);
+            AltarBeingPlaced = NearbyAltar;
+            ClientShowAltarPlacementProgress(3.f);
+            GetWorldTimerManager().SetTimer(
+                AltarPlacementTimer, this, &ABaseCharacter::FinishAltarPlacement, 3.f, false);
         }
     }
     else
     {
         NearbyAltar->RemoveLantern(this);
+    }
+}
+
+void ABaseCharacter::FinishAltarPlacement()
+{
+    AAltar* Altar = AltarBeingPlaced.Get();
+    AltarBeingPlaced.Reset();
+    ClientHideAltarPlacementProgress();
+
+    if (Altar && !Altar->bLanternPlaced && bHasLantern && bLanternEquipped)
+    {
+        Altar->PlaceLantern(this);
+    }
+}
+
+void ABaseCharacter::ClientShowAltarPlacementProgress_Implementation(float Duration)
+{
+    if (!AltarProgressWidget)
+    {
+        if (APlayerController* PC = Cast<APlayerController>(GetController()))
+        {
+            AltarProgressWidget = CreateWidget<UAltarProgressWidget>(PC, UAltarProgressWidget::StaticClass());
+            if (AltarProgressWidget)
+            {
+                AltarProgressWidget->AddToViewport(100);
+            }
+        }
+    }
+    if (AltarProgressWidget)
+    {
+        AltarProgressWidget->StartProgress(Duration);
+    }
+}
+
+void ABaseCharacter::ClientHideAltarPlacementProgress_Implementation()
+{
+    if (AltarProgressWidget)
+    {
+        AltarProgressWidget->StopProgress();
     }
 }
 
@@ -3434,6 +3563,38 @@ void ABaseCharacter::DebugBossPattern3()
 void ABaseCharacter::DebugBossPattern4()
 {
     ServerDebugBossPattern(3);
+}
+
+void ABaseCharacter::DebugTeleportToDungeonPortal()
+{
+    ServerDebugTeleportToDungeonPortal();
+}
+
+void ABaseCharacter::ServerDebugTeleportToDungeonPortal_Implementation()
+{
+    ADungeonPortal* ClosestPortal = nullptr;
+    float ClosestDistanceSquared = TNumericLimits<float>::Max();
+
+    for (TActorIterator<ADungeonPortal> It(GetWorld()); It; ++It)
+    {
+        const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
+        if (DistanceSquared < ClosestDistanceSquared)
+        {
+            ClosestDistanceSquared = DistanceSquared;
+            ClosestPortal = *It;
+        }
+    }
+
+    if (!ClosestPortal)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Debug portal teleport failed: no dungeon portal exists."));
+        return;
+    }
+
+    const FVector Destination = ClosestPortal->GetActorLocation()
+        + FVector(350.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+    TeleportTo(Destination, GetActorRotation(), false, true);
+    UE_LOG(LogTemp, Warning, TEXT("Debug teleported beside dungeon portal: %s"), *Destination.ToString());
 }
 
 void ABaseCharacter::ServerDebugBossPattern_Implementation(uint8 PatternIndex)
