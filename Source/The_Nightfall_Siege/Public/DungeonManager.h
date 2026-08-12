@@ -29,28 +29,35 @@ public:
 
 public:
 
-	// ÇöÀç »ì¾ÆÀÖ´Â ¸ó½ºÅÍ ¼ö
+	// í˜„ì¬ ì‚´ì•„ìˆëŠ” ëª¬ìŠ¤í„° ìˆ˜
 	UPROPERTY(BlueprintReadOnly)
 	int32 AliveMonsterCount;
 
-	// ÇÁ¸®Áò ¾×ÅÍ
+	// Number of monsters successfully spawned for this dungeon instance.
+	UPROPERTY(BlueprintReadOnly)
+	int32 TotalMonsterCount;
+
+	// í”„ë¦¬ì¦˜ ì•¡í„°
 	UPROPERTY(EditAnywhere)
 	ADungeonPrism* DungeonPrism;
 
-	// ¸ó½ºÅÍ µî·Ï
+	// ëª¬ìŠ¤í„° ë“±ë¡
 	void RegisterMonster();
 
-	// ¸ó½ºÅÍ »ç¸Á
+	// ëª¬ìŠ¤í„° ì‚¬ë§
 	bool OnMonsterDead();
 
-	// ¸ó½ºÅÍ Å¬·¡½º
+	// ëª¬ìŠ¤í„° í´ë˜ìŠ¤
 	UPROPERTY(EditAnywhere, Category = "Monster")
 	TSubclassOf<AMonster> MonsterClass;
 
-	// Á¦´Ü´ç ¸ó½ºÅÍ ¼ö
+	// ì œë‹¨ë‹¹ ëª¬ìŠ¤í„° ìˆ˜
 	UPROPERTY(EditAnywhere)
 	int32 MonstersPerAltar;
 
-	// ¸ó½ºÅÍ »ı¼º ÇÔ¼ö
+	// ëª¬ìŠ¤í„° ìƒì„± í•¨ìˆ˜
 	void SpawnMonsters();
+
+private:
+	void UpdatePlayerMonsterProgress(bool bMonsterWasKilled);
 };

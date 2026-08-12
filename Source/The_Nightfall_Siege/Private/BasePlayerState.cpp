@@ -30,6 +30,8 @@ void ABasePlayerState::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABasePlayerState, SkillPoints);
     DOREPLIFETIME(ABasePlayerState, QuestStage);
     DOREPLIFETIME(ABasePlayerState, ClearedDungeonCount);
+    DOREPLIFETIME(ABasePlayerState, DungeonMonsterKillCount);
+    DOREPLIFETIME(ABasePlayerState, DungeonMonsterTotalCount);
     DOREPLIFETIME(ABasePlayerState, bHasShopStatBonuses);
     DOREPLIFETIME(ABasePlayerState, SavedMaxHP);
     DOREPLIFETIME(ABasePlayerState, SavedAttackPower);
@@ -47,12 +49,31 @@ void ABasePlayerState::AcceptMainQuest()
 
 void ABasePlayerState::NotifyDungeonEntered()
 {
-    if (QuestStage == EQuestStage::FindDungeonPortal) QuestStage = EQuestStage::ClearDungeon;
+    if (QuestStage == EQuestStage::FindDungeonPortal)
+    {
+        QuestStage = EQuestStage::ClearDungeon;
+        DungeonMonsterKillCount = 0;
+        DungeonMonsterTotalCount = 0;
+    }
 }
 
 void ABasePlayerState::NotifyDungeonCleared()
 {
     if (QuestStage == EQuestStage::ClearDungeon) QuestStage = EQuestStage::CollectPrism;
+}
+
+void ABasePlayerState::SetDungeonMonsterTotal(int32 TotalCount)
+{
+    DungeonMonsterTotalCount = FMath::Max(0, TotalCount);
+    DungeonMonsterKillCount = FMath::Clamp(DungeonMonsterKillCount, 0, DungeonMonsterTotalCount);
+}
+
+void ABasePlayerState::NotifyDungeonMonsterKilled()
+{
+    if (QuestStage == EQuestStage::ClearDungeon && DungeonMonsterTotalCount > 0)
+    {
+        DungeonMonsterKillCount = FMath::Min(DungeonMonsterKillCount + 1, DungeonMonsterTotalCount);
+    }
 }
 
 void ABasePlayerState::NotifySkillPointSpent()
@@ -150,6 +171,8 @@ void ABasePlayerState::CopyProperties(APlayerState* PlayerState)
     NewPS->SkillPoints = SkillPoints;
     NewPS->QuestStage = QuestStage;
     NewPS->ClearedDungeonCount = ClearedDungeonCount;
+    NewPS->DungeonMonsterKillCount = DungeonMonsterKillCount;
+    NewPS->DungeonMonsterTotalCount = DungeonMonsterTotalCount;
     NewPS->bHasShopStatBonuses = bHasShopStatBonuses;
     NewPS->SavedMaxHP = SavedMaxHP;
     NewPS->SavedAttackPower = SavedAttackPower;

@@ -54,10 +54,18 @@ public:
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Quest")
     int32 ClearedDungeonCount = 0;
 
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Quest")
+    int32 DungeonMonsterKillCount = 0;
+
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Quest")
+    int32 DungeonMonsterTotalCount = 0;
+
     UFUNCTION(BlueprintCallable, Category = "Quest")
     void AcceptMainQuest();
     void NotifyDungeonEntered();
     void NotifyDungeonCleared();
+    void SetDungeonMonsterTotal(int32 TotalCount);
+    void NotifyDungeonMonsterKilled();
     void NotifySkillPointSpent();
     void NotifyPrismCollected();
     void NotifyReturnedToVillage();

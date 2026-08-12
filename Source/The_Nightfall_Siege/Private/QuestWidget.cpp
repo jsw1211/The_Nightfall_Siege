@@ -73,6 +73,15 @@ void UQuestWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 
         if (QuestProgressText)
         {
+			if (PlayerState->QuestStage == EQuestStage::ClearDungeon)
+			{
+				QuestProgressText->SetText(FText::FromString(FString::Printf(
+					TEXT("처치 몬스터 : %d/%d"),
+					PlayerState->DungeonMonsterKillCount,
+					PlayerState->DungeonMonsterTotalCount)));
+				return;
+			}
+
             const bool bBossQuest = PlayerState->QuestStage == EQuestStage::FindBossPortal
                 || PlayerState->QuestStage == EQuestStage::DefeatBoss;
             const FString Progress = PlayerState->QuestStage == EQuestStage::Completed

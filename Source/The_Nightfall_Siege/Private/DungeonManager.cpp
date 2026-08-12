@@ -4,6 +4,8 @@
 	#include "DungeonManager.h"
 	#include "Altar.h"
 	#include "Monster.h"
+	#include "BaseCharacter.h"
+	#include "BasePlayerState.h"
 	#include "Kismet/GameplayStatics.h"
 	#include "DrawDebugHelpers.h"
 
@@ -16,6 +18,7 @@
 		bReplicates = true;
 
 		AliveMonsterCount = 0;
+		TotalMonsterCount = 0;
 
 		MonstersPerAltar = 5;
 	}
@@ -49,11 +52,36 @@
 
 	bool ADungeonManager::OnMonsterDead()
 	{
-		AliveMonsterCount--;
+		AliveMonsterCount = FMath::Max(0, AliveMonsterCount - 1);
+		UpdatePlayerMonsterProgress(true);
 
 		UE_LOG(LogTemp, Warning, TEXT("Monster Dead Left: %d"), AliveMonsterCount);
 
 		return AliveMonsterCount <= 0;
+	}
+
+	void ADungeonManager::UpdatePlayerMonsterProgress(bool bMonsterWasKilled)
+	{
+		TArray<AActor*> Players;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+
+		for (AActor* Actor : Players)
+		{
+			if (ABaseCharacter* Player = Cast<ABaseCharacter>(Actor))
+			{
+				if (ABasePlayerState* PlayerState = Player->GetPlayerState<ABasePlayerState>())
+				{
+					if (bMonsterWasKilled)
+					{
+						PlayerState->NotifyDungeonMonsterKilled();
+					}
+					else
+					{
+						PlayerState->SetDungeonMonsterTotal(TotalMonsterCount);
+					}
+				}
+			}
+		}
 	}
 
 	void ADungeonManager::SpawnMonsters()
@@ -72,7 +100,7 @@
 
 			if (!Altar) continue;
 
-			// ¡¶¥‹¥Á 5∏∂∏Æ ª˝º∫
+			// Ï†úÎã®Îãπ 5ÎßàÎ¶¨ ÏÉùÏÑ±
 			for (int32 i = 0; i < MonstersPerAltar; i++)
 			{
 				float Angle = FMath::FRandRange(0.f, 360.f);
@@ -99,15 +127,20 @@
 
 				if (SpawnedMonster)
 				{
-					// ªÏæ∆¿÷¥¬ ∏ÛΩ∫≈Õ µÓ∑œ
+					// ÏÇ¥ÏïÑÏûàÎäî Î™¨Ïä§ÌÑ∞ Îì±Î°ù
 					RegisterMonster();
+					++TotalMonsterCount;
 
-					// ¡¶¥‹ ø¨∞·
+					// Ï†úÎã® Ïó∞Í≤∞
 					SpawnedMonster->OwnerAltar = Altar;
 
-					// ¡¶¥‹ø°µµ ∏ÛΩ∫≈Õ µÓ∑œ
+					// Ï†úÎã®ÏóêÎèÑ Î™¨Ïä§ÌÑ∞ Îì±Î°ù
 					Altar->RegisterMonster(SpawnedMonster);
 				}
 			}
 		}
+
+		// The total is based on successful spawns, keeping the quest accurate
+		// if a spawn location is blocked or a class fails to load.
+		UpdatePlayerMonsterProgress(false);
 	}
