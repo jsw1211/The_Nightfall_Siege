@@ -18,6 +18,9 @@ class THE_NIGHTFALL_SIEGE_API UInventoryItemSlotWidget : public UUserWidget
 
 public:
 	void Configure(ABaseCharacter* InOwner, int32 InIndex, const FText& InName, UTexture2D* InIcon);
+	// Empty slots keep the inventory panel visible even before the player owns
+	// an item.  They are deliberately inert: no drag, use, or drop target.
+	void ConfigureEmpty();
 	int32 GetItemIndex() const { return ItemIndex; }
 	ABaseCharacter* GetOwnerCharacter() const { return OwnerCharacter; }
 
@@ -39,4 +42,5 @@ private:
 	TObjectPtr<UTextBlock> ItemNameText;
 
 	int32 ItemIndex = INDEX_NONE;
+	bool bContainsItem = false;
 };

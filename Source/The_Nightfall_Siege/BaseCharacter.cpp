@@ -769,6 +769,10 @@ void ABaseCharacter::ToggleInventory()
             {
                 PC->SetInputMode(FInputModeGameOnly());
                 PC->SetShowMouseCursor(true);
+				// Closing the inventory must restore exactly the same movement
+				// state as opening it: inventory never owns a movement lock.
+				PC->SetIgnoreMoveInput(false);
+				PC->SetIgnoreLookInput(false);
             }
         }
 
@@ -1081,21 +1085,31 @@ void ABaseCharacter::RefreshInventoryWidget()
     }
 
     constexpr int32 Columns = 4;
-    for (int32 ItemIndex = 0; ItemIndex < PurchasedItems.Num(); ++ItemIndex)
+    constexpr int32 MinimumVisibleSlots = 12;
+    const int32 VisibleSlotCount = FMath::Max(PurchasedItems.Num(), MinimumVisibleSlots);
+    for (int32 SlotIndex = 0; SlotIndex < VisibleSlotCount; ++SlotIndex)
     {
-        const FShopInventoryItem& Item = PurchasedItems[ItemIndex];
         UInventoryItemSlotWidget* Slot = CreateWidget<UInventoryItemSlotWidget>(PC, UInventoryItemSlotWidget::StaticClass());
         if (!Slot)
         {
             continue;
         }
 
-        const FText SlotText = FText::FromString(FString::Printf(
-            TEXT("%s x%d"),
-            *Item.DisplayName.ToString(),
-            Item.Quantity));
-        Slot->Configure(this, ItemIndex, SlotText, Item.Icon.Get());
-        InventoryGrid->AddChildToGrid(Slot, ItemIndex / Columns, ItemIndex % Columns);
+        if (PurchasedItems.IsValidIndex(SlotIndex))
+        {
+            const FShopInventoryItem& Item = PurchasedItems[SlotIndex];
+            const FText SlotText = FText::FromString(FString::Printf(
+                TEXT("%s x%d"),
+                *Item.DisplayName.ToString(),
+                Item.Quantity));
+            Slot->Configure(this, SlotIndex, SlotText, Item.Icon.Get());
+        }
+        else
+        {
+            Slot->ConfigureEmpty();
+        }
+
+        InventoryGrid->AddChildToGrid(Slot, SlotIndex / Columns, SlotIndex % Columns);
     }
 }
 

@@ -43,18 +43,33 @@ void UInventoryItemSlotWidget::Configure(ABaseCharacter* InOwner, int32 InIndex,
 {
 	OwnerCharacter = InOwner;
 	ItemIndex = InIndex;
+	bContainsItem = true;
 	ItemImage->SetBrushFromTexture(InIcon);
 	ItemNameText->SetText(InName);
 }
 
+void UInventoryItemSlotWidget::ConfigureEmpty()
+{
+	OwnerCharacter = nullptr;
+	ItemIndex = INDEX_NONE;
+	bContainsItem = false;
+	ItemImage->SetBrushFromTexture(nullptr);
+	ItemNameText->SetText(FText::GetEmpty());
+}
+
 FReply UInventoryItemSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
+	if (!bContainsItem)
+	{
+		return FReply::Unhandled();
+	}
+
 	return UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::LeftMouseButton).NativeReply;
 }
 
 FReply UInventoryItemSlotWidget::NativeOnMouseButtonDoubleClick(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && OwnerCharacter)
+	if (bContainsItem && InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && OwnerCharacter)
 	{
 		OwnerCharacter->UsePurchasedItemAtIndex(ItemIndex);
 		return FReply::Handled();
@@ -65,6 +80,11 @@ FReply UInventoryItemSlotWidget::NativeOnMouseButtonDoubleClick(const FGeometry&
 
 void UInventoryItemSlotWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
 {
+	if (!bContainsItem)
+	{
+		return;
+	}
+
 	UDragDropOperation* Operation = NewObject<UDragDropOperation>(this);
 	Operation->Payload = this;
 	Operation->DefaultDragVisual = this;
@@ -75,7 +95,7 @@ void UInventoryItemSlotWidget::NativeOnDragDetected(const FGeometry& InGeometry,
 bool UInventoryItemSlotWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
 	UInventoryItemSlotWidget* SourceSlot = InOperation ? Cast<UInventoryItemSlotWidget>(InOperation->Payload) : nullptr;
-	if (!SourceSlot || SourceSlot == this || SourceSlot->OwnerCharacter != OwnerCharacter)
+	if (!bContainsItem || !SourceSlot || !SourceSlot->bContainsItem || SourceSlot == this || SourceSlot->OwnerCharacter != OwnerCharacter)
 	{
 		return false;
 	}
