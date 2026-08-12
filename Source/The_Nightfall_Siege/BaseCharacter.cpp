@@ -611,6 +611,7 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
 void ABaseCharacter::Attack(const FInputActionValue& Value)
 {
+    if (bInventoryOpen) return;
     ServerCancelPotionUse();
     if (!CanUseCombatAction())
     {
@@ -624,6 +625,7 @@ void ABaseCharacter::Attack(const FInputActionValue& Value)
 
 void ABaseCharacter::Q(const FInputActionValue& Value)
 {
+    if (bInventoryOpen) return;
     ServerCancelPotionUse();
     if (!bCanUseQ)
         return;
@@ -638,6 +640,7 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
 void ABaseCharacter::W(const FInputActionValue& Value)
 {
+    if (bInventoryOpen) return;
     ServerCancelPotionUse();
     if (!bCanUseW)
     {
@@ -656,6 +659,7 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
 void ABaseCharacter::E(const FInputActionValue& Value)
 {
+    if (bInventoryOpen) return;
     ServerCancelPotionUse();
     if (!bCanUseE)
     {
@@ -674,6 +678,7 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
 void ABaseCharacter::R(const FInputActionValue& Value)
 {
+    if (bInventoryOpen) return;
     ServerCancelPotionUse();
     if (!bCanUseR)
     {
@@ -737,11 +742,15 @@ void ABaseCharacter::ToggleInventory()
             if (PC)
             {
                 FInputModeGameAndUI InputMode;
-                InputMode.SetWidgetToFocus(InventoryWidget->TakeWidget());
                 InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
                 InputMode.SetHideCursorDuringCapture(false);
                 PC->SetInputMode(InputMode);
                 PC->SetShowMouseCursor(true);
+                // The inventory is a mouse-only overlay.  Do not give it
+                // keyboard focus or it consumes WASD and leaves the player
+                // unexpectedly unable to move.
+                PC->SetIgnoreMoveInput(false);
+                PC->SetIgnoreLookInput(false);
             }
         }
 
@@ -1600,6 +1609,7 @@ void ABaseCharacter::InteractWithQuestGiver()
 
 void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
 {
+    if (bInventoryOpen) return;
     ServerCancelPotionUse();
     UE_LOG(LogTemp, Warning,
         TEXT("UseSlot1 HasLantern=%d Equipped=%d"),
@@ -1621,6 +1631,7 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
 
 void ABaseCharacter::UseSlot2(const FInputActionValue& Value)
 {
+    if (bInventoryOpen) return;
     ServerUsePotion();
 }
 
@@ -1749,6 +1760,7 @@ void ABaseCharacter::MulticastCancelPotionUse_Implementation()
 
 void ABaseCharacter::UseSlot3(const FInputActionValue& Value)
 {
+    if (bInventoryOpen) return;
     ServerCancelPotionUse();
     if (bLanternEquipped)
     {
@@ -1765,6 +1777,7 @@ void ABaseCharacter::UseSlot3(const FInputActionValue& Value)
 
 void ABaseCharacter::UseSlot4(const FInputActionValue& Value)
 {
+    if (bInventoryOpen) return;
     ServerUseSlot4();
 }
 
