@@ -300,8 +300,11 @@ void ABaseCharacter::BeginPlay()
     EquipWeapon(LeftHandWeaponClass, LeftHandSocketName, LeftHandWeapon);
 
     FString MapName = GetWorld()->GetMapName();
+    const bool bIsLobbyMap = MapName.Contains(TEXT("Lvl_Lobby"));
 
-    if (HUDWidgetClass)
+    // The lobby is exclusively for character selection and ready status.
+    // Gameplay HUD and quest progress begin only after travelling to the game.
+    if (!bIsLobbyMap && HUDWidgetClass)
     {
         APlayerController* PC = Cast<APlayerController>(GetController());
 
@@ -316,7 +319,10 @@ void ABaseCharacter::BeginPlay()
         }
     }
 
-    EnsureQuestWidget();
+    if (!bIsLobbyMap)
+    {
+        EnsureQuestWidget();
+    }
 
     Slot1Icon = EmptySlotIcon;
     Slot2Icon = EmptySlotIcon;
