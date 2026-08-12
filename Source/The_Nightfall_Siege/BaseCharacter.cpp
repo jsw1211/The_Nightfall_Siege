@@ -767,7 +767,14 @@ void ABaseCharacter::ToggleInventory()
         {
             if (APlayerController* PC = Cast<APlayerController>(GetController()))
             {
-                PC->SetInputMode(FInputModeGameOnly());
+                // Keep the same unfocused GameAndUI mode used while the
+                // inventory is open. Switching to GameOnly here causes the
+                // enhanced movement action to stop reaching the character
+                // after the inventory is closed in this project.
+                FInputModeGameAndUI InputMode;
+                InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+                InputMode.SetHideCursorDuringCapture(false);
+                PC->SetInputMode(InputMode);
                 PC->SetShowMouseCursor(true);
 				// Closing the inventory must restore exactly the same movement
 				// state as opening it: inventory never owns a movement lock.
