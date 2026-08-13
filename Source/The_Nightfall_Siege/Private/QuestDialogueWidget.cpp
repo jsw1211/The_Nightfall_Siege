@@ -25,13 +25,14 @@ void UQuestDialogueWidget::NativeConstruct()
     RefreshDialogueView();
 }
 
-void UQuestDialogueWidget::ConfigureDialogue(AQuestGiver* InQuestGiver, const TArray<FText>& InLines, const FText& InSpeakerName)
+void UQuestDialogueWidget::ConfigureDialogue(AQuestGiver* InQuestGiver, const TArray<FText>& InLines, const FText& InSpeakerName, bool bInRequiresQuestDecision)
 {
     QuestGiver = InQuestGiver;
     DialogueLines = InLines;
     SpeakerName = InSpeakerName;
     CurrentPage = 0;
     bShowingChoice = false;
+    bRequiresQuestDecision = bInRequiresQuestDecision;
     RefreshDialogueView();
     SetKeyboardFocus();
 }
@@ -55,9 +56,16 @@ void UQuestDialogueWidget::AdvanceDialogue()
         RefreshDialogueView();
         return;
     }
-    bShowingChoice = true;
-    RefreshDialogueView();
-    OnQuestChoiceShown();
+    if (bRequiresQuestDecision)
+    {
+        bShowingChoice = true;
+        RefreshDialogueView();
+        OnQuestChoiceShown();
+    }
+    else if (ABaseCharacter* Character = Cast<ABaseCharacter>(GetOwningPlayerPawn()))
+    {
+        Character->CloseQuestDialogue();
+    }
 }
 
 void UQuestDialogueWidget::AcceptQuest() { SubmitDecision(true); }

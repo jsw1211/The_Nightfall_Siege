@@ -9,6 +9,7 @@ class USceneComponent;
 class USphereComponent;
 class UStaticMeshComponent;
 class UTextRenderComponent;
+class UWidgetComponent;
 
 // Place BP_QuestGiver (or this native actor) in the village.  Its default cube
 // is intentional: artists can replace DummyMesh with any NPC mesh later.
@@ -52,6 +53,9 @@ protected:
 
     UPROPERTY(VisibleAnywhere, Category = "Quest")
     UTextRenderComponent* InteractionText;
+
+    UPROPERTY(VisibleAnywhere, Category = "Quest")
+    UWidgetComponent* InteractionWidget;
 
     UFUNCTION()
     void OnRangeBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,

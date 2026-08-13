@@ -3474,7 +3474,7 @@ void ABaseCharacter::ServerSubmitQuestDecision_Implementation(AQuestGiver* Quest
     }
 }
 
-void ABaseCharacter::ClientOpenQuestDialogue_Implementation(AQuestGiver* QuestGiver, const TArray<FText>& DialogueLines, const FText& SpeakerName)
+void ABaseCharacter::ClientOpenQuestDialogue_Implementation(AQuestGiver* QuestGiver, const TArray<FText>& DialogueLines, const FText& SpeakerName, bool bRequiresQuestDecision)
 {
     EnsureQuestDialogueWidget();
     if (!QuestDialogueWidget)
@@ -3482,7 +3482,7 @@ void ABaseCharacter::ClientOpenQuestDialogue_Implementation(AQuestGiver* QuestGi
         return;
     }
 
-    QuestDialogueWidget->ConfigureDialogue(QuestGiver, DialogueLines, SpeakerName);
+    QuestDialogueWidget->ConfigureDialogue(QuestGiver, DialogueLines, SpeakerName, bRequiresQuestDecision);
     QuestDialogueWidget->SetVisibility(ESlateVisibility::Visible);
     QuestDialogueWidget->SetKeyboardFocus();
 
@@ -3518,6 +3518,26 @@ void ABaseCharacter::ClientFinishQuestDialogue_Implementation(bool bAccepted, co
     }
 
     ClientShowQuestMessage(ResultMessage.ToString());
+}
+
+void ABaseCharacter::CloseQuestDialogue()
+{
+    if (QuestDialogueWidget)
+    {
+        QuestDialogueWidget->RemoveFromParent();
+        QuestDialogueWidget = nullptr;
+    }
+
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        PC->bShowMouseCursor = true;
+        FInputModeGameAndUI InputMode;
+        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        InputMode.SetHideCursorDuringCapture(false);
+        PC->SetInputMode(InputMode);
+        PC->SetIgnoreMoveInput(false);
+        PC->SetIgnoreLookInput(false);
+    }
 }
 
 void ABaseCharacter::GrantQuestLantern()

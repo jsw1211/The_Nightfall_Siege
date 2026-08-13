@@ -323,10 +323,12 @@ public:
     void ServerSubmitQuestDecision(AQuestGiver* QuestGiver, bool bAccepted);
 
     UFUNCTION(Client, Reliable)
-    void ClientOpenQuestDialogue(AQuestGiver* QuestGiver, const TArray<FText>& DialogueLines, const FText& SpeakerName);
+    void ClientOpenQuestDialogue(AQuestGiver* QuestGiver, const TArray<FText>& DialogueLines, const FText& SpeakerName, bool bRequiresQuestDecision);
 
     UFUNCTION(Client, Reliable)
     void ClientFinishQuestDialogue(bool bAccepted, const FText& ResultMessage);
+
+    void CloseQuestDialogue();
 
     // Server-only reward helper. The lantern occupies item slot 1.
     void GrantQuestLantern();
