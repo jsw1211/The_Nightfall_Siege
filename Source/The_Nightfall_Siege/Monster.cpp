@@ -66,6 +66,12 @@ void AMonster::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+    // Keep the navigation completion radius inside attack range. Using the
+    // exact same value can leave an AI on the acceptance boundary, outside
+    // the damage check due to path-following tolerance.
+    constexpr float AttackRange = 100.f;
+    constexpr float ChaseStopRange = 75.f;
+
     if (bIsDead)
     {
         return;
@@ -136,11 +142,19 @@ void AMonster::Tick(float DeltaTime)
         return;
     }
 
-    float Distance = FVector::Dist(
+    // Compare the gap between collision capsules, not their center points.
+    // A large werewolf capsule may be unable to get its center within the
+    // attack range before colliding with the player's capsule.
+    const float CenterDistance = FVector::Dist2D(
         GetActorLocation(),
         Player->GetActorLocation());
+    const float MonsterCollisionRadius = GetCapsuleComponent()->GetScaledCapsuleRadius();
+    const float PlayerCollisionRadius = Player->GetCapsuleComponent()->GetScaledCapsuleRadius();
+    const float Distance = FMath::Max(
+        0.f,
+        CenterDistance - MonsterCollisionRadius - PlayerCollisionRadius);
 
-    if (Distance <= 250.f)
+    if (Distance <= AttackRange)
     {
         bIsChasing = false;
 
@@ -172,7 +186,7 @@ void AMonster::Tick(float DeltaTime)
         {
             AI->MoveToActor(
                 Player,
-                100.f,
+                ChaseStopRange,
                 true,
                 true,
                 true,
