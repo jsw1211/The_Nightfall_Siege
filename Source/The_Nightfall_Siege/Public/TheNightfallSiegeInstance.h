@@ -43,6 +43,9 @@ public:
 
 	bool ClearCurrentDungeon();
 
+	void BeginRetry(bool bWasBossEncounter);
+	bool ConsumeDungeonRetry();
+
 	virtual void Init() override;
 
 	UPROPERTY(BlueprintReadWrite)
@@ -65,6 +68,12 @@ public:
 
 	UPROPERTY(BlueprintReadWrite)
 	bool bBossPortalSpawned = false;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bRetryingCurrentDungeon = false;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bRetryingBoss = false;
 
 	UPROPERTY(BlueprintReadWrite)
 	bool bIsHost = false;

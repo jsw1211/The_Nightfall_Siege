@@ -49,6 +49,7 @@
 #include "BasePlayerState.h"
 #include "UObject/ConstructorHelpers.h"
 #include "EngineUtils.h"
+#include "The_Nightfall_SiegeGameMode.h"
 
 
 // Sets default values
@@ -200,6 +201,20 @@ ABaseCharacter::ABaseCharacter()
 void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+    // A retry travels to the village and creates a fresh pawn.  Restore every
+    // local/server movement and input restriction that death may have set.
+    bIsDead = false;
+    GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    if (APlayerController* RespawnController = Cast<APlayerController>(GetController()))
+    {
+        EnableInput(RespawnController);
+        if (ABaseController* BaseRespawnController = Cast<ABaseController>(RespawnController))
+        {
+            BaseRespawnController->ClearDeathRestrictions();
+        }
+    }
 
 	// The PlayerState is the server-authoritative character selection. The
 	// visual pawn class can be correct while this property still holds its
@@ -456,6 +471,14 @@ void ABaseCharacter::Die()
     // 이거 추가해야 함
     PlayAnimMontage(DeathMontage);
 
+    if (HasAuthority())
+    {
+        if (AThe_Nightfall_SiegeGameMode* GameMode = GetWorld()->GetAuthGameMode<AThe_Nightfall_SiegeGameMode>())
+        {
+            GameMode->HandlePlayerDeath(this);
+        }
+    }
+
 }
 
 void ABaseCharacter::OnRep_IsDead()
@@ -471,6 +494,11 @@ void ABaseCharacter::OnRep_IsDead()
     {
         PC->StopMovement();
         DisableInput(PC);
+
+        if (ABaseController* BaseController = Cast<ABaseController>(PC))
+        {
+            BaseController->ShowDeathScreen(false);
+        }
     }
 }
 

@@ -42,6 +42,13 @@ public:
 
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 
+	void HandlePlayerDeath(class ABaseCharacter* DeadCharacter);
+	void RequestPartyRetry(class ABaseController* RequestingController);
+	void HandleBossDefeated();
+
+private:
+	bool bPartyRetryAvailable = false;
+	bool bGameClearAnnounced = false;
 };
 
 

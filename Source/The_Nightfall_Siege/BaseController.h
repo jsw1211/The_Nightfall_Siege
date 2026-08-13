@@ -9,6 +9,7 @@
 #include "NiagaraSystem.h"
 
 class UHierarchicalInstancedStaticMeshComponent;
+class UDeathScreenWidget;
 
 #include "BaseController.generated.h"
 
@@ -59,8 +60,32 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerStartGame();
 
+	public:
 	UFUNCTION(Server, Reliable)
 	void ServerMoveToLocation(FVector TargetLocation, FRotator TargetRotation);
+
+	UFUNCTION(Client, Reliable)
+	void ClientShowYouDied();
+
+	UFUNCTION(Client, Reliable)
+	void ClientEnableRetry();
+
+	UFUNCTION(Server, Reliable)
+	void ServerRequestRetry();
+
+	void ShowDeathScreen(bool bShouldEnableRetry);
+	// Called by a newly spawned pawn after retry travel to remove every
+	// death-screen input/UI restriction left on the local controller.
+	void ClearDeathRestrictions();
+	void HandleOverlayClick();
+
+	UFUNCTION(Client, Reliable)
+	void ClientShowGameClear();
+
+	bool IsRetryAvailable() const { return bRetryAvailable; }
+	bool IsGameClearVisible() const { return bGameClearVisible; }
+
+	protected:
 
 	UPROPERTY(EditAnywhere, Category = "FX")
 	UNiagaraSystem* ClickFX;
@@ -71,6 +96,12 @@ protected:
 	void UpdateTreeTransparency();
 
 	TMap<UHierarchicalInstancedStaticMeshComponent*, TSet<int32>> FadedTrees;
+
+	UPROPERTY()
+	UDeathScreenWidget* DeathScreenWidget = nullptr;
+
+	bool bRetryAvailable = false;
+	bool bGameClearVisible = false;
 
 
 public:
@@ -85,4 +116,10 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void StartGame();
+
+	UFUNCTION(BlueprintCallable, Category = "Death")
+	void RequestRetry();
+
+	UFUNCTION(BlueprintCallable, Category = "Game Clear")
+	void ExitGame();
 };

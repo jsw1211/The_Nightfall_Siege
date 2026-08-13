@@ -10,10 +10,12 @@
 #include "Kismet/GameplayStatics.h"
 #include "Lantern.h"
 #include "BaseCharacter.h"
+#include "BaseController.h"
+#include "DeathHUD.h"
 
 AThe_Nightfall_SiegeGameMode::AThe_Nightfall_SiegeGameMode()
 {
-	// stub
+	HUDClass = ADeathHUD::StaticClass();
 }
 
 void AThe_Nightfall_SiegeGameMode::BeginPlay()
@@ -191,5 +193,67 @@ void AThe_Nightfall_SiegeGameMode::PostLogin(APlayerController* NewPlayer)
 			TEXT("Players : %d"),
 			GS->PlayerArray.Num());
 	}
+}
+
+void AThe_Nightfall_SiegeGameMode::HandlePlayerDeath(ABaseCharacter* DeadCharacter)
+{
+    if (!HasAuthority() || bPartyRetryAvailable || !DeadCharacter || !GameState) return;
+
+    if (ABaseController* DeadController = Cast<ABaseController>(DeadCharacter->GetController()))
+    {
+        DeadController->ClientShowYouDied();
+    }
+
+    int32 PlayerCount = 0;
+    for (APlayerState* PlayerState : GameState->PlayerArray)
+    {
+        AController* Controller = PlayerState ? Cast<AController>(PlayerState->GetOwner()) : nullptr;
+        ABaseCharacter* Character = Controller ? Cast<ABaseCharacter>(Controller->GetPawn()) : nullptr;
+        if (!Character) continue;
+
+        ++PlayerCount;
+        if (!Character->IsDead()) return;
+    }
+
+    if (PlayerCount == 0) return;
+
+    bPartyRetryAvailable = true;
+    for (APlayerState* PlayerState : GameState->PlayerArray)
+    {
+        if (ABaseController* Controller = PlayerState ? Cast<ABaseController>(PlayerState->GetOwner()) : nullptr)
+        {
+            Controller->ClientEnableRetry();
+        }
+    }
+}
+
+void AThe_Nightfall_SiegeGameMode::RequestPartyRetry(ABaseController* RequestingController)
+{
+    if (!HasAuthority() || !bPartyRetryAvailable || !RequestingController) return;
+
+    if (UTheNightfallSiegeInstance* GI = GetGameInstance<UTheNightfallSiegeInstance>())
+    {
+        GI->BeginRetry(GetWorld()->GetMapName().Contains(TEXT("Boss_Arena")));
+    }
+
+    bPartyRetryAvailable = false;
+    GetWorld()->ServerTravel(TEXT("/Game/Map/Village+Forest/Village_Forest?listen"));
+}
+
+void AThe_Nightfall_SiegeGameMode::HandleBossDefeated()
+{
+    if (!HasAuthority() || bGameClearAnnounced || !GameState)
+    {
+        return;
+    }
+
+    bGameClearAnnounced = true;
+    for (APlayerState* PlayerState : GameState->PlayerArray)
+    {
+        if (ABaseController* Controller = PlayerState ? Cast<ABaseController>(PlayerState->GetOwner()) : nullptr)
+        {
+            Controller->ClientShowGameClear();
+        }
+    }
 }
 

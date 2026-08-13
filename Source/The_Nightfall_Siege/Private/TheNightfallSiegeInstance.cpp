@@ -19,7 +19,8 @@ void UTheNightfallSiegeInstance::StartRaid()
 {
     RemainingDungeons.Empty();
 
-    // Draw without replacement so every required clear uses a different dungeon.
+    // Each raid gets a random dungeon order.  A retry keeps CurrentDungeon,
+    // so only the failed entry in that order is attempted again.
     RemainingDungeons = { "LV_Dungeon1", "LV_Dungeon2", "LV_Dungeon3" };
 
     RemainingDungeonPortalLocations =
@@ -35,6 +36,21 @@ void UTheNightfallSiegeInstance::StartRaid()
     ClearedDungeonCount = 0;
     CurrentDungeon = NAME_None;
     bBossPortalSpawned = false;
+    bRetryingCurrentDungeon = false;
+    bRetryingBoss = false;
+}
+
+void UTheNightfallSiegeInstance::BeginRetry(bool bWasBossEncounter)
+{
+    bRetryingBoss = bWasBossEncounter;
+    bRetryingCurrentDungeon = !bWasBossEncounter && !CurrentDungeon.IsNone();
+}
+
+bool UTheNightfallSiegeInstance::ConsumeDungeonRetry()
+{
+    const bool bRetry = bRetryingCurrentDungeon;
+    bRetryingCurrentDungeon = false;
+    return bRetry;
 }
 
 FName UTheNightfallSiegeInstance::SelectNextDungeon()
@@ -44,9 +60,7 @@ FName UTheNightfallSiegeInstance::SelectNextDungeon()
         return NAME_None;
     }
 
-    int32 RandomIndex =
-        FMath::RandRange(0, RemainingDungeons.Num() - 1);
-
+    const int32 RandomIndex = FMath::RandRange(0, RemainingDungeons.Num() - 1);
     CurrentDungeon = RemainingDungeons[RandomIndex];
 
     return CurrentDungeon;

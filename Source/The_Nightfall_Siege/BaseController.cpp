@@ -15,12 +15,16 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "EngineUtils.h"
 #include "DrawDebugHelpers.h"
+#include "DeathScreenWidget.h"
+#include "The_Nightfall_SiegeGameMode.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 void ABaseController::SetupInputComponent()
 {
     Super::SetupInputComponent();
 
 	InputComponent->BindAction("RightClick", IE_Pressed, this, &ABaseController::MoveToMouse);
+	InputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &ABaseController::HandleOverlayClick);
 }
 
 void ABaseController::OnRightClick()
@@ -428,4 +432,105 @@ void ABaseController::UpdateTreeTransparency()
         FadedTrees.FindOrAdd(HISM).Add(Index);
 
     }
+}
+
+void ABaseController::ShowDeathScreen(bool bShouldEnableRetry)
+{
+    if (!IsLocalController()) return;
+
+    if (!DeathScreenWidget)
+    {
+        DeathScreenWidget = CreateWidget<UDeathScreenWidget>(this, UDeathScreenWidget::StaticClass());
+        if (DeathScreenWidget) DeathScreenWidget->AddToViewport(1000);
+    }
+
+    bRetryAvailable = bShouldEnableRetry;
+    if (DeathScreenWidget) DeathScreenWidget->SetRetryAvailable(bShouldEnableRetry);
+
+    if (bShouldEnableRetry)
+    {
+        bShowMouseCursor = true;
+        FInputModeUIOnly InputMode;
+        if (DeathScreenWidget)
+        {
+            InputMode.SetWidgetToFocus(DeathScreenWidget->TakeWidget());
+        }
+        SetInputMode(InputMode);
+    }
+}
+
+void ABaseController::ClearDeathRestrictions()
+{
+    bRetryAvailable = false;
+    bGameClearVisible = false;
+
+    if (DeathScreenWidget)
+    {
+        DeathScreenWidget->RemoveFromParent();
+        DeathScreenWidget = nullptr;
+    }
+
+    bShowMouseCursor = true;
+    SetInputMode(FInputModeGameOnly());
+    SetIgnoreMoveInput(false);
+    SetIgnoreLookInput(false);
+}
+
+void ABaseController::HandleOverlayClick()
+{
+    if (bRetryAvailable || bGameClearVisible)
+    {
+        int32 ViewportX = 0;
+        int32 ViewportY = 0;
+        GetViewportSize(ViewportX, ViewportY);
+        float MouseX = 0.f;
+        float MouseY = 0.f;
+        if (!GetMousePosition(MouseX, MouseY)) return;
+        const bool bOverCenterButton = MouseX >= ViewportX * 0.5f - 150.f
+            && MouseX <= ViewportX * 0.5f + 150.f
+            && MouseY >= ViewportY * 0.5f - 10.f
+            && MouseY <= ViewportY * 0.5f + 65.f;
+
+        if (bOverCenterButton)
+        {
+            if (bGameClearVisible) ExitGame();
+            else RequestRetry();
+        }
+    }
+}
+
+void ABaseController::ClientShowYouDied_Implementation()
+{
+    ShowDeathScreen(false);
+}
+
+void ABaseController::ClientEnableRetry_Implementation()
+{
+    ShowDeathScreen(true);
+}
+
+void ABaseController::ClientShowGameClear_Implementation()
+{
+    bGameClearVisible = true;
+    bShowMouseCursor = true;
+    FInputModeGameAndUI InputMode;
+    SetInputMode(InputMode);
+}
+
+void ABaseController::RequestRetry()
+{
+    ServerRequestRetry();
+}
+
+void ABaseController::ServerRequestRetry_Implementation()
+{
+    if (AThe_Nightfall_SiegeGameMode* GameMode = GetWorld()->GetAuthGameMode<AThe_Nightfall_SiegeGameMode>())
+    {
+        GameMode->RequestPartyRetry(this);
+    }
+}
+
+void ABaseController::ExitGame()
+{
+    UKismetSystemLibrary::QuitGame(this, this, EQuitPreference::Quit, false);
 }

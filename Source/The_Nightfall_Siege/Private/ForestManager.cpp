@@ -44,7 +44,8 @@ void AForestManager::SpawnDungeonPortal()
 		return;
 	}
 
-	if (GI->SelectNextDungeon().IsNone())
+	const bool bRetryingDungeon = GI->ConsumeDungeonRetry();
+	if (!bRetryingDungeon && GI->SelectNextDungeon().IsNone())
 	{
 		return;
 	}

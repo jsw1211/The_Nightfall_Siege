@@ -17,6 +17,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
 #include "UObject/ConstructorHelpers.h"
+#include "The_Nightfall_SiegeGameMode.h"
 
 // Sets default values
 ADragonBoss::ADragonBoss()
@@ -1131,6 +1132,11 @@ void ADragonBoss::Die()
 				Player->ClientShowQuestMessage(PS->GetQuestObjectiveText().ToString());
 			}
 		}
+	}
+
+	if (AThe_Nightfall_SiegeGameMode* GameMode = GetWorld()->GetAuthGameMode<AThe_Nightfall_SiegeGameMode>())
+	{
+		GameMode->HandleBossDefeated();
 	}
 
 	GetWorldTimerManager().ClearTimer(

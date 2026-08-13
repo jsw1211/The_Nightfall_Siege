@@ -36,8 +36,7 @@ void AVillageManager::BeginPlay()
         return;
     }
 
-    if (GI->RemainingDungeons.Num() <= 0 &&
-        !GI->bBossPortalSpawned)
+    if (GI->RemainingDungeons.Num() <= 0)
     {
         SpawnBossPortal();
     }
