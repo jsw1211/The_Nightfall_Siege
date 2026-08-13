@@ -28,4 +28,11 @@ protected:
 
     UPROPERTY(Transient)
     UTextBlock* QuestProgressText;
+
+    // Keep the HUD from invalidating its Slate layout when quest state is unchanged.
+    FText CachedObjective;
+    int32 CachedQuestStage = INDEX_NONE;
+    int32 CachedClearedDungeonCount = INDEX_NONE;
+    int32 CachedDungeonMonsterKillCount = INDEX_NONE;
+    int32 CachedDungeonMonsterTotalCount = INDEX_NONE;
 };

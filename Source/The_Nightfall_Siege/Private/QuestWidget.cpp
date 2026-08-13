@@ -69,6 +69,19 @@ void UQuestWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
     ABaseCharacter* Player = Cast<ABaseCharacter>(GetOwningPlayerPawn());
     if (ABasePlayerState* PlayerState = Player ? Player->GetPlayerState<ABasePlayerState>() : nullptr)
     {
+        const int32 QuestStage = static_cast<int32>(PlayerState->QuestStage);
+        if (QuestStage == CachedQuestStage
+            && PlayerState->ClearedDungeonCount == CachedClearedDungeonCount
+            && PlayerState->DungeonMonsterKillCount == CachedDungeonMonsterKillCount
+            && PlayerState->DungeonMonsterTotalCount == CachedDungeonMonsterTotalCount)
+        {
+            return;
+        }
+
+        CachedQuestStage = QuestStage;
+        CachedClearedDungeonCount = PlayerState->ClearedDungeonCount;
+        CachedDungeonMonsterKillCount = PlayerState->DungeonMonsterKillCount;
+        CachedDungeonMonsterTotalCount = PlayerState->DungeonMonsterTotalCount;
         ShowObjective(PlayerState->GetQuestObjectiveText());
 
         if (QuestProgressText)
@@ -96,5 +109,9 @@ void UQuestWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 
 void UQuestWidget::ShowObjective(const FText& Objective)
 {
-    if (QuestObjectiveText) QuestObjectiveText->SetText(Objective);
+    if (QuestObjectiveText && !Objective.EqualTo(CachedObjective))
+    {
+        QuestObjectiveText->SetText(Objective);
+        CachedObjective = Objective;
+    }
 }

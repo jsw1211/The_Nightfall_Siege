@@ -859,9 +859,12 @@ void ABaseCharacter::ToggleShop()
         ShopWidget->RemoveFromParent();
     }
 
-    PC->SetInputMode(FInputModeGameOnly());
-    // This is a mouse-directed game.  Keep the cursor visible after closing
-    // the shop instead of leaving the player without a visible pointer.
+    // Match the post-dialogue input state. GameOnly re-captures the mouse
+    // after closing a UI widget, which delays the following mouse clicks.
+    FInputModeGameAndUI InputMode;
+    InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+    InputMode.SetHideCursorDuringCapture(false);
+    PC->SetInputMode(InputMode);
     PC->SetShowMouseCursor(true);
     PC->SetIgnoreMoveInput(false);
     PC->SetIgnoreLookInput(false);
@@ -3474,8 +3477,16 @@ void ABaseCharacter::ClientFinishQuestDialogue_Implementation(bool bAccepted, co
 
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
-        PC->bShowMouseCursor = false;
-        PC->SetInputMode(FInputModeGameOnly());
+        // The game is cursor-directed.  GameOnly captures the mouse after a
+        // UI interaction, so clicks have to reacquire the viewport and feel
+        // delayed.  Keep GameAndUI with no focused widget instead.
+        PC->bShowMouseCursor = true;
+        FInputModeGameAndUI InputMode;
+        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        InputMode.SetHideCursorDuringCapture(false);
+        PC->SetInputMode(InputMode);
+        PC->SetIgnoreMoveInput(false);
+        PC->SetIgnoreLookInput(false);
     }
 
     ClientShowQuestMessage(ResultMessage.ToString());
