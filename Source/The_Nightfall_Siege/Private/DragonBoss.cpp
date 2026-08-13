@@ -1154,6 +1154,7 @@ void ADragonBoss::StartAttackTelegraph(
 	if (!TargetPlayer || TargetPlayer->IsDead())
 	{
 		ChooseRandomTarget();
+
 		if (!TargetPlayer)
 		{
 			bIsTelegraphing = false;
@@ -1175,7 +1176,6 @@ void ADragonBoss::StartAttackTelegraph(
 		->StopMovementImmediately();
 
 	bIsTelegraphing = true;
-
 	bIsAttacking = true;
 
 	if (TargetPlayer)
@@ -1193,26 +1193,47 @@ void ADragonBoss::StartAttackTelegraph(
 			TelegraphRotation);
 	}
 
+	// ============================================================
+	// Danger Zone 생성
+	// ============================================================
+
 	switch (AttackType)
 	{
 	case EDragonAttackType::Bite:
 	{
-		FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+		FVector MouthLocation =
+			GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
 
-		FVector Forward = GetActorForwardVector();
+		FVector Forward =
+			GetActorForwardVector();
 
-		FVector SpawnLocation = MouthLocation + Forward * 500.f;
+		FVector SpawnLocation =
+			MouthLocation + Forward * 500.f;
 
-		FRotator ZoneRotation = TelegraphRotation;
+		FRotator ZoneRotation =
+			TelegraphRotation;
 
 		ZoneRotation.Pitch = -90.f;
 
-		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, ZoneRotation);
+		ADangerZone* Zone =
+			GetWorld()->SpawnActor<ADangerZone>(
+				DangerZoneClass,
+				SpawnLocation,
+				ZoneRotation);
 
 		if (Zone)
 		{
-			Zone->ZoneType = EDangerZoneType::Circle;
+			Zone->ZoneType =
+				EDangerZoneType::Circle;
+
 			Zone->OnRep_ZoneType();
+
+			// Bite는 공격 애니메이션을 즉시 시작하므로
+			// 실제 BiteHit Notify 시점에 맞춰 조절
+			constexpr float BiteWarningTime = 0.6f;
+
+			Zone->LifeTime = BiteWarningTime;
+			Zone->SetLifeSpan(BiteWarningTime);
 		}
 
 		break;
@@ -1220,22 +1241,39 @@ void ADragonBoss::StartAttackTelegraph(
 
 	case EDragonAttackType::CloseBreath:
 	{
-		FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+		FVector MouthLocation =
+			GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
 
-		FVector Forward = GetActorForwardVector();
+		FVector Forward =
+			GetActorForwardVector();
 
-		FVector SpawnLocation = MouthLocation + Forward * 700.f;
+		FVector SpawnLocation =
+			MouthLocation + Forward * 700.f;
 
-		FRotator ZoneRotation = TelegraphRotation;
+		FRotator ZoneRotation =
+			TelegraphRotation;
 
 		ZoneRotation.Pitch = -90.f;
 
-		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, ZoneRotation);
+		ADangerZone* Zone =
+			GetWorld()->SpawnActor<ADangerZone>(
+				DangerZoneClass,
+				SpawnLocation,
+				ZoneRotation);
 
 		if (Zone)
 		{
-			Zone->ZoneType = EDangerZoneType::Cone;
+			Zone->ZoneType =
+				EDangerZoneType::Cone;
+
 			Zone->OnRep_ZoneType();
+
+			// CloseBreath는 공격 애니메이션을 즉시 시작하므로
+			// 실제 CloseBreathFire Notify 시점에 맞춰 조절
+			constexpr float CloseBreathWarningTime = 0.8f;
+
+			Zone->LifeTime = CloseBreathWarningTime;
+			Zone->SetLifeSpan(CloseBreathWarningTime);
 		}
 
 		break;
@@ -1243,20 +1281,45 @@ void ADragonBoss::StartAttackTelegraph(
 
 	case EDragonAttackType::Breath:
 	{
-		FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+		FVector MouthLocation =
+			GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
 
-		FVector Forward = GetActorForwardVector();
+		FVector Forward =
+			GetActorForwardVector();
 
-		FVector SpawnLocation = MouthLocation + Forward * 500.f;
+		FVector SpawnLocation =
+			MouthLocation + Forward * 500.f;
 
-		FRotator Rot = (TargetPlayer->GetActorLocation() - MouthLocation).Rotation();
+		FRotator Rot =
+			(TargetPlayer->GetActorLocation()
+				- MouthLocation).Rotation();
 
-		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, Rot);
+		ADangerZone* Zone =
+			GetWorld()->SpawnActor<ADangerZone>(
+				DangerZoneClass,
+				SpawnLocation,
+				Rot);
 
 		if (Zone)
 		{
-			Zone->ZoneType = EDangerZoneType::Line;
+			Zone->ZoneType =
+				EDangerZoneType::Line;
+
 			Zone->OnRep_ZoneType();
+
+			// 원거리 Breath는 기존처럼
+			// 범위 표시 후 3초 뒤 공격 시작
+			constexpr float BreathWarningTime = 3.0f;
+
+			Zone->LifeTime = BreathWarningTime;
+			Zone->SetLifeSpan(BreathWarningTime);
+
+			// 중앙 기믹의 Breath일 경우
+			// Tick에서 범위를 보스와 타겟 방향에 맞춰 움직이도록 저장
+			if (bCenterMechanicActive)
+			{
+				CurrentBreathZone = Zone;
+			}
 		}
 
 		break;
@@ -1264,28 +1327,65 @@ void ADragonBoss::StartAttackTelegraph(
 
 	case EDragonAttackType::Debuff:
 	{
-		FVector SpawnLocation = ArenaCenter;
+		FVector SpawnLocation =
+			ArenaCenter;
 
 		SpawnLocation.Z += 5.f;
 
-		FRotator Rotation(-90.f, 0.f, 0.f);
+		FRotator Rotation(
+			-90.f,
+			0.f,
+			0.f);
 
-		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, Rotation);
+		ADangerZone* Zone =
+			GetWorld()->SpawnActor<ADangerZone>(
+				DangerZoneClass,
+				SpawnLocation,
+				Rotation);
 
 		if (Zone)
 		{
-			Zone->ZoneType = EDangerZoneType::FullMap;
+			Zone->ZoneType =
+				EDangerZoneType::FullMap;
+
 			Zone->OnRep_ZoneType();
+
+			// Debuff는 기존처럼
+			// 범위 표시 후 3초 뒤 실행
+			constexpr float DebuffWarningTime = 3.0f;
+
+			Zone->LifeTime = DebuffWarningTime;
+			Zone->SetLifeSpan(DebuffWarningTime);
 		}
 
-		// This effect is only cosmetic; the actual debuff is applied when the
-		// charge finishes in DebuffAttack().
+		// 이펙트는 기존대로 텔레그래프 시작 시 재생
 		MulticastSpawnBlackoutChargingFX();
 
 		break;
 	}
 	}
 
+	// ============================================================
+	// 공격 실행
+	// Bite / CloseBreath : 즉시 실행
+	// Breath / Debuff    : 3초 후 실행
+	// ============================================================
+
+	if (AttackType == EDragonAttackType::Bite ||
+		AttackType == EDragonAttackType::CloseBreath)
+	{
+		// 기존에 남아 있을 수 있는 타이머 제거
+		GetWorldTimerManager().ClearTimer(
+			TelegraphHandle);
+
+		// DangerZone 생성 직후 바로 공격 애니메이션 시작
+		ExecuteTelegraphedAttack(
+			AttackType);
+
+		return;
+	}
+
+	// Breath / Debuff는 기존처럼 3초 대기
 	FTimerDelegate Delegate;
 
 	Delegate.BindLambda(
