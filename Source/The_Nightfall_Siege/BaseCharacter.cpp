@@ -228,7 +228,7 @@ void ABaseCharacter::BeginPlay()
         // Q
         QMultiplier = 1.0f;
         QCooldown = 5.f;
-        QRadius = 200.f;
+        QRadius = 120.f;
 
         // W
         DefenseRate = 0.f;
@@ -263,6 +263,8 @@ void ABaseCharacter::BeginPlay()
 
 		QMultiplier = 1.0f;
 		EMultiplier = 1.0f;
+		QRadius = 120.f;
+		WarriorERadius = 300.f;
 
         break;
     }
@@ -2333,7 +2335,14 @@ void ABaseCharacter::ExecuteQDamage()
 
     TArray<FOverlapResult> Overlaps;
 
-    FCollisionShape Sphere = FCollisionShape::MakeSphere(QRadius);
+    // Melee Q range is measured from the outer edge of this character's
+    // capsule, matching the monster attack-range calculation.
+    const bool bMeleeCharacter =
+        CharacterType == ECharacterType::Warrior || CharacterType == ECharacterType::Paladin;
+    const float QCollisionRadius = bMeleeCharacter
+        ? QRadius + GetCapsuleComponent()->GetScaledCapsuleRadius()
+        : QRadius;
+    FCollisionShape Sphere = FCollisionShape::MakeSphere(QCollisionRadius);
 
     bool bHit = GetWorld()->OverlapMultiByChannel(
         Overlaps,
@@ -2913,8 +2922,12 @@ void ABaseCharacter::ExecuteAttack()
 
     TArray<FOverlapResult> Overlaps;
 
-    FCollisionShape Sphere =
-        FCollisionShape::MakeSphere(150.f);
+    // Warrior and Paladin use the same 120-unit capsule-edge range as a
+    // monster attack. Preserve the Archer's separate overlap range.
+    const float AttackRange = CharacterType == ECharacterType::Archer
+        ? 150.f
+        : 120.f + GetCapsuleComponent()->GetScaledCapsuleRadius();
+    FCollisionShape Sphere = FCollisionShape::MakeSphere(AttackRange);
 
     bool bHit =
         GetWorld()->OverlapMultiByChannel(
