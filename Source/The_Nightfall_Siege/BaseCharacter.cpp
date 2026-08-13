@@ -238,7 +238,7 @@ void ABaseCharacter::BeginPlay()
     case ECharacterType::Paladin:
 
         MaxHP = 500.f;
-        AttackPower = 100.f;
+        AttackPower = 500.f;
 
         // Q
         QMultiplier = 1.0f;

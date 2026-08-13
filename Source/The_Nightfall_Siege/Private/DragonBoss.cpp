@@ -790,12 +790,12 @@ EDragonPatternType ADragonBoss::ChoosePattern()
 {
 	int32 Rand = FMath::RandRange(1, 100);
 
-	if (Rand <= 70)
+	if (Rand <= 60)
 	{
 		return EDragonPatternType::NormalAttack;
 	}
 
-	if (Rand <= 90)
+	if (Rand <= 80)
 	{
 		return EDragonPatternType::TargetChange;
 	}
