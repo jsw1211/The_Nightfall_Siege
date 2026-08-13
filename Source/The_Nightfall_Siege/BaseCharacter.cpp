@@ -337,6 +337,22 @@ void ABaseCharacter::BeginPlay()
     if (!bIsLobbyMap)
     {
         EnsureQuestWidget();
+
+        // Controllers survive lobby-to-village travel, but the lobby UI may
+        // leave its input focus behind.  Reapply the cursor-directed gameplay
+        // mode after this newly spawned pawn becomes the controlled character.
+        if (APlayerController* PC = Cast<APlayerController>(GetController()))
+        {
+            if (PC->IsLocalController())
+            {
+                FInputModeGameOnly InputMode;
+                InputMode.SetConsumeCaptureMouseDown(false);
+                PC->SetInputMode(InputMode);
+                PC->SetShowMouseCursor(true);
+                PC->SetIgnoreMoveInput(false);
+                PC->SetIgnoreLookInput(true);
+            }
+        }
     }
 
     Slot1Icon = EmptySlotIcon;
@@ -801,13 +817,8 @@ void ABaseCharacter::ToggleInventory()
         {
             if (APlayerController* PC = Cast<APlayerController>(GetController()))
             {
-                // Keep the same unfocused GameAndUI mode used while the
-                // inventory is open. Switching to GameOnly here causes the
-                // enhanced movement action to stop reaching the character
-                // after the inventory is closed in this project.
-                FInputModeGameAndUI InputMode;
-                InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-                InputMode.SetHideCursorDuringCapture(false);
+                FInputModeGameOnly InputMode;
+                InputMode.SetConsumeCaptureMouseDown(false);
                 PC->SetInputMode(InputMode);
                 PC->SetShowMouseCursor(true);
 				// Closing the inventory must restore exactly the same movement
@@ -887,11 +898,9 @@ void ABaseCharacter::ToggleShop()
         ShopWidget->RemoveFromParent();
     }
 
-    // Match the post-dialogue input state. GameOnly re-captures the mouse
-    // after closing a UI widget, which delays the following mouse clicks.
-    FInputModeGameAndUI InputMode;
-    InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-    InputMode.SetHideCursorDuringCapture(false);
+    // The shop no longer owns input, so restore gameplay focus immediately.
+    FInputModeGameOnly InputMode;
+    InputMode.SetConsumeCaptureMouseDown(false);
     PC->SetInputMode(InputMode);
     PC->SetShowMouseCursor(true);
     PC->SetIgnoreMoveInput(false);
@@ -3505,13 +3514,9 @@ void ABaseCharacter::ClientFinishQuestDialogue_Implementation(bool bAccepted, co
 
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
-        // The game is cursor-directed.  GameOnly captures the mouse after a
-        // UI interaction, so clicks have to reacquire the viewport and feel
-        // delayed.  Keep GameAndUI with no focused widget instead.
         PC->bShowMouseCursor = true;
-        FInputModeGameAndUI InputMode;
-        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-        InputMode.SetHideCursorDuringCapture(false);
+        FInputModeGameOnly InputMode;
+        InputMode.SetConsumeCaptureMouseDown(false);
         PC->SetInputMode(InputMode);
         PC->SetIgnoreMoveInput(false);
         PC->SetIgnoreLookInput(false);
@@ -3531,9 +3536,8 @@ void ABaseCharacter::CloseQuestDialogue()
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
         PC->bShowMouseCursor = true;
-        FInputModeGameAndUI InputMode;
-        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-        InputMode.SetHideCursorDuringCapture(false);
+        FInputModeGameOnly InputMode;
+        InputMode.SetConsumeCaptureMouseDown(false);
         PC->SetInputMode(InputMode);
         PC->SetIgnoreMoveInput(false);
         PC->SetIgnoreLookInput(false);

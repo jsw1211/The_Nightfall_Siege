@@ -10,6 +10,8 @@
 #include "BaseCharacter.h"
 #include "Components/SphereComponent.h"
 #include "Components/PointLightComponent.h"
+#include "Components/WidgetComponent.h"
+#include "AltarInteractionWidget.h"
 #include "Net/UnrealNetwork.h"
 #include "BasePlayerState.h"
 
@@ -21,7 +23,7 @@ AAltar::AAltar()
 
 	bReplicates = true;
 
-	// ¸Ş½¬ »ı¼º
+	// ë©”ì‰¬ ìƒì„±
 	AltarMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AltarMesh"));
 
 	RootComponent = AltarMesh;
@@ -63,6 +65,16 @@ AAltar::AAltar()
 
 	AltarLight->SetVisibility(false);
 
+	InteractionPrompt = CreateDefaultSubobject<UWidgetComponent>(TEXT("InteractionPrompt"));
+	InteractionPrompt->SetupAttachment(RootComponent);
+	InteractionPrompt->SetRelativeLocation(FVector(0.f, 0.f, 210.f));
+	InteractionPrompt->SetWidgetSpace(EWidgetSpace::Screen);
+	InteractionPrompt->SetDrawSize(FVector2D(280.f, 42.f));
+	InteractionPrompt->SetPivot(FVector2D(0.5f, 0.5f));
+	InteractionPrompt->SetWindowVisibility(EWindowVisibility::SelfHitTestInvisible);
+	InteractionPrompt->SetWidgetClass(UAltarInteractionWidget::StaticClass());
+	InteractionPrompt->SetVisibility(false);
+
 	UE_LOG(LogTemp, Warning, TEXT("Bind BeginOverlap"));
 }
 
@@ -80,6 +92,13 @@ void AAltar::BeginPlay()
 	InteractionBox->OnComponentEndOverlap.AddDynamic(
 		this,
 		&AAltar::OnOverlapEnd);
+
+	// Screen-space widgets are rendered as billboards and always face the
+	// local player's camera, regardless of the altar actor's rotation.
+	InteractionPrompt->SetWidgetSpace(EWidgetSpace::Screen);
+
+	// Child Blueprints may have serialized the component as visible.
+	InteractionPrompt->SetVisibility(false, true);
 }
 
 // Called every frame
@@ -201,6 +220,11 @@ void AAltar::OnOverlapBegin(
 
 	UE_LOG(LogTemp, Warning, TEXT("Player Found"));
 	Player->SetNearbyAltar(this);
+
+	if (Player->IsLocallyControlled())
+	{
+		InteractionPrompt->SetVisibility(true, true);
+	}
 }
 
 void AAltar::OnOverlapEnd(
@@ -218,5 +242,10 @@ void AAltar::OnOverlapEnd(
 	}
 
 	Player->SetNearbyAltar(nullptr);
+
+	if (Player->IsLocallyControlled())
+	{
+		InteractionPrompt->SetVisibility(false, true);
+	}
 }
 

@@ -48,7 +48,7 @@ void UQuestInteractionWidget::BuildLayout()
     FontEntry.Name = FName(TEXT("Regular"));
     FontEntry.Font = FFontData(KoreanFontFace);
 
-    const FSlateFontInfo LabelFont(KoreanFont, 20, FName(TEXT("Regular")));
+    const FSlateFontInfo LabelFont(KoreanFont, 15, FName(TEXT("Regular")));
 
     UTextBlock* NameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("QuestGiverName"));
     NameText->SetText(FText::FromString(TEXT("마을 촌장")));
@@ -61,7 +61,7 @@ void UQuestInteractionWidget::BuildLayout()
         UTextBlock::StaticClass(), TEXT("QuestGiverQuestPrompt"));
 
     QuestPromptText->SetText(FText::FromString(TEXT("퀘스트 [F]")));
-    QuestPromptText->SetFont(FSlateFontInfo(KoreanFont, 15, FName(TEXT("Regular"))));
+    QuestPromptText->SetFont(FSlateFontInfo(KoreanFont, 10, FName(TEXT("Regular"))));
     QuestPromptText->SetJustification(ETextJustify::Center);
     QuestPromptText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
     Content->AddChildToVerticalBox(QuestPromptText);
@@ -70,7 +70,7 @@ void UQuestInteractionWidget::BuildLayout()
         UTextBlock::StaticClass(), TEXT("QuestGiverShopPrompt"));
 
     ShopPromptText->SetText(FText::FromString(TEXT("상점 [P]")));
-    ShopPromptText->SetFont(FSlateFontInfo(KoreanFont, 15, FName(TEXT("Regular"))));
+    ShopPromptText->SetFont(FSlateFontInfo(KoreanFont, 10, FName(TEXT("Regular"))));
     ShopPromptText->SetJustification(ETextJustify::Center);
     ShopPromptText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
     Content->AddChildToVerticalBox(ShopPromptText);

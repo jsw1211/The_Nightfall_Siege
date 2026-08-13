@@ -382,29 +382,13 @@ bool AMonster::CanSeePlayer(ABaseCharacter* Player)
         return false;
     }
 
-    FVector ToPlayer =
-        Player->GetActorLocation() - GetActorLocation();
+    // Detect players in a circle centered on the monster, independent of
+    // facing direction. DistSquared2D keeps the detection range horizontal.
+    const float DistanceSquared = FVector::DistSquared2D(
+        GetActorLocation(),
+        Player->GetActorLocation());
 
-    float Distance = ToPlayer.Length();
-
-    if (Distance > SightRange)
-    {
-        return false;
-    }
-
-    ToPlayer.Normalize();
-
-    FVector Forward = GetActorForwardVector();
-
-    float Dot = FVector::DotProduct(
-        Forward,
-        ToPlayer);
-
-    float Angle =
-        FMath::RadiansToDegrees(
-            FMath::Acos(Dot));
-
-    if (Angle > SightAngle * 0.5f)
+    if (DistanceSquared > FMath::Square(SightRange))
     {
         return false;
     }

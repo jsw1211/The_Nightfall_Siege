@@ -180,6 +180,20 @@ void ABaseController::BeginPlay()
 
     DefaultMouseCursor = EMouseCursor::Default;
 
+    // The controller is first created in the lobby and persists through the
+    // travel to the village.  Gameplay input is applied by the new pawn's
+    // BeginPlay after travel so it cannot be overwritten by the lobby UI.
+    if (!MapName.Contains(TEXT("Lvl_Lobby")))
+    {
+        // Gameplay must own keyboard focus.  GameAndUI leaves focus with the
+        // previous lobby widget, which makes the first click/held movement key
+        // appear to be dropped after travelling to this map.
+        FInputModeGameOnly InputMode;
+        InputMode.SetConsumeCaptureMouseDown(false);
+        SetInputMode(InputMode);
+        SetIgnoreMoveInput(false);
+    }
+
     SetIgnoreLookInput(true);
 
     TreeComponents.Empty();

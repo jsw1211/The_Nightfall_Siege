@@ -48,6 +48,9 @@ AQuestGiver::AQuestGiver()
     InteractionWidget->SetWidgetSpace(EWidgetSpace::Screen);
     InteractionWidget->SetDrawSize(FVector2D(420.f, 110.f));
     InteractionWidget->SetPivot(FVector2D(0.5f, 0.5f));
+    // This is an informational label, not a UI control. It must never absorb
+    // clicks that are intended to move the player on the ground behind it.
+    InteractionWidget->SetWindowVisibility(EWindowVisibility::SelfHitTestInvisible);
     InteractionWidget->SetWidgetClass(UQuestInteractionWidget::StaticClass());
 
     SpeakerName = FText::FromString(TEXT("수호자"));
