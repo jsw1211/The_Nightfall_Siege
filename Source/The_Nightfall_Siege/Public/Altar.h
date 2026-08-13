@@ -13,6 +13,7 @@ class ALantern;
 class ABaseCharacter;
 class USphereComponent;
 class UPointLightComponent;
+class UWidgetComponent;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API AAltar : public AActor
@@ -76,6 +77,10 @@ public:
 
 	UPROPERTY(VisibleAnywhere)
 	UPointLightComponent* AltarLight;
+
+	// Screen-space prompt, so it remains readable even when a dungeon map is rotated.
+	UPROPERTY(VisibleAnywhere, Category = "Interaction")
+	UWidgetComponent* InteractionPrompt;
 
 	UFUNCTION()
 	void OnOverlapBegin(
