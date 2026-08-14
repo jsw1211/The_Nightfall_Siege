@@ -455,6 +455,8 @@ void ADragonBoss::DebuffAttack()
 	UE_LOG(LogTemp, Warning,
 		TEXT("Dragon Used Debuff"));
 
+	ResetPrismCleanseParticipants();
+
 	// The telegraph has completed: release the blackout before applying it.
 	MulticastSpawnBlackoutReleaseFX(GetActorLocation());
 
@@ -501,6 +503,85 @@ void ADragonBoss::DebuffAttack()
 		2.5f,
 		false
 	);
+}
+
+void ADragonBoss::ResetPrismCleanseParticipants()
+{
+	PrismCleanseParticipants.Empty();
+}
+
+bool ADragonBoss::ArePrismHoldersGathered(const TArray<AActor*>& PlayerActors) const
+{
+	const float MaxDistanceSquared = FMath::Square(PrismCleanseGatherRadius);
+	for (AActor* FirstActor : PlayerActors)
+	{
+		ABaseCharacter* First = Cast<ABaseCharacter>(FirstActor);
+		if (!First || First->IsDead() || !First->bHasPrism) continue;
+
+		for (AActor* SecondActor : PlayerActors)
+		{
+			ABaseCharacter* Second = Cast<ABaseCharacter>(SecondActor);
+			if (!Second || Second == First || Second->IsDead() || !Second->bHasPrism) continue;
+
+			if (FVector::DistSquared(First->GetActorLocation(), Second->GetActorLocation()) > MaxDistanceSquared)
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+void ADragonBoss::RegisterPrismCleanseParticipant(ABaseCharacter* Player)
+{
+	if (!HasAuthority() || !Player || Player->IsDead() || !Player->bHasPrism || !Player->bPrismEquipped || !Player->bDarknessDebuff)
+	{
+		return;
+	}
+
+	PrismCleanseParticipants.Add(Player);
+
+	TArray<AActor*> PlayerActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), PlayerActors);
+	int32 RequiredParticipants = 0;
+	for (AActor* Actor : PlayerActors)
+	{
+		ABaseCharacter* Character = Cast<ABaseCharacter>(Actor);
+		if (Character && !Character->IsDead() && Character->bHasPrism)
+		{
+			++RequiredParticipants;
+			if (!PrismCleanseParticipants.Contains(Character))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Prism cleanse waiting: %d/%d"), PrismCleanseParticipants.Num(), RequiredParticipants);
+				return;
+			}
+		}
+	}
+
+	if (RequiredParticipants == 0)
+	{
+		return;
+	}
+
+	if (!ArePrismHoldersGathered(PlayerActors))
+	{
+		PrismCleanseParticipants.Empty();
+		UE_LOG(LogTemp, Warning, TEXT("Prism cleanse failed: holders must gather within %.0f units"), PrismCleanseGatherRadius);
+		return;
+	}
+
+	for (AActor* Actor : PlayerActors)
+	{
+		if (ABaseCharacter* Character = Cast<ABaseCharacter>(Actor))
+		{
+			Character->bDarknessDebuff = false;
+			Character->ForceNetUpdate();
+		}
+	}
+
+	PrismCleanseParticipants.Empty();
+	UE_LOG(LogTemp, Warning, TEXT("Group prism cleanse completed by %d players"), RequiredParticipants);
 }
 
 void ADragonBoss::WalkToTarget()

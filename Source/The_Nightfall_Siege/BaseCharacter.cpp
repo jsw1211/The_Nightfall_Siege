@@ -1663,11 +1663,7 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 
     if (bDarknessDebuff && bPrismEquipped)
     {
-        bDarknessDebuff = false;
-
-        UE_LOG(LogTemp, Warning,
-            TEXT("Darkness Cleared"));
-
+        ServerRequestGroupPrismCleanse();
         return;
     }
 
@@ -3361,6 +3357,20 @@ void ABaseCharacter::ServerUseSlot3_Implementation()
     ForceNetUpdate();
 
     MulticastPlayPrismMontage(bEquip);
+}
+
+void ABaseCharacter::ServerRequestGroupPrismCleanse_Implementation()
+{
+    if (!bDarknessDebuff || !bHasPrism || !bPrismEquipped || IsDead())
+    {
+        return;
+    }
+
+    for (TActorIterator<ADragonBoss> It(GetWorld()); It; ++It)
+    {
+        It->RegisterPrismCleanseParticipant(this);
+        return;
+    }
 }
 
 void ABaseCharacter::OnRep_PrismEquipped()

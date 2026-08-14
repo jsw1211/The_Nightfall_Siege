@@ -307,6 +307,9 @@ public:
 	UFUNCTION(Server, Reliable)
 	void ServerUseSlot3();
 
+	UFUNCTION(Server, Reliable)
+	void ServerRequestGroupPrismCleanse();
+
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayPrismMontage(bool bEquip);
 

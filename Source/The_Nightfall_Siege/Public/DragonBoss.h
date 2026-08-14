@@ -168,6 +168,8 @@ public:
 	void BreathAttack();
 
 	void DebuffAttack();
+	void ResetPrismCleanseParticipants();
+	void RegisterPrismCleanseParticipant(ABaseCharacter* Player);
 
 	void WalkToTarget();
 
@@ -261,6 +263,15 @@ public:
 	FTimerHandle CenterBreathHandle;
 
 	bool bCenterBreathStarted = false;
+
+	TSet<TObjectPtr<ABaseCharacter>> PrismCleanseParticipants;
+
+	// All prism holders must gather within this radius of one another before
+	// their F interactions can clear the blackout debuff.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss|Debuff", meta = (ClampMin = "0.0"))
+	float PrismCleanseGatherRadius = 1000.f;
+
+	bool ArePrismHoldersGathered(const TArray<AActor*>& PlayerActors) const;
 
 	FTimerHandle CenterTrackingHandle;
 
