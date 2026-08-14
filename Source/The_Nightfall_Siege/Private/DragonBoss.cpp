@@ -1499,36 +1499,61 @@ void ADragonBoss::BiteHit()
 		return;
 	}
 
-	float Damage = AttackPower * 1.0f * GetCurrentDamageMultiplier();
+	float Damage =
+		AttackPower * 1.0f * GetCurrentDamageMultiplier();
 
-	FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+	FVector MouthLocation =
+		GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
 
-	FVector Forward = GetActorForwardVector();
+	FVector Forward =
+		GetActorForwardVector();
 
-	FVector BiteCenter = MouthLocation + Forward * 500.f;
+	FVector Right =
+		GetActorRightVector();
 
-	MulticastSpawnBiteFX(BiteCenter);
+	MulticastSpawnBiteFX(MouthLocation);
 
 	TArray<AActor*> Players;
 
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(),
+		ABaseCharacter::StaticClass(),
+		Players);
 
 	for (AActor* Actor : Players)
 	{
-		ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
+		ABaseCharacter* Player =
+			Cast<ABaseCharacter>(Actor);
 
 		if (!Player)
 		{
 			continue;
 		}
 
-		float Distance = FVector::Dist(Player->GetActorLocation(), BiteCenter);
+		FVector ToPlayer =
+			Player->GetActorLocation() - MouthLocation;
 
-		if (Distance <= 350.f)
+		// 보스 정면/옆 방향으로 거리 계산
+		float ForwardDistance =
+			FVector::DotProduct(ToPlayer, Forward);
+
+		float RightDistance =
+			FVector::DotProduct(ToPlayer, Right);
+
+		// 직사각형 범위
+		// 길이 300 → 앞쪽 0 ~ 300
+		// 폭 200 → 좌우 -100 ~ +100
+		if (ForwardDistance >= 0.f &&
+			ForwardDistance <= 300.f &&
+			FMath::Abs(RightDistance) <= 100.f)
 		{
 			Player->TakePlayerDamage(Damage);
 
-			UE_LOG(LogTemp, Warning, TEXT("Bite Hit : %s"), *Player->GetName());
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("Bite Hit : %s"),
+				*Player->GetName());
 		}
 	}
 }

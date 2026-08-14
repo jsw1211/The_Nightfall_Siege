@@ -1724,16 +1724,15 @@ void ABaseCharacter::MulticastStartPotionUse_Implementation()
     {
         if (UAnimSequenceBase* PotionAnimation = GetPotionAnimation())
         {
-            ActivePotionMontage = AnimInstance->PlaySlotAnimationAsDynamicMontage(PotionAnimation, TEXT("DefaultSlot"));
+            ActivePotionMontage =
+                AnimInstance->PlaySlotAnimationAsDynamicMontage(
+                    PotionAnimation,
+                    TEXT("DefaultSlot"));
         }
     }
 
-    if (HealEffect)
-    {
-        PotionHealEffectComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
-            HealEffect, GetRootComponent(), NAME_None, FVector::ZeroVector,
-            FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
-    }
+    // 힐 이펙트는 여기서 재생하지 않음.
+    // 포션 애니메이션이 끝난 뒤 FinishPotionUse()에서 재생함.
 }
 
 void ABaseCharacter::FinishPotionUse()
@@ -1744,17 +1743,29 @@ void ABaseCharacter::FinishPotionUse()
     }
 
     bIsUsingPotion = false;
+
     --PotionCount;
+
     if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
     {
         PS->PotionCount = PotionCount;
     }
+
+    // 포션 애니메이션이 끝나는 순간 체력 회복
     HealPlayer(MaxHP * PotionHealPercent);
+
+    // 체력 회복과 동시에 힐 이펙트 재생
+    if (HealEffect)
+    {
+        MulticastPlayRHealEffect(GetActorLocation());
+    }
+
     OnRep_PotionCount();
+
     MulticastCancelPotionUse();
+
     ForceNetUpdate();
 }
-
 void ABaseCharacter::ServerCancelPotionUse_Implementation()
 {
     CancelPotionUse();
