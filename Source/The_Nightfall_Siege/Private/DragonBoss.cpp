@@ -426,6 +426,22 @@ void ADragonBoss::BreathAttack()
 
 void ADragonBoss::DebuffAttack()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Dragon Used Debuff"));
+
+	MulticastStopBlackoutChargingFX();
+
+	MulticastSpawnBlackoutReleaseFX(
+		GetActorLocation());
+
+
 	/////////////////////////////////
 	DebuffCount++;
 	TotalPatternCount++;
@@ -454,7 +470,10 @@ void ADragonBoss::DebuffAttack()
 	UE_LOG(LogTemp, Warning,
 		TEXT("Dragon Used Debuff"));
 
-	// The telegraph has completed: release the blackout before applying it.
+	// 차징 이펙트 종료
+	MulticastStopBlackoutChargingFX();
+
+	// 차징 종료 이펙트
 	MulticastSpawnBlackoutReleaseFX(GetActorLocation());
 
 	TArray<AActor*> Prisms;
@@ -1327,15 +1346,10 @@ void ADragonBoss::StartAttackTelegraph(
 
 	case EDragonAttackType::Debuff:
 	{
-		FVector SpawnLocation =
-			ArenaCenter;
-
+		FVector SpawnLocation = ArenaCenter;
 		SpawnLocation.Z += 5.f;
 
-		FRotator Rotation(
-			-90.f,
-			0.f,
-			0.f);
+		FRotator Rotation(-90.f, 0.f, 0.f);
 
 		ADangerZone* Zone =
 			GetWorld()->SpawnActor<ADangerZone>(
@@ -1345,21 +1359,17 @@ void ADragonBoss::StartAttackTelegraph(
 
 		if (Zone)
 		{
-			Zone->ZoneType =
-				EDangerZoneType::FullMap;
-
+			Zone->ZoneType = EDangerZoneType::FullMap;
 			Zone->OnRep_ZoneType();
 
-			// Debuff는 기존처럼
-			// 범위 표시 후 3초 뒤 실행
-			constexpr float DebuffWarningTime = 3.0f;
+			constexpr float DebuffWarningTime = 2.0f;
 
 			Zone->LifeTime = DebuffWarningTime;
 			Zone->SetLifeSpan(DebuffWarningTime);
 		}
 
-		// 이펙트는 기존대로 텔레그래프 시작 시 재생
-		MulticastSpawnBlackoutChargingFX();
+		// 디버프 대기 시작과 동시에 애니메이션 재생
+		MulticastPlayAttack(EDragonAttackType::Debuff);
 
 		break;
 	}
@@ -1368,7 +1378,8 @@ void ADragonBoss::StartAttackTelegraph(
 	// ============================================================
 	// 공격 실행
 	// Bite / CloseBreath : 즉시 실행
-	// Breath / Debuff    : 3초 후 실행
+	// Breath	: 3초 후 실행
+	// Debuff    : 2초 후 실행
 	// ============================================================
 
 	if (AttackType == EDragonAttackType::Bite ||
@@ -1385,7 +1396,6 @@ void ADragonBoss::StartAttackTelegraph(
 		return;
 	}
 
-	// Breath / Debuff는 기존처럼 3초 대기
 	FTimerDelegate Delegate;
 
 	Delegate.BindLambda(
@@ -1395,11 +1405,34 @@ void ADragonBoss::StartAttackTelegraph(
 				AttackType);
 		});
 
-	GetWorldTimerManager().SetTimer(
-		TelegraphHandle,
-		Delegate,
-		3.f,
-		false);
+	if (AttackType == EDragonAttackType::Debuff)
+	{
+		// 디버프 발동 1초 전에 차징 이펙트 시작
+		FTimerHandle ChargingEffectHandle;
+
+		GetWorldTimerManager().SetTimer(
+			ChargingEffectHandle,
+			this,
+			&ADragonBoss::MulticastSpawnBlackoutChargingFX,
+			1.f,
+			false);
+
+		// 전체 대기시간은 2초
+		GetWorldTimerManager().SetTimer(
+			TelegraphHandle,
+			Delegate,
+			2.f,
+			false);
+	}
+	else
+	{
+		// Breath는 기존처럼 3초 대기
+		GetWorldTimerManager().SetTimer(
+			TelegraphHandle,
+			Delegate,
+			3.f,
+			false);
+	}
 }
 
 void ADragonBoss::ExecuteTelegraphedAttack(
@@ -1544,8 +1577,8 @@ void ADragonBoss::BiteHit()
 		// 길이 300 → 앞쪽 0 ~ 300
 		// 폭 200 → 좌우 -100 ~ +100
 		if (ForwardDistance >= 0.f &&
-			ForwardDistance <= 300.f &&
-			FMath::Abs(RightDistance) <= 100.f)
+			ForwardDistance <= 500.f &&
+			FMath::Abs(RightDistance) <= 150.f)
 		{
 			Player->TakePlayerDamage(Damage);
 
@@ -1633,9 +1666,11 @@ void ADragonBoss::MulticastShowDamage_Implementation(float Damage)
 	ShowDamage(Damage);
 }
 
-void ADragonBoss::MulticastPlayAttack_Implementation(EDragonAttackType AttackType)
+void ADragonBoss::MulticastPlayAttack_Implementation(
+	EDragonAttackType AttackType)
 {
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	UAnimInstance* AnimInstance =
+		GetMesh()->GetAnimInstance();
 
 	if (!AnimInstance)
 	{
@@ -1667,6 +1702,28 @@ void ADragonBoss::MulticastPlayAttack_Implementation(EDragonAttackType AttackTyp
 		if (BreathMontage)
 		{
 			AnimInstance->Montage_Play(BreathMontage);
+		}
+
+		break;
+
+	case EDragonAttackType::Debuff:
+
+		if (DebuffMontage)
+		{
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("=== Debuff Montage PLAY ==="));
+
+			AnimInstance->Montage_Play(
+				DebuffMontage);
+		}
+		else
+		{
+			UE_LOG(
+				LogTemp,
+				Error,
+				TEXT("=== DebuffMontage is NULL !!! ==="));
 		}
 
 		break;
@@ -1718,19 +1775,36 @@ void ADragonBoss::MulticastSpawnCloseBreathFX_Implementation(
 
 void ADragonBoss::MulticastSpawnBlackoutChargingFX_Implementation()
 {
-	if (!BlackoutChargingFX || !GetMesh())
+	if (!BlackoutChargingFX || !GetRootComponent())
 	{
 		return;
 	}
 
-	UNiagaraFunctionLibrary::SpawnSystemAttached(
-		BlackoutChargingFX,
-		GetMesh(),
-		NAME_None,
-		FVector::ZeroVector,
-		FRotator::ZeroRotator,
-		EAttachLocation::KeepRelativeOffset,
-		true);
+	// 이미 차징 이펙트가 있다면 중복 생성하지 않음
+	if (BlackoutChargingFXComponent)
+	{
+		BlackoutChargingFXComponent->Deactivate();
+		BlackoutChargingFXComponent = nullptr;
+	}
+
+	BlackoutChargingFXComponent =
+		UNiagaraFunctionLibrary::SpawnSystemAttached(
+			BlackoutChargingFX,
+			GetRootComponent(),
+			NAME_None,
+			FVector::ZeroVector,
+			FRotator::ZeroRotator,
+			EAttachLocation::KeepRelativeOffset,
+			false);
+}
+
+void ADragonBoss::MulticastStopBlackoutChargingFX_Implementation()
+{
+	if (BlackoutChargingFXComponent)
+	{
+		BlackoutChargingFXComponent->Deactivate();
+		BlackoutChargingFXComponent = nullptr;
+	}
 }
 
 void ADragonBoss::MulticastSpawnBlackoutReleaseFX_Implementation(FVector Location)

@@ -280,6 +280,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
 	UAnimMontage* DeathMontage;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UAnimMontage* DebuffMontage;
+
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayDeath();
 
@@ -329,6 +332,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX|Blackout")
 	TObjectPtr<UNiagaraSystem> BlackoutReleaseFX;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UNiagaraComponent> BlackoutChargingFXComponent;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX|Phase Two")
 	TObjectPtr<UNiagaraSystem> PhaseTwoFX;
 
@@ -365,7 +371,11 @@ public:
 	void MulticastSpawnBlackoutChargingFX();
 
 	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStopBlackoutChargingFX();
+
+	UFUNCTION(NetMulticast, Reliable)
 	void MulticastSpawnBlackoutReleaseFX(FVector Location);
+
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastStartPhaseTwoFX();
