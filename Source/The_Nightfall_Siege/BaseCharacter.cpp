@@ -3950,6 +3950,17 @@ void ABaseCharacter::CheckDarknessDamage()
         return;
     }
 
+    // Village safe zone: no darkness damage inside the settlement bounds.
+    // X: 12530 ~ 19800, Y: 9600 ~ 16400
+    const FVector Location = GetActorLocation();
+    const bool bInsideVillageSafeZone =
+        Location.X >= 12530.f && Location.X <= 19800.f &&
+        Location.Y >= 9600.f && Location.Y <= 16400.f;
+    if (bInsideVillageSafeZone)
+    {
+        return;
+    }
+
     if (bInsideLanternLight)
     {
         return;
