@@ -550,6 +550,7 @@ void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)
     // to the owning player and only before entering the dungeon.
     const bool bCanGuide = IsLocallyControlled()
         && bLanternEquipped
+		&& bLanternGuideReady
         && GetWorld()
         && GetWorld()->GetMapName().Contains(TEXT("Village_Forest"));
 
@@ -1257,6 +1258,12 @@ void ABaseCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
     bIsUsingSkill = false;
     bIsAttacking = false;
+
+    if (IsLocallyControlled() && Montage == LanternEquipMontage && !bInterrupted && bLanternEquipped)
+    {
+        bLanternGuideReady = true;
+        LanternDirectionUpdateElapsed = 0.15f;
+    }
 }
 
 void ABaseCharacter::EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketName, AActor*& OutWeapon)
@@ -3192,6 +3199,10 @@ void ABaseCharacter::OnRep_LanternEquipped()
         TEXT("OnRep_LanternEquipped %d"),
         bLanternEquipped);
 
+    // The guide effect waits for the equip animation, rather than the
+    // replicated equipment state which changes just before the animation.
+    bLanternGuideReady = false;
+
     EquippedLanternMesh->SetVisibility(bLanternEquipped);
 
     LanternLight->SetVisibility(bLanternEquipped);
@@ -3275,9 +3286,16 @@ void ABaseCharacter::MulticastPlayLanternMontage_Implementation(bool bEquip)
 {
     if (bEquip)
     {
+        bLanternGuideReady = false;
         if (LanternEquipMontage)
         {
             PlayAnimMontage(LanternEquipMontage);
+        }
+        else if (IsLocallyControlled())
+        {
+            // Characters without an assigned montage have no completion event.
+            bLanternGuideReady = true;
+            LanternDirectionUpdateElapsed = 0.15f;
         }
     }
     else

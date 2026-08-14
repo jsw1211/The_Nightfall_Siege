@@ -415,6 +415,10 @@ public:
 
 	float LanternDirectionUpdateElapsed = 0.f;
 
+	// Local visual gate: the direction trail must not appear until the lantern
+	// equip montage has completed.
+	bool bLanternGuideReady = false;
+
 	void UpdateLanternDirectionEffect(float DeltaTime);
 
 	UPROPERTY(VisibleAnywhere)
