@@ -35,6 +35,8 @@ ADragonBoss::ADragonBoss()
 		TEXT("/Game/Effects/6_Dragon/Second_Phase/NS_Dragon_FX.NS_Dragon_FX"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> PhaseTwoMaterialAsset(
 		TEXT("/Game/Effects/6_Dragon/Second_Phase/M_Dragon_FX.M_Dragon_FX"));
+	static ConstructorHelpers::FClassFinder<ADragonBreathProjectile> BreathProjectileAsset(
+		TEXT("/Game/BP_Monster/Dragon/BP_DragonBreathProjectile"));
 
 	if (BlackoutChargingAsset.Succeeded())
 	{
@@ -54,6 +56,11 @@ ADragonBoss::ADragonBoss()
 	if (PhaseTwoMaterialAsset.Succeeded())
 	{
 		PhaseTwoOverlayMaterial = PhaseTwoMaterialAsset.Object;
+	}
+
+	if (BreathProjectileAsset.Succeeded())
+	{
+		BreathProjectileClass = BreathProjectileAsset.Class;
 	}
 
 }
@@ -107,16 +114,28 @@ void ADragonBoss::Tick(float DeltaTime)
 
 		if (CurrentBreathZone)
 		{
-			FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+			// The warning is a ground rectangle from the dragon itself to the
+			// selected target, rather than a socket-relative decal that can drift
+			// sideways as the head animation moves.
+			FVector LineStart = GetActorLocation();
+			FVector LineEnd = TargetPlayer->GetActorLocation();
+			LineEnd.Z = LineStart.Z;
+			FVector LineDirection = LineEnd - LineStart;
 
-			FVector Forward =
-				GetActorForwardVector();
-
-			FVector SpawnLocation = MouthLocation + Forward * 500.f;
+			const float TargetDistance = LineDirection.Size2D();
+			const float TelegraphLength = FMath::Clamp(
+				TargetDistance + 500.f, 1000.f, BreathTelegraphRange);
+			LineDirection = LineDirection.GetSafeNormal2D();
+			FVector SpawnLocation = LineStart + LineDirection * (TelegraphLength * 0.5f);
+			FRotator LineRotation = LineDirection.Rotation();
+			LineRotation.Pitch = -90.f;
 
 			CurrentBreathZone->SetActorLocation(SpawnLocation);
 
-			CurrentBreathZone->SetActorRotation(TargetRotation);
+			CurrentBreathZone->SetActorRotation(LineRotation);
+			CurrentBreathZone->LineLength = TelegraphLength;
+			CurrentBreathZone->OnRep_LineLength();
+			CurrentBreathZone->ForceNetUpdate();
 		}
 	}
 
@@ -436,17 +455,29 @@ void ADragonBoss::BreathAttack()
 	// when the dragon's mouth opens. Center breath uses this same path.
 	MulticastPlayAttack(EDragonAttackType::Breath);
 
-	FTimerHandle AttackEndHandle;
-
-	GetWorldTimerManager().SetTimer(
-		AttackEndHandle,
-		[this]()
+	if (BreathMontage)
+	{
+		if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
 		{
-			OnAttackFinished();
-		},
-		4.0f,
-		false
-	);
+			FOnMontageEnded EndDelegate;
+			EndDelegate.BindUObject(this, &ADragonBoss::OnBreathMontageEnded);
+			AnimInstance->Montage_SetEndDelegate(EndDelegate, BreathMontage);
+			return;
+		}
+	}
+
+	// Only used if the montage is not assigned or an anim instance is missing.
+	FTimerHandle AttackEndHandle;
+	GetWorldTimerManager().SetTimer(AttackEndHandle, this,
+		&ADragonBoss::OnAttackFinished, 4.0f, false);
+}
+
+void ADragonBoss::OnBreathMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	if (HasAuthority() && Montage == BreathMontage)
+	{
+		OnAttackFinished();
+	}
 }
 
 void ADragonBoss::DebuffAttack()
@@ -1139,17 +1170,24 @@ void ADragonBoss::OnCenterMechanicSuccess()
 		TEXT("Boss HP : %f"),
 		CurrentHP);
 
+	const bool bBreathMontageIsPlaying =
+		bIsAttacking && CurrentState == EDragonState::Attacking;
+
 	bCenterMechanicActive = false;
 	bCenterTracking = false;
 	bCenterBreathStarted = false;
+	GetWorldTimerManager().ClearTimer(CenterFailHandle);
+
+	// A reflected breath can resolve the mechanic before the animation ends.
+	// Let its montage callback start the next pattern in that case.
+	if (bBreathMontageIsPlaying)
+	{
+		return;
+	}
+
 	bIsAttacking = false;
 	CurrentState = EDragonState::Walking;
-
 	StartAttackCycle();
-
-	GetWorldTimerManager().ClearTimer(
-		CenterFailHandle
-	);
 }
 
 void ADragonBoss::OnAttackFinished()
@@ -1168,7 +1206,19 @@ void ADragonBoss::OnAttackFinished()
 
 	bIsAttacking = false;
 	bIsTelegraphing = false;
-	if (!bIsFlying && !bCenterMechanicActive)
+	if (bCenterMechanicActive)
+	{
+		// Keep the central mechanic active until the breath montage ends so the
+		// next pattern cannot interrupt its animation or projectile.
+		bCenterMechanicActive = false;
+		bCenterTracking = false;
+		bCenterBreathStarted = false;
+		bIsFlying = false;
+		CurrentState = EDragonState::Walking;
+		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+		GetWorldTimerManager().ClearTimer(CenterFailHandle);
+	}
+	else if (!bIsFlying)
 	{
 		CurrentState = EDragonState::Walking;
 	}
@@ -1343,22 +1393,26 @@ void ADragonBoss::StartAttackTelegraph(
 
 	case EDragonAttackType::Breath:
 	{
-		FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
+		// Build the rectangle directly from the dragon to its chosen target.
+		// Its centre is the midpoint and its long local axis is the target line.
+		FVector LineStart = GetActorLocation();
+		FVector LineEnd = TargetPlayer->GetActorLocation();
+		LineEnd.Z = LineStart.Z;
+		FVector LineDirection = LineEnd - LineStart;
+		const float TargetDistance = LineDirection.Size2D();
+		const float TelegraphLength = FMath::Clamp(
+			TargetDistance + 500.f, 1000.f, BreathTelegraphRange);
+		LineDirection = LineDirection.GetSafeNormal2D();
+		FVector SpawnLocation = LineStart + LineDirection * (TelegraphLength * 0.5f);
 
-		FVector Forward = GetActorForwardVector();
-
-		// A decal projects from its centre. Put its centre half a breath-range
-		// ahead of the mouth so it begins at the dragon and extends forward.
-		FVector SpawnLocation = MouthLocation + Forward * (BreathTelegraphRange * 0.5f);
-
-		FRotator Rot = TelegraphRotation;
+		FRotator Rot = LineDirection.Rotation();
 		Rot.Pitch = -90.f;
 
 		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, Rot);
 
 		if (Zone)
 		{
-			Zone->LineLength = BreathTelegraphRange;
+			Zone->LineLength = TelegraphLength;
 			Zone->ZoneType = EDangerZoneType::Line;
 			Zone->OnRep_ZoneType();
 			CurrentBreathZone = Zone;
@@ -1426,14 +1480,6 @@ void ADragonBoss::ExecuteTelegraphedAttack(
 		if (CurrentBreathZone)
 		{
 			CurrentBreathZone = nullptr;
-		}
-
-		if (bCenterMechanicActive)
-		{
-			bCenterTracking = false;
-
-			bCenterMechanicActive = false;
-			bCenterBreathStarted = false;
 		}
 
 		BreathAttack();
@@ -1849,6 +1895,14 @@ void ADragonBoss::DebugBreath()
 void ADragonBoss::DebugDebuff()
 {
 	StartAttackTelegraph(EDragonAttackType::Debuff);
+}
+
+void ADragonBoss::DebugCenterMechanic()
+{
+	if (!bCenterMechanicActive && CurrentState != EDragonState::Dead)
+	{
+		CenterMechanicPattern();
+	}
 }
 
 void ADragonBoss::MulticastPlayDeath_Implementation()

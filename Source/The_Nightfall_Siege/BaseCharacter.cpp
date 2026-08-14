@@ -659,7 +659,8 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     PlayerInputComponent->BindKey(EKeys::P, IE_Pressed, this, &ABaseCharacter::ToggleShop);
     PlayerInputComponent->BindKey(EKeys::F, IE_Pressed, this, &ABaseCharacter::InteractWithQuestGiver);
 #if !UE_BUILD_SHIPPING
-    PlayerInputComponent->BindKey(EKeys::Equals, IE_Pressed, this, &ABaseCharacter::DebugTeleportToDungeonPortal);
+	PlayerInputComponent->BindKey(EKeys::B, IE_Pressed, this, &ABaseCharacter::DebugBossCenterMechanic);
+	PlayerInputComponent->BindKey(EKeys::Equals, IE_Pressed, this, &ABaseCharacter::DebugTeleportToDungeonPortal);
     PlayerInputComponent->BindKey(EKeys::Hyphen, IE_Pressed, this, &ABaseCharacter::DebugCompleteRaid);
 #endif
 
@@ -3877,6 +3878,11 @@ void ABaseCharacter::DebugBossPattern4()
     ServerDebugBossPattern(3);
 }
 
+void ABaseCharacter::DebugBossCenterMechanic()
+{
+    ServerDebugBossPattern(4);
+}
+
 void ABaseCharacter::DebugTeleportToDungeonPortal()
 {
     ServerDebugTeleportToDungeonPortal();
@@ -4007,6 +4013,10 @@ void ABaseCharacter::ServerDebugBossPattern_Implementation(uint8 PatternIndex)
 
     case 3:
         Boss->DebugDebuff();
+        break;
+
+    case 4:
+        Boss->DebugCenterMechanic();
         break;
     }
 }

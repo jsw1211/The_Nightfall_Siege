@@ -4,6 +4,7 @@
 #include "DangerZone.h"
 #include "Components/DecalComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "UObject/ConstructorHelpers.h"
 
 // Sets default values
 ADangerZone::ADangerZone()
@@ -15,6 +16,13 @@ ADangerZone::ADangerZone()
 	SetReplicateMovement(true);
 
 	Decal = CreateDefaultSubobject<UDecalComponent>(TEXT("Decal"));
+
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> LineMaterialAsset(
+		TEXT("/Game/BP_Monster/Dragon/M_DangerZone_Line.M_DangerZone_Line"));
+	if (LineMaterialAsset.Succeeded())
+	{
+		LineMaterial = LineMaterialAsset.Object;
+	}
 
 	RootComponent = Decal;
 
@@ -38,11 +46,16 @@ void ADangerZone::Tick(float DeltaTime)
 
 void ADangerZone::SetLineShape()
 {
+	if (LineMaterial)
+	{
+		Decal->SetDecalMaterial(LineMaterial);
+	}
+
 	Decal->DecalSize =
 		FVector(
 			300.f,
-			500.f,
-			5000.f
+			LineWidth,
+			LineLength * 0.5f
 		);
 }
 
@@ -100,11 +113,20 @@ void ADangerZone::OnRep_ZoneType()
 	}
 }
 
+void ADangerZone::OnRep_LineLength()
+{
+	if (ZoneType == EDangerZoneType::Line)
+	{
+		SetLineShape();
+	}
+}
+
 void ADangerZone::GetLifetimeReplicatedProps(
 	TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ADangerZone, ZoneType);
+	DOREPLIFETIME(ADangerZone, LineLength);
 }
 

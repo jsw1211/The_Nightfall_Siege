@@ -41,14 +41,28 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DangerZone")
 	UMaterialInterface* FullMapMaterial;
 
+	// A solid deferred-decal material so line telegraphs remain rectangular
+	// instead of inheriting the circular mask used by other danger zones.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DangerZone")
+	UMaterialInterface* LineMaterial;
+
 	UPROPERTY(EditAnywhere)
 	float LifeTime = 3.f;
+
+	UPROPERTY(ReplicatedUsing = OnRep_LineLength, EditAnywhere, BlueprintReadWrite, Category = "DangerZone", meta = (ClampMin = "0.0"))
+	float LineLength = 5000.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DangerZone", meta = (ClampMin = "0.0"))
+	float LineWidth = 750.f;
 
 	UPROPERTY(ReplicatedUsing = OnRep_ZoneType)
 	EDangerZoneType ZoneType;
 
 	UFUNCTION()
 	void OnRep_ZoneType();
+
+	UFUNCTION()
+	void OnRep_LineLength();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 

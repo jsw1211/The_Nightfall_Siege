@@ -364,6 +364,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void BreathFire();
+	void OnBreathMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayAttack(EDragonAttackType AttackType);
@@ -398,4 +399,5 @@ public:
 	void DebugCloseBreath();
 	void DebugBreath();
 	void DebugDebuff();
+	void DebugCenterMechanic();
 };

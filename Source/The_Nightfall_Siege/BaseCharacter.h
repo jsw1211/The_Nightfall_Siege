@@ -1000,6 +1000,7 @@ protected:
 	void DebugBossPattern2();
 	void DebugBossPattern3();
 	void DebugBossPattern4();
+	void DebugBossCenterMechanic();
 	void DebugTeleportToDungeonPortal();
 	void DebugCompleteRaid();
 };
