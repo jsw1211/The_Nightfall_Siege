@@ -306,6 +306,11 @@ void AMonster::TakeMonsterDamage(float Damage)
         UE_LOG(LogTemp, Warning, TEXT("Monster Dead"));
 
         bool bLastMonster = false;
+		const bool bAltarCleared = OwnerAltar->NotifyOwnedMonsterDefeated();
+		if (bAltarCleared)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Altar wave complete: %s"), *OwnerAltar->GetName());
+		}
 
         if (DungeonManager)
         {

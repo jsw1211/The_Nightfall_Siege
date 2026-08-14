@@ -453,6 +453,10 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void OnLanternEquipped();
 
+	// The lantern is returned directly from a cleared altar, so there is no
+	// equip montage to wait for before resuming local navigation guidance.
+	void ResumeLanternGuidanceAfterAltar();
+
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsEquippingLantern = false;
 

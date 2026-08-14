@@ -21,7 +21,7 @@ AAltar::AAltar()
 
 	bReplicates = true;
 
-	// ¸Ş½¬ »ı¼º
+	// ë©”ì‰¬ ìƒì„±
 	AltarMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AltarMesh"));
 
 	RootComponent = AltarMesh;
@@ -101,7 +101,26 @@ void AAltar::RegisterMonster(AMonster* Monster)
 	if (Monster)
 	{
 		OwnedMonsters.Add(Monster);
+		++RemainingMonsterCount;
 	}
+}
+
+bool AAltar::NotifyOwnedMonsterDefeated()
+{
+	if (!HasAuthority() || bCleared)
+	{
+		return bCleared;
+	}
+
+	RemainingMonsterCount = FMath::Max(0, RemainingMonsterCount - 1);
+	if (RemainingMonsterCount == 0)
+	{
+		bCleared = true;
+		ForceNetUpdate();
+		UE_LOG(LogTemp, Warning, TEXT("Altar cleared: %s"), *GetName());
+	}
+
+	return bCleared;
 }
 
 void AAltar::PlaceLantern(ABaseCharacter* Player)
@@ -132,6 +151,11 @@ void AAltar::PlaceLantern(ABaseCharacter* Player)
 
 void AAltar::RemoveLantern(ABaseCharacter* Player)
 {
+	if (!bCleared)
+	{
+		return;
+	}
+
 	bLanternPlaced = false;
 	bActivated = false;
 
@@ -148,6 +172,7 @@ void AAltar::RemoveLantern(ABaseCharacter* Player)
 	}
 
 	Player->RefreshLanternState();
+	Player->ResumeLanternGuidanceAfterAltar();
 
 	LanternMesh->SetVisibility(false);
 
@@ -163,6 +188,8 @@ void AAltar::GetLifetimeReplicatedProps(
 
 	DOREPLIFETIME(AAltar, bActivated);
 	DOREPLIFETIME(AAltar, bLanternPlaced);
+	DOREPLIFETIME(AAltar, bCleared);
+	DOREPLIFETIME(AAltar, RemainingMonsterCount);
 }
 
 void AAltar::OnRep_Activated()
@@ -179,6 +206,11 @@ void AAltar::OnRep_LanternPlaced()
 	LanternMesh->SetVisibility(bLanternPlaced);
 
 	AltarLight->SetVisibility(bLanternPlaced);
+}
+
+void AAltar::OnRep_Cleared()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Altar clear replicated: %d"), bCleared);
 }
 
 void AAltar::OnOverlapBegin(

@@ -546,13 +546,15 @@ void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)
         return;
     }
 
-    // Directional guidance is personal UI-like feedback, so it is shown only
-    // to the owning player and only before entering the dungeon.
+    const bool bIsVillage = GetWorld() && GetWorld()->GetMapName().Contains(TEXT("Village_Forest"));
+    const bool bIsDungeon = GetWorld() && GetWorld()->GetMapName().Contains(TEXT("Dungeon"));
+
+    // Guide one target only: the village portal, or the nearest unfinished
+    // altar in a dungeon.
     const bool bCanGuide = IsLocallyControlled()
         && bLanternEquipped
 		&& bLanternGuideReady
-        && GetWorld()
-        && GetWorld()->GetMapName().Contains(TEXT("Village_Forest"));
+        && (bIsVillage || bIsDungeon);
 
     if (!bCanGuide)
     {
@@ -569,19 +571,37 @@ void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)
     }
     LanternDirectionUpdateElapsed = 0.f;
 
-    ADungeonPortal* ClosestPortal = nullptr;
+    AActor* GuideTarget = nullptr;
     float ClosestDistanceSquared = TNumericLimits<float>::Max();
-    for (TActorIterator<ADungeonPortal> It(GetWorld()); It; ++It)
+
+    if (bIsVillage)
     {
-        const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
-        if (DistanceSquared < ClosestDistanceSquared)
+        for (TActorIterator<ADungeonPortal> It(GetWorld()); It; ++It)
         {
-            ClosestDistanceSquared = DistanceSquared;
-            ClosestPortal = *It;
+            const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
+            if (DistanceSquared < ClosestDistanceSquared)
+            {
+                ClosestDistanceSquared = DistanceSquared;
+                GuideTarget = *It;
+            }
+        }
+    }
+    else if (bIsDungeon)
+    {
+        for (TActorIterator<AAltar> It(GetWorld()); It; ++It)
+        {
+            if (!It->IsAvailableNavigationTarget()) continue;
+
+            const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
+            if (DistanceSquared < ClosestDistanceSquared)
+            {
+                ClosestDistanceSquared = DistanceSquared;
+                GuideTarget = *It;
+            }
         }
     }
 
-    if (!ClosestPortal)
+    if (!GuideTarget)
     {
         LanternDirectionEffectComponent->Deactivate();
         LanternDirectionEffectComponent->SetVisibility(false);
@@ -589,8 +609,8 @@ void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)
     }
 
     // Calculate from the lantern itself so the visible trail points from the
-    // held light directly to the placed/spawned BP_DungeonPortal actor.
-    FVector Direction = ClosestPortal->GetActorLocation()
+    // held light directly to the selected portal or altar.
+    FVector Direction = GuideTarget->GetActorLocation()
         - LanternDirectionEffectComponent->GetComponentLocation();
     Direction.Z = 0.f;
     if (Direction.IsNearlyZero())
@@ -1930,6 +1950,15 @@ void ABaseCharacter::OnLanternLightEnd(UPrimitiveComponent* OverlappedComp, AAct
 
 void ABaseCharacter::OnLanternEquipped()
 {
+}
+
+void ABaseCharacter::ResumeLanternGuidanceAfterAltar()
+{
+    if (IsLocallyControlled() && bLanternEquipped)
+    {
+        bLanternGuideReady = true;
+        LanternDirectionUpdateElapsed = 0.15f;
+    }
 }
 
 void ABaseCharacter::OnLanternUnequipped()
