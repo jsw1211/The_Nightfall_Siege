@@ -519,6 +519,8 @@ void ADragonBoss::DebuffAttack()
 
 	ResetPrismCleanseParticipants();
 
+	MulticastStopBlackoutChargingFX();
+
 	// The telegraph has completed: release the blackout before applying it.
 	MulticastSpawnBlackoutReleaseFX(GetActorLocation());
 
@@ -1518,14 +1520,29 @@ void ADragonBoss::StartAttackTelegraph(
 
 			// Debuff는 기존처럼
 			// 범위 표시 후 3초 뒤 실행
-			constexpr float DebuffWarningTime = 3.0f;
+			constexpr float DebuffWarningTime = 2.0f;
 
 			Zone->LifeTime = DebuffWarningTime;
 			Zone->SetLifeSpan(DebuffWarningTime);
 		}
 
 		// 이펙트는 기존대로 텔레그래프 시작 시 재생
-		MulticastSpawnBlackoutChargingFX();
+		MulticastPlayAttack(EDragonAttackType::Debuff);
+
+		// 차징 이펙트는 대기 시작 후 1초 뒤 재생
+		FTimerHandle ChargingEffectHandle;
+
+		GetWorldTimerManager().SetTimer(
+			ChargingEffectHandle,
+			[this]()
+			{
+				if (CurrentState != EDragonState::Dead)
+				{
+					MulticastSpawnBlackoutChargingFX();
+				}
+			},
+			1.0f,
+			false);
 
 		break;
 	}
@@ -1564,7 +1581,7 @@ void ADragonBoss::StartAttackTelegraph(
 	GetWorldTimerManager().SetTimer(
 		TelegraphHandle,
 		Delegate,
-		3.f,
+		2.f,
 		false);
 }
 
@@ -1829,6 +1846,15 @@ void ADragonBoss::MulticastPlayAttack_Implementation(EDragonAttackType AttackTyp
 
 		break;
 
+	case EDragonAttackType::Debuff:
+
+		if (DebuffMontage)
+		{
+			AnimInstance->Montage_Play(DebuffMontage);
+		}
+
+		break;
+
 	default:
 		break;
 	}
@@ -1881,14 +1907,15 @@ void ADragonBoss::MulticastSpawnBlackoutChargingFX_Implementation()
 		return;
 	}
 
-	UNiagaraFunctionLibrary::SpawnSystemAttached(
-		BlackoutChargingFX,
-		GetMesh(),
-		NAME_None,
-		FVector::ZeroVector,
-		FRotator::ZeroRotator,
-		EAttachLocation::KeepRelativeOffset,
-		true);
+	BlackoutChargingFXComponent =
+		UNiagaraFunctionLibrary::SpawnSystemAttached(
+			BlackoutChargingFX,
+			GetMesh(),
+			NAME_None,
+			FVector::ZeroVector,
+			FRotator::ZeroRotator,
+			EAttachLocation::KeepRelativeOffset,
+			true);
 }
 
 void ADragonBoss::MulticastSpawnBlackoutReleaseFX_Implementation(FVector Location)
@@ -2042,5 +2069,15 @@ void ADragonBoss::MulticastPlayDeath_Implementation()
 	if (DeathMontage)
 	{
 		PlayAnimMontage(DeathMontage);
+	}
+}
+
+void ADragonBoss::MulticastStopBlackoutChargingFX_Implementation()
+{
+	if (IsValid(BlackoutChargingFXComponent))
+	{
+		BlackoutChargingFXComponent->Deactivate();
+		BlackoutChargingFXComponent->DestroyComponent();
+		BlackoutChargingFXComponent = nullptr;
 	}
 }
