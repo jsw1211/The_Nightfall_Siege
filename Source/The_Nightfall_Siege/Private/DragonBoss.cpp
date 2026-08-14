@@ -122,6 +122,28 @@ void ADragonBoss::Tick(float DeltaTime)
 
 	if (bCenterMechanicActive)
 	{
+		if (!bCenterBreathStarted)
+		{
+			const FVector PreviousLocation = GetActorLocation();
+			const FVector NewLocation = FMath::VInterpConstantTo(
+				PreviousLocation, ArenaCenter, DeltaTime, 1200.f);
+
+			if (DeltaTime > UE_SMALL_NUMBER)
+			{
+				GetCharacterMovement()->Velocity =
+					(NewLocation - PreviousLocation) / DeltaTime;
+			}
+
+			SetActorLocation(NewLocation);
+
+			FVector CenterDirection = ArenaCenter - NewLocation;
+			CenterDirection.Z = 0.f;
+			if (!CenterDirection.IsNearlyZero())
+			{
+				SetActorRotation(CenterDirection.Rotation());
+			}
+		}
+
 		float Distance =
 			FVector::Dist(
 				GetActorLocation(),
@@ -410,6 +432,8 @@ void ADragonBoss::BreathAttack()
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Breath"));
 
+	// AM_dragon_breath_attack's BreathFire notify calls BreathFire exactly
+	// when the dragon's mouth opens. Center breath uses this same path.
 	MulticastPlayAttack(EDragonAttackType::Breath);
 
 	FTimerHandle AttackEndHandle;
@@ -685,17 +709,6 @@ void ADragonBoss::FlyToCenter()
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("Dragon Flying To Center"));
-
-	AAIController* AIController =
-		Cast<AAIController>(GetController());
-
-	if (AIController)
-	{
-		AIController->MoveToLocation(
-			ArenaCenter,
-			100.f
-		);
-	}
 
 	UE_LOG(LogTemp, Error,
 		TEXT("Moving To Center : %s"),
@@ -1334,16 +1347,21 @@ void ADragonBoss::StartAttackTelegraph(
 
 		FVector Forward = GetActorForwardVector();
 
-		FVector SpawnLocation = MouthLocation + Forward * 500.f;
+		// A decal projects from its centre. Put its centre half a breath-range
+		// ahead of the mouth so it begins at the dragon and extends forward.
+		FVector SpawnLocation = MouthLocation + Forward * (BreathTelegraphRange * 0.5f);
 
-		FRotator Rot = (TargetPlayer->GetActorLocation() - MouthLocation).Rotation();
+		FRotator Rot = TelegraphRotation;
+		Rot.Pitch = -90.f;
 
 		ADangerZone* Zone = GetWorld()->SpawnActor<ADangerZone>(DangerZoneClass, SpawnLocation, Rot);
 
 		if (Zone)
 		{
+			Zone->LineLength = BreathTelegraphRange;
 			Zone->ZoneType = EDangerZoneType::Line;
 			Zone->OnRep_ZoneType();
+			CurrentBreathZone = Zone;
 		}
 
 		break;
