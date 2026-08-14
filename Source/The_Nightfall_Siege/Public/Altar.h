@@ -8,6 +8,7 @@
 
 class UStaticMeshComponent;
 class UBoxComponent;
+class UDecalComponent;
 class AMonster;
 class ALantern;
 class ABaseCharacter;
@@ -65,6 +66,8 @@ public:
 	void PlaceLantern(ABaseCharacter* Player);
 	void RemoveLantern(ABaseCharacter* Player);
 	bool NotifyOwnedMonsterDefeated();
+	// The altar's circular damageable zone, shared with its visible light.
+	bool IsInsideActiveLightZone(const FVector& WorldLocation) const;
 	bool IsAvailableNavigationTarget() const { return !bCleared && !bLanternPlaced; }
 
 	UFUNCTION()
@@ -87,6 +90,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere)
 	UPointLightComponent* AltarLight;
+
+	UPROPERTY(VisibleAnywhere, Category = "Altar")
+	UDecalComponent* AltarSafeZoneDecal;
 
 	UFUNCTION()
 	void OnOverlapBegin(

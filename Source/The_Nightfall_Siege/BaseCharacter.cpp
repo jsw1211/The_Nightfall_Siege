@@ -8,6 +8,8 @@
 #include "Engine/SkyLight.h"
 #include "Components/LightComponent.h"
 #include "Components/SkyLightComponent.h"
+#include "Components/DecalComponent.h"
+#include "Materials/MaterialInterface.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "EnhancedInputComponent.h"
@@ -127,6 +129,24 @@ ABaseCharacter::ABaseCharacter()
 
     LanternLight->SetupAttachment(EquippedLanternMesh);
 
+	// This light is enabled while the item is equipped, so it must be dynamic.
+	LanternLight->SetMobility(EComponentMobility::Movable);
+
+	LanternSafeZoneDecal = CreateDefaultSubobject<UDecalComponent>(
+		TEXT("LanternSafeZoneDecal"));
+	LanternSafeZoneDecal->SetupAttachment(GetCapsuleComponent());
+	LanternSafeZoneDecal->SetRelativeLocation(FVector(0.f, 0.f, -80.f));
+	LanternSafeZoneDecal->SetRelativeRotation(FRotator(-90.f, 0.f, 0.f));
+	LanternSafeZoneDecal->DecalSize = FVector(200.f, 1800.f, 1800.f);
+	LanternSafeZoneDecal->SetVisibility(false);
+
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> LanternSafeZoneMaterial(
+		TEXT("/Game/Effects/Lantern/M_Lantern_Sanctuary.M_Lantern_Sanctuary"));
+	if (LanternSafeZoneMaterial.Succeeded())
+	{
+		LanternSafeZoneDecal->SetDecalMaterial(LanternSafeZoneMaterial.Object);
+	}
+
     LanternDirectionEffectComponent = CreateDefaultSubobject<UNiagaraComponent>(
         TEXT("LanternDirectionEffectComponent"));
     // The guide must originate from the held lantern, not from the pawn root.
@@ -161,13 +181,13 @@ ABaseCharacter::ABaseCharacter()
 
     LanternLight->SetVisibility(false);
 
-    // A warm local pool of light keeps nearby enemies readable in the lava
-    // dungeon while the inverse-square falloff preserves the distant darkness.
-    LanternLight->SetIntensity(6500.f);
+    // Keep the visual light exactly aligned with the gameplay safe zone.
+    // LanternLightSphere is the authoritative darkness-protection radius.
+    LanternLight->SetIntensity(18000.f);
 
     LanternLight->SetAttenuationRadius(1800.f);
 
-    LanternLight->SetLightColor(FLinearColor(1.0f, 0.55f, 0.18f));
+    LanternLight->SetLightColor(FLinearColor(0.0f, 1.0f, 0.0f));
 
     UE_LOG(LogTemp, Warning, TEXT("%s"),
         *LanternLight->GetLightColor().ToString());
@@ -202,6 +222,15 @@ ABaseCharacter::ABaseCharacter()
 void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Blueprint defaults must not desynchronise the visible lantern radius from
+	// the sphere that grants darkness protection.
+	LanternLight->SetLightColor(FLinearColor(0.0f, 1.0f, 0.0f));
+	LanternLight->SetAttenuationRadius(
+		LanternLightSphere->GetScaledSphereRadius());
+	const float LanternSafeRadius = LanternLightSphere->GetScaledSphereRadius();
+	LanternSafeZoneDecal->DecalSize = FVector(
+		200.f, LanternSafeRadius, LanternSafeRadius);
 
     // A retry travels to the village and creates a fresh pawn.  Restore every
     // local/server movement and input restriction that death may have set.
@@ -3233,7 +3262,10 @@ void ABaseCharacter::OnRep_LanternEquipped()
 
     EquippedLanternMesh->SetVisibility(bLanternEquipped);
 
-    LanternLight->SetVisibility(bLanternEquipped);
+    LanternLight->SetVisibility(bLanternEquipped, true);
+
+    const bool bIsVillage = GetWorld() && GetWorld()->GetMapName().Contains(TEXT("Village_Forest"));
+    LanternSafeZoneDecal->SetVisibility(bLanternEquipped && bIsVillage, true);
 
     // Tick will resolve the portal and activate the local guide effect. Hide
     // immediately on unequip so it never lingers for one update interval.
