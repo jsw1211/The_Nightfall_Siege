@@ -447,6 +447,13 @@ void ADragonBoss::BreathAttack()
 		AIController->StopMovement();
 	}
 
+	GetCharacterMovement()->StopMovementImmediately();
+	if (bCenterMechanicActive)
+	{
+		bMovementLockedForBreath = true;
+		GetCharacterMovement()->DisableMovement();
+	}
+
 	CurrentState = EDragonState::Attacking;
 
 	UE_LOG(LogTemp, Warning, TEXT("Dragon Used Breath"));
@@ -1122,6 +1129,13 @@ void ADragonBoss::FailCenterMechanic()
 		return;
 	}
 
+	// Once the central Breath montage begins, its end callback owns the
+	// transition back into the normal pattern loop.
+	if (bMovementLockedForBreath)
+	{
+		return;
+	}
+
 	// The former timeout scheduled an attack but left bCenterMechanicActive
 	// true, so Tick returned forever and the boss stopped attacking.
 	bCenterMechanicActive = false;
@@ -1206,7 +1220,7 @@ void ADragonBoss::OnAttackFinished()
 
 	bIsAttacking = false;
 	bIsTelegraphing = false;
-	if (bCenterMechanicActive)
+	if (bCenterMechanicActive || bMovementLockedForBreath)
 	{
 		// Keep the central mechanic active until the breath montage ends so the
 		// next pattern cannot interrupt its animation or projectile.
@@ -1214,6 +1228,7 @@ void ADragonBoss::OnAttackFinished()
 		bCenterTracking = false;
 		bCenterBreathStarted = false;
 		bIsFlying = false;
+		bMovementLockedForBreath = false;
 		CurrentState = EDragonState::Walking;
 		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 		GetWorldTimerManager().ClearTimer(CenterFailHandle);

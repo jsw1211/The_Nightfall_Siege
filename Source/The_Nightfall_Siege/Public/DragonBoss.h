@@ -282,6 +282,9 @@ public:
 
 	bool bCenterTracking = false;
 
+	// Central breath must remain stationary until its montage end callback.
+	bool bMovementLockedForBreath = false;
+
 	UPROPERTY()
 	ADangerZone* CurrentBreathZone = nullptr;
 
