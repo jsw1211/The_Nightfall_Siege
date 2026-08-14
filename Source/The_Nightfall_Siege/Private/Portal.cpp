@@ -6,6 +6,7 @@
 #include "Components/SphereComponent.h"
 #include "BaseCharacter.h"
 #include "Kismet/GameplayStatics.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 APortal::APortal()
@@ -46,8 +47,13 @@ void APortal::BeginPlay()
 {
 	Super::BeginPlay();
 	
-    switch (PortalType)
-    {
+	OnRep_PortalType();
+}
+
+void APortal::OnRep_PortalType()
+{
+	switch (PortalType)
+	{
     case EPortalType::ReturnVillage:
 
         if (ReturnPortalMaterial)
@@ -69,8 +75,13 @@ void APortal::BeginPlay()
         }
 
         break;
-    }
+	}
+}
 
+void APortal::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(APortal, PortalType);
 }
 
 // Called every frame

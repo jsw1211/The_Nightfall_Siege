@@ -624,6 +624,26 @@ void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)
 
     if (bIsVillage)
     {
+        // A boss portal always wins over ordinary dungeon portals. This is
+        // deliberately independent of whether old dungeon portals remain.
+        for (TActorIterator<APortal> It(GetWorld()); It; ++It)
+        {
+            if (It->PortalType != EPortalType::Boss)
+            {
+                continue;
+            }
+
+            const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
+            if (DistanceSquared < ClosestDistanceSquared)
+            {
+                ClosestDistanceSquared = DistanceSquared;
+                GuideTarget = *It;
+            }
+        }
+
+        // Only look for ordinary dungeon portals while no boss portal exists.
+        if (!GuideTarget)
+        {
         for (TActorIterator<ADungeonPortal> It(GetWorld()); It; ++It)
         {
             const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
@@ -632,6 +652,7 @@ void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)
                 ClosestDistanceSquared = DistanceSquared;
                 GuideTarget = *It;
             }
+        }
         }
     }
     else if (bIsDungeon)

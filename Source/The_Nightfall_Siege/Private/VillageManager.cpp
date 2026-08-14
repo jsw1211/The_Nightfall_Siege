@@ -66,6 +66,8 @@ void AVillageManager::SpawnBossPortal()
     if (Portal)
     {
         Portal->PortalType = EPortalType::Boss;
+        Portal->OnRep_PortalType();
+        Portal->ForceNetUpdate();
         if (UTheNightfallSiegeInstance* GI = Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
         {
             GI->bBossPortalSpawned = true;

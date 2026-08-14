@@ -42,8 +42,11 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal")
+	UPROPERTY(ReplicatedUsing = OnRep_PortalType, EditAnywhere, BlueprintReadWrite, Category = "Portal")
 	EPortalType PortalType;
+
+	UFUNCTION()
+	void OnRep_PortalType();
 
 	UPROPERTY(VisibleAnywhere)
 	UStaticMeshComponent* PortalMesh;
@@ -75,4 +78,6 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void Interact(ABaseCharacter* Player);
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 };
