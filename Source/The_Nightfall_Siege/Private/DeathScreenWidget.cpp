@@ -37,10 +37,12 @@ void UDeathScreenWidget::BuildDeathScreen()
     DeathFont.Size = 64;
     DeathText->SetFont(DeathFont);
     DeathText->SetColorAndOpacity(FSlateColor(FLinearColor(0.85f, 0.05f, 0.05f)));
+    DeathText->SetJustification(ETextJustify::Center);
     UCanvasPanelSlot* DeathSlot = Root->AddChildToCanvas(DeathText);
     DeathSlot->SetAnchors(FAnchors(0.5f, 0.5f));
     DeathSlot->SetAlignment(FVector2D(0.5f, 0.5f));
     DeathSlot->SetPosition(FVector2D(0.f, -55.f));
+    DeathSlot->SetSize(FVector2D(700.f, 100.f));
 
     RetryButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RetryButton"));
     UTextBlock* RetryText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RetryText"));
@@ -48,11 +50,12 @@ void UDeathScreenWidget::BuildDeathScreen()
     FSlateFontInfo RetryFont = RetryText->GetFont();
     RetryFont.Size = 30;
     RetryText->SetFont(RetryFont);
+    RetryText->SetJustification(ETextJustify::Center);
     RetryButton->AddChild(RetryText);
     UCanvasPanelSlot* RetrySlot = Root->AddChildToCanvas(RetryButton);
     RetrySlot->SetAnchors(FAnchors(0.5f, 0.5f));
     RetrySlot->SetAlignment(FVector2D(0.5f, 0.5f));
-    RetrySlot->SetPosition(FVector2D(0.f, 35.f));
+    RetrySlot->SetPosition(FVector2D(0.f, 45.f));
     RetrySlot->SetSize(FVector2D(220.f, 58.f));
     SetRetryAvailable(false);
 }

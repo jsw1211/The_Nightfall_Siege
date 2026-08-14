@@ -15,7 +15,9 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "EngineUtils.h"
 #include "DrawDebugHelpers.h"
-#include "DeathScreenWidget.h"
+#include "Components/Button.h"
+#include "Components/TextBlock.h"
+#include "UObject/ConstructorHelpers.h"
 #include "The_Nightfall_SiegeGameMode.h"
 #include "Kismet/KismetSystemLibrary.h"
 
@@ -24,7 +26,6 @@ void ABaseController::SetupInputComponent()
     Super::SetupInputComponent();
 
 	InputComponent->BindAction("RightClick", IE_Pressed, this, &ABaseController::MoveToMouse);
-	InputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &ABaseController::HandleOverlayClick);
 }
 
 void ABaseController::OnRightClick()
@@ -363,6 +364,19 @@ void ABaseController::ServerMoveToLocation_Implementation(
 ABaseController::ABaseController()
 {
     PrimaryActorTick.bCanEverTick = true;
+
+    static ConstructorHelpers::FClassFinder<UUserWidget> DeathScreenWidgetBP(TEXT("/Game/BP/WBP_DeathScreen"));
+    static ConstructorHelpers::FClassFinder<UUserWidget> GameClearWidgetBP(TEXT("/Game/BP/WBP_GameClear"));
+
+    if (DeathScreenWidgetBP.Succeeded())
+    {
+        DeathScreenWidgetClass = DeathScreenWidgetBP.Class;
+    }
+
+    if (GameClearWidgetBP.Succeeded())
+    {
+        GameClearWidgetClass = GameClearWidgetBP.Class;
+    }
 }
 
 void ABaseController::Tick(float DeltaTime)
@@ -452,14 +466,34 @@ void ABaseController::ShowDeathScreen(bool bShouldEnableRetry)
 {
     if (!IsLocalController()) return;
 
-    if (!DeathScreenWidget)
+    if (!DeathScreenWidget && DeathScreenWidgetClass)
     {
-        DeathScreenWidget = CreateWidget<UDeathScreenWidget>(this, UDeathScreenWidget::StaticClass());
+        DeathScreenWidget = CreateWidget<UUserWidget>(this, DeathScreenWidgetClass);
         if (DeathScreenWidget) DeathScreenWidget->AddToViewport(1000);
     }
 
     bRetryAvailable = bShouldEnableRetry;
-    if (DeathScreenWidget) DeathScreenWidget->SetRetryAvailable(bShouldEnableRetry);
+    if (DeathScreenWidget)
+    {
+        if (UTextBlock* TitleText = Cast<UTextBlock>(DeathScreenWidget->GetWidgetFromName(TEXT("YouDiedText"))))
+        {
+            TitleText->SetText(FText::FromString(TEXT("YOU DIED")));
+            TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(0.85f, 0.05f, 0.05f)));
+        }
+
+        if (UButton* RetryButton = Cast<UButton>(DeathScreenWidget->GetWidgetFromName(TEXT("RetryButton"))))
+        {
+            RetryButton->OnClicked.RemoveDynamic(this, &ABaseController::RequestRetry);
+            RetryButton->OnClicked.AddDynamic(this, &ABaseController::RequestRetry);
+            RetryButton->SetVisibility(bShouldEnableRetry ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+            RetryButton->SetIsEnabled(bShouldEnableRetry);
+        }
+
+        if (UTextBlock* RetryText = Cast<UTextBlock>(DeathScreenWidget->GetWidgetFromName(TEXT("RetryText"))))
+        {
+            RetryText->SetText(FText::FromString(TEXT("RETRY")));
+        }
+    }
 
     if (bShouldEnableRetry)
     {
@@ -484,33 +518,16 @@ void ABaseController::ClearDeathRestrictions()
         DeathScreenWidget = nullptr;
     }
 
+    if (GameClearWidget)
+    {
+        GameClearWidget->RemoveFromParent();
+        GameClearWidget = nullptr;
+    }
+
     bShowMouseCursor = true;
     SetInputMode(FInputModeGameOnly());
     SetIgnoreMoveInput(false);
     SetIgnoreLookInput(false);
-}
-
-void ABaseController::HandleOverlayClick()
-{
-    if (bRetryAvailable || bGameClearVisible)
-    {
-        int32 ViewportX = 0;
-        int32 ViewportY = 0;
-        GetViewportSize(ViewportX, ViewportY);
-        float MouseX = 0.f;
-        float MouseY = 0.f;
-        if (!GetMousePosition(MouseX, MouseY)) return;
-        const bool bOverCenterButton = MouseX >= ViewportX * 0.5f - 150.f
-            && MouseX <= ViewportX * 0.5f + 150.f
-            && MouseY >= ViewportY * 0.5f - 10.f
-            && MouseY <= ViewportY * 0.5f + 65.f;
-
-        if (bOverCenterButton)
-        {
-            if (bGameClearVisible) ExitGame();
-            else RequestRetry();
-        }
-    }
 }
 
 void ABaseController::ClientShowYouDied_Implementation()
@@ -525,9 +542,43 @@ void ABaseController::ClientEnableRetry_Implementation()
 
 void ABaseController::ClientShowGameClear_Implementation()
 {
+    if (!IsLocalController()) return;
+
     bGameClearVisible = true;
     bShowMouseCursor = true;
-    FInputModeGameAndUI InputMode;
+    if (!GameClearWidget && GameClearWidgetClass)
+    {
+        GameClearWidget = CreateWidget<UUserWidget>(this, GameClearWidgetClass);
+        if (GameClearWidget)
+        {
+            GameClearWidget->AddToViewport(1100);
+
+            if (UTextBlock* TitleText = Cast<UTextBlock>(GameClearWidget->GetWidgetFromName(TEXT("YouDiedText"))))
+            {
+                TitleText->SetText(FText::FromString(TEXT("GAME CLEAR!")));
+                TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.78f, 0.05f)));
+            }
+
+            if (UTextBlock* ExitText = Cast<UTextBlock>(GameClearWidget->GetWidgetFromName(TEXT("RetryText"))))
+            {
+                ExitText->SetText(FText::FromString(TEXT("EXIT GAME")));
+            }
+
+            if (UButton* ExitButton = Cast<UButton>(GameClearWidget->GetWidgetFromName(TEXT("RetryButton"))))
+            {
+                ExitButton->SetVisibility(ESlateVisibility::Visible);
+                ExitButton->SetIsEnabled(true);
+                ExitButton->OnClicked.RemoveDynamic(this, &ABaseController::ExitGame);
+                ExitButton->OnClicked.AddDynamic(this, &ABaseController::ExitGame);
+            }
+        }
+    }
+
+    FInputModeUIOnly InputMode;
+    if (GameClearWidget)
+    {
+        InputMode.SetWidgetToFocus(GameClearWidget->TakeWidget());
+    }
     SetInputMode(InputMode);
 }
 

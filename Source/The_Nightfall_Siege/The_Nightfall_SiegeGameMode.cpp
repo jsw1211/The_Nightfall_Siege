@@ -11,12 +11,7 @@
 #include "Lantern.h"
 #include "BaseCharacter.h"
 #include "BaseController.h"
-#include "DeathHUD.h"
-
-AThe_Nightfall_SiegeGameMode::AThe_Nightfall_SiegeGameMode()
-{
-	HUDClass = ADeathHUD::StaticClass();
-}
+AThe_Nightfall_SiegeGameMode::AThe_Nightfall_SiegeGameMode() = default;
 
 void AThe_Nightfall_SiegeGameMode::BeginPlay()
 {

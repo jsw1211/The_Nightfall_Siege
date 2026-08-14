@@ -9,7 +9,6 @@
 #include "NiagaraSystem.h"
 
 class UHierarchicalInstancedStaticMeshComponent;
-class UDeathScreenWidget;
 
 #include "BaseController.generated.h"
 
@@ -77,7 +76,6 @@ protected:
 	// Called by a newly spawned pawn after retry travel to remove every
 	// death-screen input/UI restriction left on the local controller.
 	void ClearDeathRestrictions();
-	void HandleOverlayClick();
 
 	UFUNCTION(Client, Reliable)
 	void ClientShowGameClear();
@@ -97,8 +95,17 @@ protected:
 
 	TMap<UHierarchicalInstancedStaticMeshComponent*, TSet<int32>> FadedTrees;
 
+	UPROPERTY(EditDefaultsOnly, Category = "UI|Death")
+	TSubclassOf<UUserWidget> DeathScreenWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "UI|Game Clear")
+	TSubclassOf<UUserWidget> GameClearWidgetClass;
+
 	UPROPERTY()
-	UDeathScreenWidget* DeathScreenWidget = nullptr;
+	TObjectPtr<UUserWidget> DeathScreenWidget = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> GameClearWidget = nullptr;
 
 	bool bRetryAvailable = false;
 	bool bGameClearVisible = false;

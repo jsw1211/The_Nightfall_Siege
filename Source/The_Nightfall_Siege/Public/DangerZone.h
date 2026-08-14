@@ -53,7 +53,7 @@ public:
 	float LineLength = 5000.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DangerZone", meta = (ClampMin = "0.0"))
-	float LineWidth = 750.f;
+	float LineWidth = 100.f;
 
 	UPROPERTY(ReplicatedUsing = OnRep_ZoneType)
 	EDangerZoneType ZoneType;
