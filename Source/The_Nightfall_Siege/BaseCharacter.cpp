@@ -50,6 +50,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "EngineUtils.h"
 #include "The_Nightfall_SiegeGameMode.h"
+#include "VillageManager.h"
 
 
 // Sets default values
@@ -659,6 +660,7 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     PlayerInputComponent->BindKey(EKeys::F, IE_Pressed, this, &ABaseCharacter::InteractWithQuestGiver);
 #if !UE_BUILD_SHIPPING
     PlayerInputComponent->BindKey(EKeys::Equals, IE_Pressed, this, &ABaseCharacter::DebugTeleportToDungeonPortal);
+    PlayerInputComponent->BindKey(EKeys::Hyphen, IE_Pressed, this, &ABaseCharacter::DebugCompleteRaid);
 #endif
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
@@ -3878,6 +3880,66 @@ void ABaseCharacter::DebugBossPattern4()
 void ABaseCharacter::DebugTeleportToDungeonPortal()
 {
     ServerDebugTeleportToDungeonPortal();
+}
+
+void ABaseCharacter::DebugCompleteRaid()
+{
+    ServerDebugCompleteRaid();
+}
+
+void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
+{
+    UTheNightfallSiegeInstance* GI = Cast<UTheNightfallSiegeInstance>(GetGameInstance());
+    if (!GI)
+    {
+        return;
+    }
+
+    GI->RemainingDungeons.Empty();
+    GI->ClearedDungeonCount = 3;
+    GI->CurrentDungeon = NAME_None;
+    GI->bHasPrism = true;
+    GI->bPrismEquipped = false;
+
+    TArray<AActor*> Players;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+    for (AActor* Actor : Players)
+    {
+        ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
+        if (!Player) continue;
+
+        Player->bHasPrism = true;
+        Player->bPrismEquipped = false;
+        Player->bPrismPoseActive = false;
+        Player->OnRep_HasPrism();
+        Player->RefreshPrismState();
+        Player->ForceNetUpdate();
+
+        if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
+        {
+            PS->bHasPrism = true;
+            PS->bPrismEquipped = false;
+            PS->ClearedDungeonCount = 3;
+            PS->QuestStage = EQuestStage::FindBossPortal;
+        }
+    }
+
+    if (!GetWorld()->GetMapName().Contains(TEXT("Village_Forest")))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Debug raid complete set. Return to the village for the boss portal."));
+        return;
+    }
+
+    if (!GI->bBossPortalSpawned)
+    {
+        for (TActorIterator<AVillageManager> It(GetWorld()); It; ++It)
+        {
+            It->SpawnBossPortal();
+            break;
+        }
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("Debug raid complete: all players received prisms and the boss portal is ready."));
 }
 
 void ABaseCharacter::ServerDebugTeleportToDungeonPortal_Implementation()

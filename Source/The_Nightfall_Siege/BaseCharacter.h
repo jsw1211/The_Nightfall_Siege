@@ -981,6 +981,9 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerDebugTeleportToDungeonPortal();
 
+	UFUNCTION(Server, Reliable)
+	void ServerDebugCompleteRaid();
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_Debug1;
 
@@ -998,4 +1001,5 @@ protected:
 	void DebugBossPattern3();
 	void DebugBossPattern4();
 	void DebugTeleportToDungeonPortal();
+	void DebugCompleteRaid();
 };
