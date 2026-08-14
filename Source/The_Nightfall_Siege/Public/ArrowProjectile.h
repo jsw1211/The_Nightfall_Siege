@@ -12,6 +12,7 @@ class USphereComponent;
 class UProjectileMovementComponent;
 class ABaseCharacter;
 class AMonster;
+class ADragonBoss;
 
 UENUM(BlueprintType)
 enum class EArrowType : uint8
@@ -50,6 +51,10 @@ public:
 	EArrowType ArrowType = EArrowType::Normal;
 
 	TSet<AMonster*> HitMonsters;
+
+	// A dragon has multiple hitbox components, but one projectile may damage a
+	// given dragon only once.
+	TSet<ADragonBoss*> HitDragons;
 
 	UPROPERTY()
 	FVector TargetLocation;

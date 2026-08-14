@@ -70,6 +70,12 @@ void AWeaponBase::OnWeaponOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 
 	if (Dragon)
 	{
+		if (HitDragons.Contains(Dragon))
+		{
+			return;
+		}
+		HitDragons.Add(Dragon);
+
 		UE_LOG(LogTemp, Warning,
 			TEXT("Weapon Hit Dragon"));
 
@@ -83,6 +89,7 @@ void AWeaponBase::OnWeaponOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 void AWeaponBase::EnableCollision()
 {
 	HitMonsters.Empty();
+	HitDragons.Empty();
 
 	WeaponCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 }

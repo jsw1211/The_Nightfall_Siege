@@ -10,6 +10,7 @@
 #include "WeaponBase.generated.h"
 
 class AMonster;
+class ADragonBoss;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API AWeaponBase : public AActor
@@ -37,6 +38,10 @@ public:
 
 	UPROPERTY()
 	TSet<AMonster*> HitMonsters;
+
+	// Cleared at the start of each swing so overlapping the head, body, and
+	// tail during one swing cannot apply three instances of damage.
+	TSet<ADragonBoss*> HitDragons;
 
 protected:
 	// Called when the game starts or when spawned

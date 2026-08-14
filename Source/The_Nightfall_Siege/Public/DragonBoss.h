@@ -13,6 +13,7 @@ class ADragonBreathProjectile;
 class UMaterialInterface;
 class ADangerZone;
 class UNiagaraComponent;
+class UCapsuleComponent;
 
 UENUM(BlueprintType)
 enum class EDragonState : uint8
@@ -52,9 +53,25 @@ public:
 	// Sets default values for this character's properties
 	ADragonBoss();
 
+	// The Character capsule remains the movement/root collider.  These three
+	// query-only capsules provide the actual damageable silhouette and are
+	// attached to the dragon's animated bones.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision|Hitboxes")
+	TObjectPtr<UCapsuleComponent> HeadHitbox;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision|Hitboxes")
+	TObjectPtr<UCapsuleComponent> BodyHitbox;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision|Hitboxes")
+	TObjectPtr<UCapsuleComponent> TailHitbox;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	virtual void OnConstruction(const FTransform& Transform) override;
+
+	// Fits the damage hitboxes to the current animated bone positions.
+	void UpdateDamageHitboxes();
 
 	int32 BiteCount = 0;
 	int32 CloseBreathCount = 0;

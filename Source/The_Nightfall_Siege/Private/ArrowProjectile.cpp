@@ -109,6 +109,12 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 
 	if (Dragon && OwnerCharacter)
 	{
+		if (HitDragons.Contains(Dragon))
+		{
+			return;
+		}
+		HitDragons.Add(Dragon);
+
 		if (ArrowType == EArrowType::QExplosive || ArrowType == EArrowType::Explosive)
 		{
 			Explode();
@@ -196,6 +202,8 @@ void AArrowProjectile::Explode()
 
 	if (bHit)
 	{
+		TSet<ADragonBoss*> ExplodedDragons;
+
 		for (auto& Result : Overlaps)
 		{
 			AMonster* Monster = Cast<AMonster>(Result.GetActor());
@@ -211,6 +219,12 @@ void AArrowProjectile::Explode()
 
 			if (Dragon && OwnerCharacter)
 			{
+				if (ExplodedDragons.Contains(Dragon))
+				{
+					continue;
+				}
+				ExplodedDragons.Add(Dragon);
+
 				float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
 				if (ArrowType == EArrowType::QExplosive)
 				{

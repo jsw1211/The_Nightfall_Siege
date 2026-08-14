@@ -25,6 +25,39 @@ ADragonBoss::ADragonBoss()
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	// ACharacter must retain its root capsule for CharacterMovement.  Ignore
+	// gameplay projectiles on that broad capsule so only the bone-following
+	// hitboxes below can receive weapon/arrow damage.
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Ignore);
+
+	auto ConfigureHitbox = [this](TObjectPtr<UCapsuleComponent>& Hitbox, const TCHAR* Name,
+		const FName BoneName, float Radius, float HalfHeight)
+	{
+		Hitbox = CreateDefaultSubobject<UCapsuleComponent>(Name);
+		Hitbox->SetupAttachment(GetMesh(), BoneName);
+		// Capsule dimensions below are calculated from world-space bone positions.
+		// Do not inherit the mesh scale as well, otherwise a scaled dragon makes
+		// the hitbox grow twice (once in the bone distance, once as a child).
+		Hitbox->SetAbsolute(false, false, true);
+		Hitbox->SetCapsuleSize(Radius, HalfHeight);
+		// Capsule components extend along local Z.  Rotate them onto the dragon's
+		// length axis; individual placement can still be refined in BP_DragonBoss.
+		Hitbox->SetRelativeRotation(FRotator(0.f, 90.f, 0.f));
+		Hitbox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		Hitbox->SetCollisionObjectType(ECC_Pawn);
+		Hitbox->SetCollisionResponseToAllChannels(ECR_Ignore);
+		Hitbox->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
+		// Area attacks query the Pawn channel, while arrows/weapons use
+		// WorldDynamic.  Both must see the segmented hitboxes.
+		Hitbox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+		Hitbox->SetGenerateOverlapEvents(true);
+		Hitbox->SetCanEverAffectNavigation(false);
+	};
+
+	ConfigureHitbox(HeadHitbox, TEXT("HeadHitbox"), TEXT("Head2"), 65.f, 200.f);
+	ConfigureHitbox(BodyHitbox, TEXT("BodyHitbox"), TEXT("Body1"), 250.f, 270.f);
+	ConfigureHitbox(TailHitbox, TEXT("TailHitbox"), TEXT("Tail3"), 80.f, 420.f);
+
 	// Keep these gameplay effects wired even when the BP defaults have not
 	// explicitly overridden the corresponding C++ properties.
 	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> BlackoutChargingAsset(
@@ -65,6 +98,15 @@ ADragonBoss::ADragonBoss()
 
 }
 
+void ADragonBoss::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+
+	// This also runs while editing BP_DragonBoss, so the collision preview is
+	// fitted immediately when the actor or skeletal mesh scale is changed.
+	UpdateDamageHitboxes();
+}
+
 // Called when the game starts or when spawned
 void ADragonBoss::BeginPlay()
 {
@@ -96,6 +138,7 @@ void ADragonBoss::BeginPlay()
 void ADragonBoss::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	UpdateDamageHitboxes();
 
 	if (!HasAuthority())
 	{
@@ -250,6 +293,56 @@ void ADragonBoss::Tick(float DeltaTime)
 			}
 		}
 	}
+}
+
+void ADragonBoss::UpdateDamageHitboxes()
+{
+	USkeletalMeshComponent* DragonMesh = GetMesh();
+	if (!DragonMesh)
+	{
+		return;
+	}
+
+	// Each capsule is constructed from two live bone locations rather than
+	// fixed component offsets.  This keeps it fitted while the neck/tail bend
+	// during attack, flight, and death animations.
+	auto FitCapsuleToBones = [DragonMesh](UCapsuleComponent* Hitbox,
+		const FName StartBone, const FName EndBone, float RadiusRatio)
+	{
+		if (!Hitbox ||
+			DragonMesh->GetBoneIndex(StartBone) == INDEX_NONE ||
+			DragonMesh->GetBoneIndex(EndBone) == INDEX_NONE)
+		{
+			return;
+		}
+
+		const FVector Start = DragonMesh->GetBoneLocation(StartBone);
+		const FVector End = DragonMesh->GetBoneLocation(EndBone);
+		const FVector Segment = End - Start;
+		const float SegmentLength = Segment.Size();
+		if (SegmentLength <= KINDA_SMALL_NUMBER)
+		{
+			return;
+		}
+
+		// Derive every dimension from the live world-space bones.  Deliberately
+		// avoid absolute size clamps so changing the dragon's Actor/Mesh scale
+		// scales its hitboxes by exactly the same factor.
+		const float Radius = FMath::Max(SegmentLength * RadiusRatio, 1.f);
+		const float HalfHeight = (SegmentLength * 0.5f) + Radius;
+		const FQuat Rotation = FQuat::FindBetweenNormals(
+			FVector::UpVector, Segment / SegmentLength);
+
+		Hitbox->SetCapsuleSize(Radius, HalfHeight, false);
+		Hitbox->SetWorldLocationAndRotation(
+			(Start + End) * 0.5f, Rotation, false, nullptr,
+			ETeleportType::TeleportPhysics);
+	};
+
+	// The ratios create a narrow head, broad body, and tapered tail silhouette.
+	FitCapsuleToBones(HeadHitbox, TEXT("Neck2"), TEXT("Head3"), 0.35f);
+	FitCapsuleToBones(BodyHitbox, TEXT("Body1"), TEXT("Tail1"), 0.38f);
+	FitCapsuleToBones(TailHitbox, TEXT("Tail1"), TEXT("Tail4"), 0.12f);
 }
 
 // Called to bind functionality to input
@@ -1271,6 +1364,10 @@ void ADragonBoss::Die()
 
 	GetCapsuleComponent()->SetCollisionEnabled(
 		ECollisionEnabled::NoCollision);
+
+	HeadHitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	BodyHitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	TailHitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	MulticastPlayDeath();
 
