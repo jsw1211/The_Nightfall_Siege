@@ -260,6 +260,14 @@ public:
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<ADangerZone> DangerZoneClass;
 
+	// The bite hitbox is a rectangle extending forward from MouthSocket.
+	// These values are shared by damage detection and its warning decal.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Bite", meta = (ClampMin = "0.0"))
+	float BiteHitRange = 300.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Bite", meta = (ClampMin = "0.0"))
+	float BiteHalfWidth = 100.f;
+
 	// The projectile travels at 2200 units/sec for 8 seconds by default.
 	// Keep the warning zone long enough to cover its full reachable path.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Breath", meta = (ClampMin = "0.0"))
