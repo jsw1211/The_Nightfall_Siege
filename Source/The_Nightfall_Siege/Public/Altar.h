@@ -8,6 +8,7 @@
 
 class UStaticMeshComponent;
 class UBoxComponent;
+class UDecalComponent;
 class AMonster;
 class ALantern;
 class ABaseCharacter;
@@ -29,42 +30,55 @@ protected:
 public:
 	virtual void Tick(float DeltaTime) override;
 
-	// Á¦´Ü ¸Ş½¬
+	// ì œë‹¨ ë©”ì‰¬
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	UStaticMeshComponent* AltarMesh;
 
-	// »óÈ£ÀÛ¿ë ¹üÀ§
+	// ìƒí˜¸ì‘ìš© ë²”ìœ„
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	UBoxComponent* InteractionBox;
 
-	// È°¼ºÈ­ ¿©ºÎ
+	// í™œì„±í™” ì—¬ë¶€
 	UPROPERTY(ReplicatedUsing = OnRep_Activated, BlueprintReadOnly)
 	bool bActivated;
 
-	// ÇÃ·¹ÀÌ¾î ¹üÀ§ ¾È ¿©ºÎ
+	// í”Œë ˆì´ì–´ ë²”ìœ„ ì•ˆ ì—¬ë¶€
 	bool bPlayerInside;
 
-	// ÀÌ Á¦´Ü ¸ó½ºÅÍ ¸ñ·Ï
+	// ì´ ì œë‹¨ ëª¬ìŠ¤í„° ëª©ë¡
 	UPROPERTY()
 	TArray<AMonster*> OwnedMonsters;
 
-	// ¸ó½ºÅÍ µî·Ï
+	// ëª¬ìŠ¤í„° ë“±ë¡
 	void RegisterMonster(AMonster* Monster);
 
-	// Á¦´Ü È°¼ºÈ­
+	// ì œë‹¨ í™œì„±í™”
 	void ActivateAltar();
 
 	UPROPERTY(ReplicatedUsing = OnRep_LanternPlaced, BlueprintReadOnly)
 	bool bLanternPlaced = false;
 
+	UPROPERTY(ReplicatedUsing = OnRep_Cleared, BlueprintReadOnly, Category = "Altar")
+	bool bCleared = false;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Altar")
+	int32 RemainingMonsterCount = 0;
+
 	void PlaceLantern(ABaseCharacter* Player);
 	void RemoveLantern(ABaseCharacter* Player);
+	bool NotifyOwnedMonsterDefeated();
+	// The altar's circular damageable zone, shared with its visible light.
+	bool IsInsideActiveLightZone(const FVector& WorldLocation) const;
+	bool IsAvailableNavigationTarget() const { return !bCleared && !bLanternPlaced; }
 
 	UFUNCTION()
 	void OnRep_Activated();
 
 	UFUNCTION()
 	void OnRep_LanternPlaced();
+
+	UFUNCTION()
+	void OnRep_Cleared();
 
 	virtual void GetLifetimeReplicatedProps(
 		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -81,6 +95,9 @@ public:
 	// Screen-space prompt, so it remains readable even when a dungeon map is rotated.
 	UPROPERTY(VisibleAnywhere, Category = "Interaction")
 	UWidgetComponent* InteractionPrompt;
+
+	UPROPERTY(VisibleAnywhere, Category = "Altar")
+	UDecalComponent* AltarSafeZoneDecal;
 
 	UFUNCTION()
 	void OnOverlapBegin(

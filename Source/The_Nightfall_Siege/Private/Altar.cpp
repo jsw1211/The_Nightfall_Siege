@@ -12,8 +12,11 @@
 #include "Components/PointLightComponent.h"
 #include "Components/WidgetComponent.h"
 #include "AltarInteractionWidget.h"
+#include "Components/DecalComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "BasePlayerState.h"
+#include "Materials/MaterialInterface.h"
+#include "UObject/ConstructorHelpers.h"
 
 // Sets default values
 AAltar::AAltar()
@@ -58,12 +61,32 @@ AAltar::AAltar()
 	AltarLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("AltarLight"));
 
 	AltarLight->SetupAttachment(LanternMesh);
+	AltarLight->SetMobility(EComponentMobility::Movable);
 
-	AltarLight->SetIntensity(5000.f);
+	AltarLight->SetIntensity(18000.f);
 
+	// Monsters can only be damaged inside LightRange. Match the visual light
+	// to that same radius so the illuminated area communicates the rule.
 	AltarLight->SetAttenuationRadius(1200.f);
 
+	AltarLight->SetLightColor(FLinearColor(0.0f, 1.0f, 0.0f));
+
 	AltarLight->SetVisibility(false);
+
+	AltarSafeZoneDecal = CreateDefaultSubobject<UDecalComponent>(
+		TEXT("AltarSafeZoneDecal"));
+	AltarSafeZoneDecal->SetupAttachment(RootComponent);
+	AltarSafeZoneDecal->SetRelativeLocation(FVector(0.f, 0.f, 5.f));
+	AltarSafeZoneDecal->SetRelativeRotation(FRotator(-90.f, 0.f, 0.f));
+	AltarSafeZoneDecal->DecalSize = FVector(200.f, 1200.f, 1200.f);
+	AltarSafeZoneDecal->SetVisibility(false);
+
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> SanctuaryMaterial(
+		TEXT("/Game/Effects/Lantern/M_Lantern_Sanctuary.M_Lantern_Sanctuary"));
+	if (SanctuaryMaterial.Succeeded())
+	{
+		AltarSafeZoneDecal->SetDecalMaterial(SanctuaryMaterial.Object);
+	}
 
 	InteractionPrompt = CreateDefaultSubobject<UWidgetComponent>(TEXT("InteractionPrompt"));
 	InteractionPrompt->SetupAttachment(RootComponent);
@@ -82,6 +105,14 @@ AAltar::AAltar()
 void AAltar::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Keep this visual boundary identical to the range used by Monster.cpp
+	// when deciding whether an altar-owned monster can take damage.
+	AltarLight->SetLightColor(FLinearColor(0.0f, 1.0f, 0.0f));
+	AltarLight->SetAttenuationRadius(LightRange->GetScaledSphereRadius());
+	const float AltarSafeRadius = LightRange->GetScaledSphereRadius();
+	AltarSafeZoneDecal->DecalSize = FVector(
+		200.f, AltarSafeRadius, AltarSafeRadius);
 	
 	UE_LOG(LogTemp, Warning, TEXT("Altar BeginPlay"));
 
@@ -120,7 +151,39 @@ void AAltar::RegisterMonster(AMonster* Monster)
 	if (Monster)
 	{
 		OwnedMonsters.Add(Monster);
+		++RemainingMonsterCount;
 	}
+}
+
+bool AAltar::IsInsideActiveLightZone(const FVector& WorldLocation) const
+{
+	if (!bActivated || !LightRange)
+	{
+		return false;
+	}
+
+	FVector ToLocation = WorldLocation - GetActorLocation();
+	ToLocation.Z = 0.f;
+	const float Range = LightRange->GetScaledSphereRadius();
+	return ToLocation.SizeSquared() <= FMath::Square(Range);
+}
+
+bool AAltar::NotifyOwnedMonsterDefeated()
+{
+	if (!HasAuthority() || bCleared)
+	{
+		return bCleared;
+	}
+
+	RemainingMonsterCount = FMath::Max(0, RemainingMonsterCount - 1);
+	if (RemainingMonsterCount == 0)
+	{
+		bCleared = true;
+		ForceNetUpdate();
+		UE_LOG(LogTemp, Warning, TEXT("Altar cleared: %s"), *GetName());
+	}
+
+	return bCleared;
 }
 
 void AAltar::PlaceLantern(ABaseCharacter* Player)
@@ -144,13 +207,20 @@ void AAltar::PlaceLantern(ABaseCharacter* Player)
 
 	LanternMesh->SetVisibility(true);
 
-	AltarLight->SetVisibility(true);
+	AltarLight->SetVisibility(true, true);
+	AltarSafeZoneDecal->SetVisibility(true, true);
+	ForceNetUpdate();
 
 	UE_LOG(LogTemp, Warning, TEXT("Lantern Placed"));
 }
 
 void AAltar::RemoveLantern(ABaseCharacter* Player)
 {
+	if (!bCleared)
+	{
+		return;
+	}
+
 	bLanternPlaced = false;
 	bActivated = false;
 
@@ -167,10 +237,13 @@ void AAltar::RemoveLantern(ABaseCharacter* Player)
 	}
 
 	Player->RefreshLanternState();
+	Player->ResumeLanternGuidanceAfterAltar();
 
 	LanternMesh->SetVisibility(false);
 
-	AltarLight->SetVisibility(false);
+	AltarLight->SetVisibility(false, true);
+	AltarSafeZoneDecal->SetVisibility(false, true);
+	ForceNetUpdate();
 
 	UE_LOG(LogTemp, Warning, TEXT("Lantern Removed"));
 }
@@ -182,11 +255,14 @@ void AAltar::GetLifetimeReplicatedProps(
 
 	DOREPLIFETIME(AAltar, bActivated);
 	DOREPLIFETIME(AAltar, bLanternPlaced);
+	DOREPLIFETIME(AAltar, bCleared);
+	DOREPLIFETIME(AAltar, RemainingMonsterCount);
 }
 
 void AAltar::OnRep_Activated()
 {
-	AltarLight->SetVisibility(bActivated);
+	AltarLight->SetVisibility(bLanternPlaced, true);
+	AltarSafeZoneDecal->SetVisibility(bLanternPlaced, true);
 }
 
 void AAltar::OnRep_LanternPlaced()
@@ -197,7 +273,13 @@ void AAltar::OnRep_LanternPlaced()
 		bLanternPlaced);
 	LanternMesh->SetVisibility(bLanternPlaced);
 
-	AltarLight->SetVisibility(bLanternPlaced);
+	AltarLight->SetVisibility(bLanternPlaced, true);
+	AltarSafeZoneDecal->SetVisibility(bLanternPlaced, true);
+}
+
+void AAltar::OnRep_Cleared()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Altar clear replicated: %d"), bCleared);
 }
 
 void AAltar::OnOverlapBegin(

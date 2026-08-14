@@ -168,6 +168,8 @@ public:
 	void BreathAttack();
 
 	void DebuffAttack();
+	void ResetPrismCleanseParticipants();
+	void RegisterPrismCleanseParticipant(ABaseCharacter* Player);
 
 	void WalkToTarget();
 
@@ -258,13 +260,30 @@ public:
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<ADangerZone> DangerZoneClass;
 
+	// The projectile travels at 2200 units/sec for 8 seconds by default.
+	// Keep the warning zone long enough to cover its full reachable path.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Breath", meta = (ClampMin = "0.0"))
+	float BreathTelegraphRange = 17600.f;
+
 	FTimerHandle CenterBreathHandle;
 
 	bool bCenterBreathStarted = false;
 
+	TSet<TObjectPtr<ABaseCharacter>> PrismCleanseParticipants;
+
+	// All prism holders must gather within this radius of one another before
+	// their F interactions can clear the blackout debuff.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss|Debuff", meta = (ClampMin = "0.0"))
+	float PrismCleanseGatherRadius = 1000.f;
+
+	bool ArePrismHoldersGathered(const TArray<AActor*>& PlayerActors) const;
+
 	FTimerHandle CenterTrackingHandle;
 
 	bool bCenterTracking = false;
+
+	// Central breath must remain stationary until its montage end callback.
+	bool bMovementLockedForBreath = false;
 
 	UPROPERTY()
 	ADangerZone* CurrentBreathZone = nullptr;
@@ -348,6 +367,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void BreathFire();
+	void OnBreathMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayAttack(EDragonAttackType AttackType);
@@ -382,4 +402,5 @@ public:
 	void DebugCloseBreath();
 	void DebugBreath();
 	void DebugDebuff();
+	void DebugCenterMechanic();
 };

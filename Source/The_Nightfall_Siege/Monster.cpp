@@ -290,11 +290,9 @@ void AMonster::TakeMonsterDamage(float Damage)
         return;
     }
 
-    float Distance = FVector::Dist(GetActorLocation(), OwnerAltar->GetActorLocation());
-
-    if (Distance > OwnerAltar->LightRange->GetScaledSphereRadius())
+    if (!OwnerAltar->IsInsideActiveLightZone(GetActorLocation()))
     {
-        UE_LOG(LogTemp, Warning, TEXT("Outside Light"));
+        UE_LOG(LogTemp, Warning, TEXT("Outside Altar Light Semicircle"));
 
         return;
     }
@@ -320,6 +318,11 @@ void AMonster::TakeMonsterDamage(float Damage)
         UE_LOG(LogTemp, Warning, TEXT("Monster Dead"));
 
         bool bLastMonster = false;
+		const bool bAltarCleared = OwnerAltar->NotifyOwnedMonsterDefeated();
+		if (bAltarCleared)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Altar wave complete: %s"), *OwnerAltar->GetName());
+		}
 
         if (DungeonManager)
         {

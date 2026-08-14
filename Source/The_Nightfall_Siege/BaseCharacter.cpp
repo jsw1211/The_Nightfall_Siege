@@ -8,6 +8,8 @@
 #include "Engine/SkyLight.h"
 #include "Components/LightComponent.h"
 #include "Components/SkyLightComponent.h"
+#include "Components/DecalComponent.h"
+#include "Materials/MaterialInterface.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "EnhancedInputComponent.h"
@@ -50,6 +52,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "EngineUtils.h"
 #include "The_Nightfall_SiegeGameMode.h"
+#include "VillageManager.h"
 
 
 // Sets default values
@@ -126,6 +129,24 @@ ABaseCharacter::ABaseCharacter()
 
     LanternLight->SetupAttachment(EquippedLanternMesh);
 
+	// This light is enabled while the item is equipped, so it must be dynamic.
+	LanternLight->SetMobility(EComponentMobility::Movable);
+
+	LanternSafeZoneDecal = CreateDefaultSubobject<UDecalComponent>(
+		TEXT("LanternSafeZoneDecal"));
+	LanternSafeZoneDecal->SetupAttachment(GetCapsuleComponent());
+	LanternSafeZoneDecal->SetRelativeLocation(FVector(0.f, 0.f, -80.f));
+	LanternSafeZoneDecal->SetRelativeRotation(FRotator(-90.f, 0.f, 0.f));
+	LanternSafeZoneDecal->DecalSize = FVector(200.f, 1800.f, 1800.f);
+	LanternSafeZoneDecal->SetVisibility(false);
+
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> LanternSafeZoneMaterial(
+		TEXT("/Game/Effects/Lantern/M_Lantern_Sanctuary.M_Lantern_Sanctuary"));
+	if (LanternSafeZoneMaterial.Succeeded())
+	{
+		LanternSafeZoneDecal->SetDecalMaterial(LanternSafeZoneMaterial.Object);
+	}
+
     LanternDirectionEffectComponent = CreateDefaultSubobject<UNiagaraComponent>(
         TEXT("LanternDirectionEffectComponent"));
     // The guide must originate from the held lantern, not from the pawn root.
@@ -160,13 +181,13 @@ ABaseCharacter::ABaseCharacter()
 
     LanternLight->SetVisibility(false);
 
-    // A warm local pool of light keeps nearby enemies readable in the lava
-    // dungeon while the inverse-square falloff preserves the distant darkness.
-    LanternLight->SetIntensity(6500.f);
+    // Keep the visual light exactly aligned with the gameplay safe zone.
+    // LanternLightSphere is the authoritative darkness-protection radius.
+    LanternLight->SetIntensity(18000.f);
 
     LanternLight->SetAttenuationRadius(1800.f);
 
-    LanternLight->SetLightColor(FLinearColor(1.0f, 0.55f, 0.18f));
+    LanternLight->SetLightColor(FLinearColor(0.0f, 1.0f, 0.0f));
 
     UE_LOG(LogTemp, Warning, TEXT("%s"),
         *LanternLight->GetLightColor().ToString());
@@ -201,6 +222,15 @@ ABaseCharacter::ABaseCharacter()
 void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Blueprint defaults must not desynchronise the visible lantern radius from
+	// the sphere that grants darkness protection.
+	LanternLight->SetLightColor(FLinearColor(0.0f, 1.0f, 0.0f));
+	LanternLight->SetAttenuationRadius(
+		LanternLightSphere->GetScaledSphereRadius());
+	const float LanternSafeRadius = LanternLightSphere->GetScaledSphereRadius();
+	LanternSafeZoneDecal->DecalSize = FVector(
+		200.f, LanternSafeRadius, LanternSafeRadius);
 
     // A retry travels to the village and creates a fresh pawn.  Restore every
     // local/server movement and input restriction that death may have set.
@@ -564,12 +594,15 @@ void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)
         return;
     }
 
-    // Directional guidance is personal UI-like feedback, so it is shown only
-    // to the owning player and only before entering the dungeon.
+    const bool bIsVillage = GetWorld() && GetWorld()->GetMapName().Contains(TEXT("Village_Forest"));
+    const bool bIsDungeon = GetWorld() && GetWorld()->GetMapName().Contains(TEXT("Dungeon"));
+
+    // Guide one target only: the village portal, or the nearest unfinished
+    // altar in a dungeon.
     const bool bCanGuide = IsLocallyControlled()
         && bLanternEquipped
-        && GetWorld()
-        && GetWorld()->GetMapName().Contains(TEXT("Village_Forest"));
+		&& bLanternGuideReady
+        && (bIsVillage || bIsDungeon);
 
     if (!bCanGuide)
     {
@@ -586,19 +619,37 @@ void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)
     }
     LanternDirectionUpdateElapsed = 0.f;
 
-    ADungeonPortal* ClosestPortal = nullptr;
+    AActor* GuideTarget = nullptr;
     float ClosestDistanceSquared = TNumericLimits<float>::Max();
-    for (TActorIterator<ADungeonPortal> It(GetWorld()); It; ++It)
+
+    if (bIsVillage)
     {
-        const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
-        if (DistanceSquared < ClosestDistanceSquared)
+        for (TActorIterator<ADungeonPortal> It(GetWorld()); It; ++It)
         {
-            ClosestDistanceSquared = DistanceSquared;
-            ClosestPortal = *It;
+            const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
+            if (DistanceSquared < ClosestDistanceSquared)
+            {
+                ClosestDistanceSquared = DistanceSquared;
+                GuideTarget = *It;
+            }
+        }
+    }
+    else if (bIsDungeon)
+    {
+        for (TActorIterator<AAltar> It(GetWorld()); It; ++It)
+        {
+            if (!It->IsAvailableNavigationTarget()) continue;
+
+            const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
+            if (DistanceSquared < ClosestDistanceSquared)
+            {
+                ClosestDistanceSquared = DistanceSquared;
+                GuideTarget = *It;
+            }
         }
     }
 
-    if (!ClosestPortal)
+    if (!GuideTarget)
     {
         LanternDirectionEffectComponent->Deactivate();
         LanternDirectionEffectComponent->SetVisibility(false);
@@ -606,8 +657,8 @@ void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)
     }
 
     // Calculate from the lantern itself so the visible trail points from the
-    // held light directly to the placed/spawned BP_DungeonPortal actor.
-    FVector Direction = ClosestPortal->GetActorLocation()
+    // held light directly to the selected portal or altar.
+    FVector Direction = GuideTarget->GetActorLocation()
         - LanternDirectionEffectComponent->GetComponentLocation();
     Direction.Z = 0.f;
     if (Direction.IsNearlyZero())
@@ -655,7 +706,9 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     PlayerInputComponent->BindKey(EKeys::P, IE_Pressed, this, &ABaseCharacter::ToggleShop);
     PlayerInputComponent->BindKey(EKeys::F, IE_Pressed, this, &ABaseCharacter::InteractWithQuestGiver);
 #if !UE_BUILD_SHIPPING
-    PlayerInputComponent->BindKey(EKeys::Equals, IE_Pressed, this, &ABaseCharacter::DebugTeleportToDungeonPortal);
+	PlayerInputComponent->BindKey(EKeys::B, IE_Pressed, this, &ABaseCharacter::DebugBossCenterMechanic);
+	PlayerInputComponent->BindKey(EKeys::Equals, IE_Pressed, this, &ABaseCharacter::DebugTeleportToDungeonPortal);
+    PlayerInputComponent->BindKey(EKeys::Hyphen, IE_Pressed, this, &ABaseCharacter::DebugCompleteRaid);
 #endif
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
@@ -1268,6 +1321,12 @@ void ABaseCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
     bIsUsingSkill = false;
     bIsAttacking = false;
+
+    if (IsLocallyControlled() && Montage == LanternEquipMontage && !bInterrupted && bLanternEquipped)
+    {
+        bLanternGuideReady = true;
+        LanternDirectionUpdateElapsed = 0.15f;
+    }
 }
 
 void ABaseCharacter::EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketName, AActor*& OutWeapon)
@@ -1647,11 +1706,7 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 
     if (bDarknessDebuff && bPrismEquipped)
     {
-        bDarknessDebuff = false;
-
-        UE_LOG(LogTemp, Warning,
-            TEXT("Darkness Cleared"));
-
+        ServerRequestGroupPrismCleanse();
         return;
     }
 
@@ -1934,6 +1989,15 @@ void ABaseCharacter::OnLanternLightEnd(UPrimitiveComponent* OverlappedComp, AAct
 
 void ABaseCharacter::OnLanternEquipped()
 {
+}
+
+void ABaseCharacter::ResumeLanternGuidanceAfterAltar()
+{
+    if (IsLocallyControlled() && bLanternEquipped)
+    {
+        bLanternGuideReady = true;
+        LanternDirectionUpdateElapsed = 0.15f;
+    }
 }
 
 void ABaseCharacter::OnLanternUnequipped()
@@ -3214,9 +3278,16 @@ void ABaseCharacter::OnRep_LanternEquipped()
         TEXT("OnRep_LanternEquipped %d"),
         bLanternEquipped);
 
+    // The guide effect waits for the equip animation, rather than the
+    // replicated equipment state which changes just before the animation.
+    bLanternGuideReady = false;
+
     EquippedLanternMesh->SetVisibility(bLanternEquipped);
 
-    LanternLight->SetVisibility(bLanternEquipped);
+    LanternLight->SetVisibility(bLanternEquipped, true);
+
+    const bool bIsVillage = GetWorld() && GetWorld()->GetMapName().Contains(TEXT("Village_Forest"));
+    LanternSafeZoneDecal->SetVisibility(bLanternEquipped && bIsVillage, true);
 
     // Tick will resolve the portal and activate the local guide effect. Hide
     // immediately on unequip so it never lingers for one update interval.
@@ -3297,9 +3368,16 @@ void ABaseCharacter::MulticastPlayLanternMontage_Implementation(bool bEquip)
 {
     if (bEquip)
     {
+        bLanternGuideReady = false;
         if (LanternEquipMontage)
         {
             PlayAnimMontage(LanternEquipMontage);
+        }
+        else if (IsLocallyControlled())
+        {
+            // Characters without an assigned montage have no completion event.
+            bLanternGuideReady = true;
+            LanternDirectionUpdateElapsed = 0.15f;
         }
     }
     else
@@ -3336,6 +3414,20 @@ void ABaseCharacter::ServerUseSlot3_Implementation()
     ForceNetUpdate();
 
     MulticastPlayPrismMontage(bEquip);
+}
+
+void ABaseCharacter::ServerRequestGroupPrismCleanse_Implementation()
+{
+    if (!bDarknessDebuff || !bHasPrism || !bPrismEquipped || IsDead())
+    {
+        return;
+    }
+
+    for (TActorIterator<ADragonBoss> It(GetWorld()); It; ++It)
+    {
+        It->RegisterPrismCleanseParticipant(this);
+        return;
+    }
 }
 
 void ABaseCharacter::OnRep_PrismEquipped()
@@ -3855,9 +3947,74 @@ void ABaseCharacter::DebugBossPattern4()
     ServerDebugBossPattern(3);
 }
 
+void ABaseCharacter::DebugBossCenterMechanic()
+{
+    ServerDebugBossPattern(4);
+}
+
 void ABaseCharacter::DebugTeleportToDungeonPortal()
 {
     ServerDebugTeleportToDungeonPortal();
+}
+
+void ABaseCharacter::DebugCompleteRaid()
+{
+    ServerDebugCompleteRaid();
+}
+
+void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
+{
+    UTheNightfallSiegeInstance* GI = Cast<UTheNightfallSiegeInstance>(GetGameInstance());
+    if (!GI)
+    {
+        return;
+    }
+
+    GI->RemainingDungeons.Empty();
+    GI->ClearedDungeonCount = 3;
+    GI->CurrentDungeon = NAME_None;
+    GI->bHasPrism = true;
+    GI->bPrismEquipped = false;
+
+    TArray<AActor*> Players;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+    for (AActor* Actor : Players)
+    {
+        ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
+        if (!Player) continue;
+
+        Player->bHasPrism = true;
+        Player->bPrismEquipped = false;
+        Player->bPrismPoseActive = false;
+        Player->OnRep_HasPrism();
+        Player->RefreshPrismState();
+        Player->ForceNetUpdate();
+
+        if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
+        {
+            PS->bHasPrism = true;
+            PS->bPrismEquipped = false;
+            PS->ClearedDungeonCount = 3;
+            PS->QuestStage = EQuestStage::FindBossPortal;
+        }
+    }
+
+    if (!GetWorld()->GetMapName().Contains(TEXT("Village_Forest")))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Debug raid complete set. Return to the village for the boss portal."));
+        return;
+    }
+
+    if (!GI->bBossPortalSpawned)
+    {
+        for (TActorIterator<AVillageManager> It(GetWorld()); It; ++It)
+        {
+            It->SpawnBossPortal();
+            break;
+        }
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("Debug raid complete: all players received prisms and the boss portal is ready."));
 }
 
 void ABaseCharacter::ServerDebugTeleportToDungeonPortal_Implementation()
@@ -3926,6 +4083,10 @@ void ABaseCharacter::ServerDebugBossPattern_Implementation(uint8 PatternIndex)
     case 3:
         Boss->DebugDebuff();
         break;
+
+    case 4:
+        Boss->DebugCenterMechanic();
+        break;
     }
 }
 
@@ -3983,6 +4144,17 @@ void ABaseCharacter::CheckDarknessDamage()
     }
 
     if (IsDead())
+    {
+        return;
+    }
+
+    // Village safe zone: no darkness damage inside the settlement bounds.
+    // X: 12530 ~ 19800, Y: 9600 ~ 16400
+    const FVector Location = GetActorLocation();
+    const bool bInsideVillageSafeZone =
+        Location.X >= 12530.f && Location.X <= 19800.f &&
+        Location.Y >= 9600.f && Location.Y <= 16400.f;
+    if (bInsideVillageSafeZone)
     {
         return;
     }

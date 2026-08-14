@@ -307,6 +307,9 @@ public:
 	UFUNCTION(Server, Reliable)
 	void ServerUseSlot3();
 
+	UFUNCTION(Server, Reliable)
+	void ServerRequestGroupPrismCleanse();
+
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayPrismMontage(bool bEquip);
 
@@ -402,6 +405,10 @@ public:
 	UPROPERTY(VisibleAnywhere)
 	UPointLightComponent* LanternLight;
 
+	// Ground ring that makes the lantern's gameplay-safe boundary readable.
+	UPROPERTY(VisibleAnywhere, Category = "Lantern")
+	class UDecalComponent* LanternSafeZoneDecal;
+
 	// Local-only guide effect. It is rotated toward the active dungeon portal
 	// while the lantern is equipped in the village.
 	UPROPERTY(VisibleAnywhere, Category = "Lantern")
@@ -416,6 +423,10 @@ public:
 	FRotator LanternDirectionRotationOffset = FRotator(90.f, 0.f, 0.f);
 
 	float LanternDirectionUpdateElapsed = 0.f;
+
+	// Local visual gate: the direction trail must not appear until the lantern
+	// equip montage has completed.
+	bool bLanternGuideReady = false;
 
 	void UpdateLanternDirectionEffect(float DeltaTime);
 
@@ -450,6 +461,10 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void OnLanternEquipped();
+
+	// The lantern is returned directly from a cleared altar, so there is no
+	// equip montage to wait for before resuming local navigation guidance.
+	void ResumeLanternGuidanceAfterAltar();
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsEquippingLantern = false;
@@ -972,6 +987,9 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerDebugTeleportToDungeonPortal();
 
+	UFUNCTION(Server, Reliable)
+	void ServerDebugCompleteRaid();
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_Debug1;
 
@@ -988,5 +1006,7 @@ protected:
 	void DebugBossPattern2();
 	void DebugBossPattern3();
 	void DebugBossPattern4();
+	void DebugBossCenterMechanic();
 	void DebugTeleportToDungeonPortal();
+	void DebugCompleteRaid();
 };
