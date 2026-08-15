@@ -6,7 +6,42 @@
 #include "Components/StaticMeshComponent.h"
 #include "TheNightfallSiegeInstance.h"
 #include "Kismet/GameplayStatics.h"
+#include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
 #include "Portal.h"
+#include "UObject/ConstructorHelpers.h"
+
+namespace
+{
+	FVector FindReturnPortalGroundLocation(
+		const UWorld* World,
+		const AActor* ActorToIgnore,
+		const FVector& DesiredLocation)
+	{
+		if (!World)
+		{
+			return DesiredLocation;
+		}
+
+		FHitResult GroundHit;
+		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PortalGroundTrace), false);
+		QueryParams.AddIgnoredActor(ActorToIgnore);
+
+		const FVector TraceStart = DesiredLocation + FVector(0.f, 0.f, 500.f);
+		const FVector TraceEnd = DesiredLocation - FVector(0.f, 0.f, 5000.f);
+		if (World->LineTraceSingleByChannel(
+				GroundHit,
+				TraceStart,
+				TraceEnd,
+				ECC_Visibility,
+				QueryParams))
+		{
+			return GroundHit.ImpactPoint;
+		}
+
+		return DesiredLocation;
+	}
+}
 
 // Sets default values
 ADungeonPrism::ADungeonPrism()
@@ -38,6 +73,17 @@ ADungeonPrism::ADungeonPrism()
 
 	SphereCollision->SetCollisionResponseToAllChannels(
 		ECR_Overlap);
+
+	PrismDropEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("PrismDropEffect"));
+	PrismDropEffect->SetupAttachment(RootComponent);
+	PrismDropEffect->SetAutoActivate(true);
+
+	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> PrismDropEffectAsset(
+		TEXT("/Game/Effects/dropped_item/NS_Prism.NS_Prism"));
+	if (PrismDropEffectAsset.Succeeded())
+	{
+		PrismDropEffect->SetAsset(PrismDropEffectAsset.Object);
+	}
 
 	bActivated = false;
 }
@@ -129,7 +175,7 @@ void ADungeonPrism::SpawnReturnPortal()
 	APortal* Portal =
 		GetWorld()->SpawnActor<APortal>(
 			ReturnPortalClass,
-			GetActorLocation(),
+			FindReturnPortalGroundLocation(GetWorld(), this, GetActorLocation()),
 			FRotator::ZeroRotator);
 
 	if (Portal)

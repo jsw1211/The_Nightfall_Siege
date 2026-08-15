@@ -5,6 +5,9 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "BaseCharacter.h"
+#include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
+#include "UObject/ConstructorHelpers.h"
 
 // Sets default values
 ACoin::ACoin()
@@ -23,6 +26,18 @@ ACoin::ACoin()
 
     Mesh = CreateDefaultSubobject<UStaticMeshComponent>("Mesh");
     Mesh->SetupAttachment(Sphere);
+
+    GoldDropEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("GoldDropEffect"));
+    GoldDropEffect->SetupAttachment(RootComponent);
+    GoldDropEffect->SetRelativeLocation(FVector(0.f, 0.f, -40.f));
+    GoldDropEffect->SetAutoActivate(true);
+
+    static ConstructorHelpers::FObjectFinder<UNiagaraSystem> GoldDropEffectAsset(
+        TEXT("/Game/Effects/dropped_item/NS_Gold.NS_Gold"));
+    if (GoldDropEffectAsset.Succeeded())
+    {
+        GoldDropEffect->SetAsset(GoldDropEffectAsset.Object);
+    }
 
     Sphere->OnComponentBeginOverlap.AddDynamic(
         this,

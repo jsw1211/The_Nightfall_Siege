@@ -9,6 +9,7 @@
 #include "DungeonManager.h"
 #include "Altar.h"
 #include "Components/SphereComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/CapsuleComponent.h"
@@ -18,6 +19,38 @@
 #include "BasePlayerState.h"
 #include "TheNightfallSiegeInstance.h"
 #include "Net/UnrealNetwork.h"
+
+namespace
+{
+    FVector FindMonsterDropGroundLocation(
+        const UWorld* World,
+        const AActor* ActorToIgnore,
+        const FVector& DesiredLocation)
+    {
+        if (!World)
+        {
+            return DesiredLocation;
+        }
+
+        FHitResult GroundHit;
+        FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(DropGroundTrace), false);
+        QueryParams.AddIgnoredActor(ActorToIgnore);
+
+        const FVector TraceStart = DesiredLocation + FVector(0.f, 0.f, 500.f);
+        const FVector TraceEnd = DesiredLocation - FVector(0.f, 0.f, 5000.f);
+        if (World->LineTraceSingleByChannel(
+                GroundHit,
+                TraceStart,
+                TraceEnd,
+                ECC_Visibility,
+                QueryParams))
+        {
+            return GroundHit.ImpactPoint;
+        }
+
+        return DesiredLocation;
+    }
+}
 
 // Sets default values
 AMonster::AMonster()
@@ -447,13 +480,30 @@ void AMonster::SpawnCoin()
         return;
     }
 
-    FVector SpawnLocation =
-        GetActorLocation() + FVector(0, 0, 0);
+    // A character's actor origin is at the center of its capsule, not its
+    // feet. Trace to the dungeon floor so dropped coins do not remain in air.
+    const FVector SpawnLocation = FindMonsterDropGroundLocation(
+        GetWorld(),
+        this,
+        GetActorLocation()) + FVector(0.f, 0.f, 50.f);
 
-    GetWorld()->SpawnActor<ACoin>(
+    ACoin* SpawnedCoin = GetWorld()->SpawnActor<ACoin>(
         CoinClass,
         SpawnLocation,
-        FRotator::ZeroRotator);
+        FRotator(0.f, 90.f, 0.f));
+
+    if (SpawnedCoin && SpawnedCoin->Mesh)
+    {
+        // Match the visual size and pickup radius.
+        SpawnedCoin->Mesh->SetRelativeScale3D(
+            SpawnedCoin->Mesh->GetRelativeScale3D() * 2.f);
+    }
+
+    if (SpawnedCoin && SpawnedCoin->Sphere)
+    {
+        SpawnedCoin->Sphere->SetSphereRadius(
+            SpawnedCoin->Sphere->GetUnscaledSphereRadius() * 2.f);
+    }
 }
 
 void AMonster::SpawnPrism()
@@ -463,8 +513,10 @@ void AMonster::SpawnPrism()
         return;
     }
 
-    FVector SpawnLocation =
-        GetActorLocation() + FVector(50.f, 50.f, 0.f);
+    const FVector SpawnLocation = FindMonsterDropGroundLocation(
+        GetWorld(),
+        this,
+        GetActorLocation() + FVector(50.f, 50.f, 0.f));
 
     GetWorld()->SpawnActor<ADungeonPrism>(
         PrismClass,

@@ -9,6 +9,7 @@
 
 class UStaticMeshComponent;
 class USphereComponent;
+class UNiagaraComponent;
 class APortal;
 
 UCLASS()
@@ -35,6 +36,11 @@ protected:
 
 	UPROPERTY(VisibleAnywhere)
 	USphereComponent* SphereCollision;
+
+	// Stays active for the lifetime of the world pickup and is cleaned up with
+	// the actor when a player collects the prism.
+	UPROPERTY(VisibleAnywhere, Category = "Effects")
+	UNiagaraComponent* PrismDropEffect;
 
 	bool bActivated;
 

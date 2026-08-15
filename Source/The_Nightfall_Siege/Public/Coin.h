@@ -8,6 +8,7 @@
 
 class USphereComponent;
 class UStaticMeshComponent;
+class UNiagaraComponent;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ACoin : public AActor
@@ -31,6 +32,12 @@ public:
 
     UPROPERTY(VisibleAnywhere)
     UStaticMeshComponent* Mesh;
+
+    // Persistent pickup highlight.  Because this is an actor component, it
+    // begins with the replicated coin and is removed automatically when the
+    // coin is collected and the actor is destroyed.
+    UPROPERTY(VisibleAnywhere, Category = "Effects")
+    UNiagaraComponent* GoldDropEffect;
 
     UFUNCTION()
     void OnOverlap(
