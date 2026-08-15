@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GenerateDarknessOverlay")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ae801167a552ad3a614f9f1172f3840ba4559e11")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6ec9ebb20c0c299be07c479b0a18a69236395601")]
 [assembly: System.Reflection.AssemblyProductAttribute("GenerateDarknessOverlay")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GenerateDarknessOverlay")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

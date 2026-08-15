@@ -3,18 +3,20 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 
-const int Size = 1024;
-var pixels = new byte[Size * Size * 4];
-for (var y = 0; y < Size; ++y)
-for (var x = 0; x < Size; ++x)
+const int Width = 1280;
+const int Height = 720;
+var pixels = new byte[Width * Height * 4];
+for (var y = 0; y < Height; ++y)
+for (var x = 0; x < Width; ++x)
 {
-    var nx = (x + 0.5f) / Size - 0.5f;
-    var ny = (y + 0.5f) / Size - 0.5f;
-    var radius = MathF.Sqrt(nx * nx + ny * ny);
-    // A tight clear area around the player, followed by a short dark falloff.
-    var alpha = Math.Clamp((radius - 0.08f) / 0.24f, 0f, 1f);
+    // Use the screen height for both axes: on 1280x720 this stays a circle.
+    var dx = (x + 0.5f - Width * 0.5f) / Height;
+    var dy = (y + 0.5f - Height * 0.5f) / Height;
+    var radius = MathF.Sqrt(dx * dx + dy * dy);
+    // Half-sized vertical diameter: clear centre 65px, fully dark by 215px.
+    var alpha = Math.Clamp((radius - 0.045f) / 0.105f, 0f, 1f);
     alpha = alpha * alpha * (3f - 2f * alpha);
-    var offset = (y * Size + x) * 4;
+    var offset = (y * Width + x) * 4;
     pixels[offset + 3] = (byte)(alpha * 235f);
 }
 
@@ -22,7 +24,7 @@ using var output = File.Create(args[0]);
 output.Write(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 });
 WriteChunk(output, "IHDR", Header());
 using var raw = new MemoryStream();
-for (var y = 0; y < Size; ++y) { raw.WriteByte(0); raw.Write(pixels, y * Size * 4, Size * 4); }
+for (var y = 0; y < Height; ++y) { raw.WriteByte(0); raw.Write(pixels, y * Width * 4, Width * 4); }
 using var compressed = new MemoryStream();
 using (var zlib = new ZLibStream(compressed, CompressionLevel.SmallestSize, true)) raw.WriteTo(zlib);
 WriteChunk(output, "IDAT", compressed.ToArray());
@@ -31,7 +33,7 @@ WriteChunk(output, "IEND", Array.Empty<byte>());
 byte[] Header()
 {
     var data = new byte[13];
-    WriteBuffer(data, 0, Size); WriteBuffer(data, 4, Size); data[8] = 8; data[9] = 6;
+    WriteBuffer(data, 0, Width); WriteBuffer(data, 4, Height); data[8] = 8; data[9] = 6;
     return data;
 }
 void WriteBuffer(byte[] data, int offset, int value)
