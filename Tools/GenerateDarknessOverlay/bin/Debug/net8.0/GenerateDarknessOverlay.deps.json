@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "GenerateDarknessOverlay/1.0.0": {
+        "runtime": {
+          "GenerateDarknessOverlay.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "GenerateDarknessOverlay/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

@@ -7,6 +7,7 @@
 #include "Components/TextBlock.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Image.h"
+#include "Engine/Texture2D.h"
 #include "Blueprint/DragDropOperation.h"
 #include "InventoryItemSlotWidget.h"
 
@@ -50,6 +51,30 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
     {
         UE_LOG(LogTemp, Error, TEXT("Player NULL"));
         return;
+    }
+
+    // Apply the authored UMG overlay directly.  Its PNG has a transparent
+    // centre and a black falloff at the edges, so UI and the pawn stay clear
+    // while the surrounding screen darkens.
+    if (DarknessOverlay)
+    {
+        static TWeakObjectPtr<UTexture2D> DarknessVignetteTexture;
+        if (!DarknessVignetteTexture.IsValid())
+        {
+            DarknessVignetteTexture = LoadObject<UTexture2D>(
+                nullptr,
+                TEXT("/Game/BP_Character/Textures/T_DarknessVignette.T_DarknessVignette"));
+        }
+
+        if (DarknessVignetteTexture.IsValid())
+        {
+            DarknessOverlay->SetBrushFromTexture(DarknessVignetteTexture.Get(), true);
+        }
+
+        DarknessOverlay->SetColorAndOpacity(FLinearColor::White);
+        DarknessOverlay->SetVisibility(Player->bDarknessDebuff
+            ? ESlateVisibility::HitTestInvisible
+            : ESlateVisibility::Hidden);
     }
 
     HPBar->SetPercent(Player->CurrentHP / Player->MaxHP);

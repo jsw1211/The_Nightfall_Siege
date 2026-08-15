@@ -34,6 +34,11 @@ public:
     UPROPERTY(meta = (BindWidget))
     UImage* Portrait;
 
+    // The original Blueprint overlay is a solid black full-screen image.
+    // Keep it bound so the native HUD can replace it with a camera vignette.
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    UImage* DarknessOverlay;
+
     UPROPERTY(meta = (BindWidget))
     UImage* SkillQImage;
 
