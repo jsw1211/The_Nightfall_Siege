@@ -4,6 +4,7 @@
 #include "Altar.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/BoxComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
 #include "Monster.h"
@@ -42,6 +43,18 @@ AAltar::AAltar()
 	InteractionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	InteractionBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	InteractionBox->SetGenerateOverlapEvents(true);
+
+	MonsterExclusionCapsule = CreateDefaultSubobject<UCapsuleComponent>(TEXT("MonsterExclusionCapsule"));
+	MonsterExclusionCapsule->SetupAttachment(RootComponent);
+	// Extend from the altar base well above the platform, so pushed monsters
+	// cannot settle on its top surface.
+	MonsterExclusionCapsule->SetRelativeLocation(FVector(0.f, 0.f, 600.f));
+	MonsterExclusionCapsule->SetCapsuleSize(210.f, 700.f);
+	MonsterExclusionCapsule->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	MonsterExclusionCapsule->SetCollisionObjectType(ECC_WorldDynamic);
+	MonsterExclusionCapsule->SetCollisionResponseToAllChannels(ECR_Ignore);
+	MonsterExclusionCapsule->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	MonsterExclusionCapsule->SetGenerateOverlapEvents(true);
 
 	bActivated = false;
 	bPlayerInside = false;
@@ -137,6 +150,52 @@ void AAltar::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (HasAuthority())
+	{
+		PushMonstersOffAltar();
+	}
+}
+
+void AAltar::PushMonstersOffAltar()
+{
+	if (!MonsterExclusionCapsule)
+	{
+		return;
+	}
+
+	TArray<AActor*> OverlappingMonsters;
+	MonsterExclusionCapsule->GetOverlappingActors(
+		OverlappingMonsters,
+		AMonster::StaticClass());
+
+	const FVector AltarLocation = GetActorLocation();
+	const float ExclusionRadius = MonsterExclusionCapsule->GetScaledCapsuleRadius();
+
+	for (AActor* OverlappingActor : OverlappingMonsters)
+	{
+		AMonster* Monster = Cast<AMonster>(OverlappingActor);
+		if (!Monster || Monster->IsActorBeingDestroyed())
+		{
+			continue;
+		}
+
+		FVector AwayFromAltar = Monster->GetActorLocation() - AltarLocation;
+		AwayFromAltar.Z = 0.f;
+		if (AwayFromAltar.IsNearlyZero())
+		{
+			AwayFromAltar = FVector::ForwardVector;
+		}
+		else
+		{
+			AwayFromAltar.Normalize();
+		}
+
+		const float EjectDistance = ExclusionRadius +
+			Monster->GetCapsuleComponent()->GetScaledCapsuleRadius() + 50.f;
+		FVector SafeLocation = AltarLocation + AwayFromAltar * EjectDistance;
+		SafeLocation.Z = Monster->GetActorLocation().Z;
+		Monster->SetActorLocation(SafeLocation, false, nullptr, ETeleportType::TeleportPhysics);
+	}
 }
 
 void AAltar::ActivateAltar()

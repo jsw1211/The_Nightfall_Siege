@@ -170,6 +170,13 @@ void ADragonBoss::Tick(float DeltaTime)
 		return;
 	}
 
+	const FVector ClampedCurrentLocation = ClampToMovementBounds(GetActorLocation());
+	if (!ClampedCurrentLocation.Equals(GetActorLocation(), KINDA_SMALL_NUMBER))
+	{
+		GetCharacterMovement()->StopMovementImmediately();
+		SetActorLocation(ClampedCurrentLocation);
+	}
+
 	if (!bEncounterStarted)
 	{
 		UpdatePlayerList();
@@ -185,11 +192,11 @@ void ADragonBoss::Tick(float DeltaTime)
 
 			bEncounterStarted = true;
 			TargetPlayer = Player;
+			bFirstBreathDone = true;
 			UE_LOG(LogTemp, Warning,
 				TEXT("Dragon encounter started by %s at %.0f units"),
 				*Player->GetName(),
 				FMath::Sqrt(FVector::DistSquared(GetActorLocation(), Player->GetActorLocation())));
-			StartAttackTelegraph(EDragonAttackType::Breath);
 			return;
 		}
 
@@ -429,6 +436,23 @@ void ADragonBoss::UpdateDamageHitboxes()
 	FitCapsuleToBones(HeadHitbox, TEXT("Neck1"), TEXT("Head3"), 0.40f);
 	FitBodyBoxToBones(BodyHitbox, TEXT("Neck1"), TEXT("Tail1"), 0.38f);
 	FitCapsuleToBones(TailHitbox, TEXT("Tail1"), TEXT("Tail4"), 0.12f);
+}
+
+FVector ADragonBoss::ClampToMovementBounds(const FVector& DesiredLocation) const
+{
+	FVector ClampedLocation = DesiredLocation;
+	const FVector2D HorizontalLocation(DesiredLocation.X, DesiredLocation.Y);
+	const float RadiusSquared = FMath::Square(MovementBoundaryRadius);
+
+	if (HorizontalLocation.SizeSquared() > RadiusSquared)
+	{
+		const FVector2D BoundaryLocation =
+			HorizontalLocation.GetSafeNormal() * MovementBoundaryRadius;
+		ClampedLocation.X = BoundaryLocation.X;
+		ClampedLocation.Y = BoundaryLocation.Y;
+	}
+
+	return ClampedLocation;
 }
 
 // Called to bind functionality to input
@@ -841,8 +865,8 @@ void ADragonBoss::WalkToTarget()
 	if (AIController && TargetPlayer)
 	{
 		const float EffectiveChaseStopRange = FMath::Clamp(ChaseStopRange, 100.f, AttackStartRange * 0.8f);
-		AIController->MoveToActor(
-			TargetPlayer,
+		AIController->MoveToLocation(
+			ClampToMovementBounds(TargetPlayer->GetActorLocation()),
 			EffectiveChaseStopRange);
 	}
 }
@@ -897,6 +921,7 @@ void ADragonBoss::FlyToTarget()
 		TargetPlayer->GetActorLocation();
 
 	TargetLoc.Z += 300.f;
+	TargetLoc = ClampToMovementBounds(TargetLoc);
 
 	const float DeltaSeconds = GetWorld()->GetDeltaSeconds();
 	const FVector PreviousLocation = GetActorLocation();
@@ -917,7 +942,7 @@ void ADragonBoss::FlyToTarget()
 			(NewLocation - PreviousLocation) / DeltaSeconds;
 	}
 
-	SetActorLocation(NewLocation);
+	SetActorLocation(ClampToMovementBounds(NewLocation));
 
 	SetActorRotation(
 		(TargetLoc - GetActorLocation())

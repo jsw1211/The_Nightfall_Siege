@@ -73,6 +73,7 @@ protected:
 
 	// Fits the damage hitboxes to the current animated bone positions.
 	void UpdateDamageHitboxes();
+	FVector ClampToMovementBounds(const FVector& DesiredLocation) const;
 
 	int32 BiteCount = 0;
 	int32 CloseBreathCount = 0;
@@ -365,6 +366,10 @@ public:
 	// Once flight starts it remains latched until this distance is reached.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Movement", meta = (ClampMin = "0.0"))
 	float FlyLandingRange = 700.f;
+
+	// Horizontal movement is constrained to a circle centred on the world origin.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Movement", meta = (ClampMin = "0.0"))
+	float MovementBoundaryRadius = 4600.f;
 
 	// The encounter remains idle until at least one living player enters this range.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Encounter", meta = (ClampMin = "0.0"))
