@@ -277,6 +277,7 @@ void ABaseCharacter::BeginPlay()
 
         // W
         DefenseRate = 0.f;
+        PaladinWDefenseRate = 0.f;
 
         // E
         HealAmount = 0.1f;
@@ -1525,15 +1526,15 @@ void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
 
             if (SkillLevel == 2)
             {
-                DefenseRate = 0.2f;
+                PaladinWDefenseRate = 0.2f;
             }
             else if (SkillLevel == 3)
             {
-                DefenseRate = 0.4f;
+                PaladinWDefenseRate = 0.4f;
             }
             else if (SkillLevel == 4)
             {
-                DefenseRate = 0.6f;
+                PaladinWDefenseRate = 0.6f;
             }
 
             break;
@@ -2336,6 +2337,7 @@ void ABaseCharacter::OnPrismUnequipFinished()
 void ABaseCharacter::EndArcherWBuff()
 {
     AttackSpeed = DefaultAttackSpeed;
+    ForceNetUpdate();
 
     if (WAreaComponent)
     {
@@ -2567,6 +2569,29 @@ void ABaseCharacter::ServerUseW_Implementation()
 		ReduceCooldown(ECooldownTimer, ERemainingCooldown, &ABaseCharacter::ResetECooldown);
 		ReduceCooldown(RCooldownTimer, RRemainingCooldown, &ABaseCharacter::ResetRCooldown);
 	}
+
+    if (CharacterType == ECharacterType::Paladin)
+    {
+        DefenseRate = PaladinWDefenseRate;
+        GetWorldTimerManager().ClearTimer(PaladinWBuffHandle);
+        GetWorldTimerManager().SetTimer(
+            PaladinWBuffHandle,
+            this,
+            &ABaseCharacter::EndPaladinWBuff,
+            WBuffDuration,
+            false);
+    }
+    else if (CharacterType == ECharacterType::Archer)
+    {
+        AttackSpeed = BuffAttackSpeed;
+        GetWorldTimerManager().ClearTimer(AttackSpeedBuffHandle);
+        GetWorldTimerManager().SetTimer(
+            AttackSpeedBuffHandle,
+            this,
+            &ABaseCharacter::EndArcherWBuff,
+            WBuffDuration,
+            false);
+    }
 
     ClientStartSkillCooldown(ESkillType::W, WCooldown);
 
@@ -2991,6 +3016,12 @@ void ABaseCharacter::EndWarriorRBuff()
 	AttackPower = BaseAttackPower;
 }
 
+void ABaseCharacter::EndPaladinWBuff()
+{
+    DefenseRate = 0.f;
+    ForceNetUpdate();
+}
+
 void ABaseCharacter::ServerAttack_Implementation()
 {
     MulticastAttack();
@@ -3137,6 +3168,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
 
     DOREPLIFETIME(ABaseCharacter, CurrentHP);
     DOREPLIFETIME(ABaseCharacter, MaxHP);
+    DOREPLIFETIME(ABaseCharacter, AttackSpeed);
     DOREPLIFETIME(ABaseCharacter, bIsDead);
 	DOREPLIFETIME(ABaseCharacter, CharacterType);
     DOREPLIFETIME(ABaseCharacter, bHasLantern);

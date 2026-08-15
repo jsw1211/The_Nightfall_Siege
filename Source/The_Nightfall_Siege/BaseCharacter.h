@@ -233,10 +233,15 @@ public:
 	bool bRBonusDamage = false;
 
 	FTimerHandle AttackSpeedBuffHandle;
+	FTimerHandle PaladinWBuffHandle;
 
 	float DefaultAttackSpeed = 1.0f;
 
 	float BuffAttackSpeed = 1.5f;
+	float PaladinWDefenseRate = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill", meta = (ClampMin = "0"))
+	float WBuffDuration = 5.0f;
 
 	// 현재 보유 스킬 포인트
 	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Skill")
@@ -576,6 +581,7 @@ public:
 	FTimerHandle WarriorRBuffHandle;
 
 	void EndWarriorRBuff();
+	void EndPaladinWBuff();
 
 	UPROPERTY(Replicated, BlueprintReadOnly)
 	float QRemainingCooldown = 0.f;
@@ -926,7 +932,7 @@ protected:
 	float DefenseRate = 0.f;
 
 	// 공격속도
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float AttackSpeed = 1.f;
 
 	// 애니메이션 상태 전달용
