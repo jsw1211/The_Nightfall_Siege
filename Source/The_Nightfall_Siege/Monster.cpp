@@ -66,6 +66,14 @@ void AMonster::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+    // AI targeting, attack cooldowns, and HP changes must run only on the
+    // server.  Replicated monsters also tick on clients; without this guard a
+    // local client independently dealt the same 10 damage a second time.
+    if (!HasAuthority())
+    {
+        return;
+    }
+
     // Keep the navigation completion radius inside attack range. Using the
     // exact same value can leave an AI on the acceptance boundary, outside
     // the damage check due to path-following tolerance.

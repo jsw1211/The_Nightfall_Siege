@@ -1303,7 +1303,9 @@ void ABaseCharacter::ToggleSkillTree()
 
 void ABaseCharacter::TakePlayerDamage(float Damage)
 {
-    if (bIsDead) return;
+    // All combat damage is server-authoritative.  This also protects against
+    // an accidental client-side caller changing predicted HP.
+    if (!HasAuthority() || bIsDead) return;
 
     float FinalDamage = Damage;
 
