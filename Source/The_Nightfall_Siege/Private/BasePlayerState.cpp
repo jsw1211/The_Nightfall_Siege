@@ -3,6 +3,7 @@
 
 #include "BasePlayerState.h"
 #include "Net/UnrealNetwork.h"
+#include "GameFramework/GameStateBase.h"
 
 
 
@@ -44,7 +45,11 @@ void ABasePlayerState::OnRep_SelectedCharacter()
 
 void ABasePlayerState::AcceptMainQuest()
 {
-    if (QuestStage == EQuestStage::NotAccepted) QuestStage = EQuestStage::FindDungeonPortal;
+    if (QuestStage == EQuestStage::NotAccepted)
+    {
+        QuestStage = EQuestStage::FindDungeonPortal;
+        SyncQuestProgressToParty();
+    }
 }
 
 void ABasePlayerState::NotifyDungeonEntered()
@@ -54,18 +59,24 @@ void ABasePlayerState::NotifyDungeonEntered()
         QuestStage = EQuestStage::ClearDungeon;
         DungeonMonsterKillCount = 0;
         DungeonMonsterTotalCount = 0;
+        SyncQuestProgressToParty();
     }
 }
 
 void ABasePlayerState::NotifyDungeonCleared()
 {
-    if (QuestStage == EQuestStage::ClearDungeon) QuestStage = EQuestStage::CollectPrism;
+    if (QuestStage == EQuestStage::ClearDungeon)
+    {
+        QuestStage = EQuestStage::CollectPrism;
+        SyncQuestProgressToParty();
+    }
 }
 
 void ABasePlayerState::SetDungeonMonsterTotal(int32 TotalCount)
 {
     DungeonMonsterTotalCount = FMath::Max(0, TotalCount);
     DungeonMonsterKillCount = FMath::Clamp(DungeonMonsterKillCount, 0, DungeonMonsterTotalCount);
+    SyncQuestProgressToParty();
 }
 
 void ABasePlayerState::NotifyDungeonMonsterKilled()
@@ -73,6 +84,7 @@ void ABasePlayerState::NotifyDungeonMonsterKilled()
     if (QuestStage == EQuestStage::ClearDungeon && DungeonMonsterTotalCount > 0)
     {
         DungeonMonsterKillCount = FMath::Min(DungeonMonsterKillCount + 1, DungeonMonsterTotalCount);
+        SyncQuestProgressToParty();
     }
 }
 
@@ -83,6 +95,7 @@ void ABasePlayerState::NotifySkillPointSpent()
         QuestStage = ClearedDungeonCount >= 3
             ? EQuestStage::FindBossPortal
             : EQuestStage::FindDungeonPortal;
+        SyncQuestProgressToParty();
     }
 }
 
@@ -91,6 +104,7 @@ void ABasePlayerState::NotifyPrismCollected()
     if (QuestStage != EQuestStage::CollectPrism) return;
     ++ClearedDungeonCount;
     QuestStage = EQuestStage::ReturnToVillage;
+    SyncQuestProgressToParty();
 }
 
 void ABasePlayerState::NotifyReturnedToVillage()
@@ -98,17 +112,57 @@ void ABasePlayerState::NotifyReturnedToVillage()
     if (QuestStage == EQuestStage::ReturnToVillage)
     {
         QuestStage = EQuestStage::SpendSkillPoint;
+        SyncQuestProgressToParty();
     }
 }
 
 void ABasePlayerState::NotifyBossPortalEntered()
 {
-    if (QuestStage == EQuestStage::FindBossPortal) QuestStage = EQuestStage::DefeatBoss;
+    if (QuestStage == EQuestStage::FindBossPortal)
+    {
+        QuestStage = EQuestStage::DefeatBoss;
+        SyncQuestProgressToParty();
+    }
 }
 
 void ABasePlayerState::NotifyBossDefeated()
 {
-    if (QuestStage == EQuestStage::DefeatBoss) QuestStage = EQuestStage::Completed;
+    if (QuestStage == EQuestStage::DefeatBoss)
+    {
+        QuestStage = EQuestStage::Completed;
+        SyncQuestProgressToParty();
+    }
+}
+
+void ABasePlayerState::CopyQuestProgressFrom(const ABasePlayerState& Source)
+{
+    QuestStage = Source.QuestStage;
+    ClearedDungeonCount = Source.ClearedDungeonCount;
+    DungeonMonsterKillCount = Source.DungeonMonsterKillCount;
+    DungeonMonsterTotalCount = Source.DungeonMonsterTotalCount;
+}
+
+void ABasePlayerState::SyncQuestProgressToParty()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    AGameStateBase* GameState = GetWorld() ? GetWorld()->GetGameState<AGameStateBase>() : nullptr;
+    if (!GameState)
+    {
+        return;
+    }
+
+    for (APlayerState* PlayerState : GameState->PlayerArray)
+    {
+        if (ABasePlayerState* PartyMember = Cast<ABasePlayerState>(PlayerState))
+        {
+            PartyMember->CopyQuestProgressFrom(*this);
+            PartyMember->ForceNetUpdate();
+        }
+    }
 }
 
 FText ABasePlayerState::GetQuestObjectiveText() const

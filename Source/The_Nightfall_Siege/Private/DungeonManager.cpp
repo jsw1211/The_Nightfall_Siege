@@ -60,29 +60,32 @@
 		return AliveMonsterCount <= 0;
 	}
 
-	void ADungeonManager::UpdatePlayerMonsterProgress(bool bMonsterWasKilled)
-	{
-		TArray<AActor*> Players;
-		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+void ADungeonManager::UpdatePlayerMonsterProgress(bool bMonsterWasKilled)
+{
+	TArray<AActor*> Players;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
 
-		for (AActor* Actor : Players)
+	// Monster count is one party-wide value.  Updating every PlayerState here
+	// would increment the shared counter once per connected player.
+	for (AActor* Actor : Players)
+	{
+		if (ABaseCharacter* Player = Cast<ABaseCharacter>(Actor))
 		{
-			if (ABaseCharacter* Player = Cast<ABaseCharacter>(Actor))
+			if (ABasePlayerState* PlayerState = Player->GetPlayerState<ABasePlayerState>())
 			{
-				if (ABasePlayerState* PlayerState = Player->GetPlayerState<ABasePlayerState>())
-				{
 					if (bMonsterWasKilled)
 					{
 						PlayerState->NotifyDungeonMonsterKilled();
 					}
 					else
-					{
-						PlayerState->SetDungeonMonsterTotal(TotalMonsterCount);
-					}
+				{
+					PlayerState->SetDungeonMonsterTotal(TotalMonsterCount);
 				}
+				return;
 			}
 		}
 	}
+}
 
 	void ADungeonManager::SpawnMonsters()
 	{

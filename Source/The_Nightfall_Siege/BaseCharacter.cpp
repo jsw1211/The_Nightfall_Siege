@@ -3550,6 +3550,9 @@ void ABaseCharacter::ServerPickupPrism_Implementation(ADungeonPrism* Prism)
         {
             PS->ClearedDungeonCount = RaidClearCount;
         }
+        // The client or host can collect the prism; either way every party
+        // member must advance to the same return-to-village objective.
+        PS->SyncQuestProgressToParty();
         ClientShowQuestMessage(PS->GetQuestObjectiveText().ToString());
     }
 
@@ -3606,17 +3609,61 @@ void ABaseCharacter::ServerInteractDungeonPortal_Implementation()
 
 void ABaseCharacter::ServerInteractQuestGiver_Implementation(AQuestGiver* QuestGiver)
 {
+    // A client can press the interaction key before the NPC's actor channel is
+    // fully established.  In that case Unreal serializes the RPC actor
+    // parameter as null.  Resolve the nearby replicated NPC on the server so
+    // the interaction remains server-authoritative instead of being dropped.
+    if (!QuestGiver || !QuestGiver->CanInteractWith(this))
+    {
+        QuestGiver = nullptr;
+        for (TActorIterator<AQuestGiver> It(GetWorld()); It; ++It)
+        {
+            if (It->CanInteractWith(this))
+            {
+                QuestGiver = *It;
+                break;
+            }
+        }
+    }
+
     if (QuestGiver)
     {
+        UE_LOG(LogTemp, Log, TEXT("Quest interaction accepted: Player=%s, Giver=%s"),
+            *GetNameSafe(this), *GetNameSafe(QuestGiver));
         QuestGiver->Interact(this);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Quest interaction rejected: no quest giver in range for %s"),
+            *GetNameSafe(this));
     }
 }
 
 void ABaseCharacter::ServerSubmitQuestDecision_Implementation(AQuestGiver* QuestGiver, bool bAccepted)
 {
+    if (!QuestGiver || !QuestGiver->CanInteractWith(this))
+    {
+        QuestGiver = nullptr;
+        for (TActorIterator<AQuestGiver> It(GetWorld()); It; ++It)
+        {
+            if (It->CanInteractWith(this))
+            {
+                QuestGiver = *It;
+                break;
+            }
+        }
+    }
+
     if (QuestGiver)
     {
+        UE_LOG(LogTemp, Log, TEXT("Quest decision received: Player=%s, Accepted=%d"),
+            *GetNameSafe(this), bAccepted);
         QuestGiver->ResolveQuestDecision(this, bAccepted);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Quest decision rejected: no quest giver in range for %s"),
+            *GetNameSafe(this));
     }
 }
 

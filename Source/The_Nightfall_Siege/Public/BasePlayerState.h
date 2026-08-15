@@ -72,6 +72,11 @@ public:
     void NotifyBossPortalEntered();
     void NotifyBossDefeated();
 
+    // Quest objectives are shared by the whole listen-server party.  Call
+    // this on the server after directly assigning a quest field.
+    void SyncQuestProgressToParty();
+    void CopyQuestProgressFrom(const ABasePlayerState& Source);
+
     UFUNCTION(BlueprintPure, Category = "Quest")
     FText GetQuestObjectiveText() const;
 

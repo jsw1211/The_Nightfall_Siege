@@ -126,14 +126,17 @@ void AQuestGiver::ResolveQuestDecision(ABaseCharacter* Player, bool bAccepted)
 
     PS->AcceptMainQuest();
 
-    // In a listen-server party, the server's first controller owns the host pawn.
+    // The lantern is held by the listen-server host, regardless of which
+    // party member accepts the shared quest.
     ABaseCharacter* PartyLeader = nullptr;
     if (APlayerController* HostController = GetWorld()->GetFirstPlayerController())
     {
         PartyLeader = Cast<ABaseCharacter>(HostController->GetPawn());
     }
-    if (!PartyLeader) PartyLeader = Player;
-    PartyLeader->GrantQuestLantern();
+    if (PartyLeader)
+    {
+        PartyLeader->GrantQuestLantern();
+    }
 
     Player->ClientFinishQuestDialogue(true, PS->GetQuestObjectiveText());
 }

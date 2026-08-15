@@ -187,6 +187,22 @@ void AThe_Nightfall_SiegeGameMode::PostLogin(APlayerController* NewPlayer)
 		UE_LOG(LogTemp, Warning,
 			TEXT("Players : %d"),
 			GS->PlayerArray.Num());
+
+        // A player joining an in-progress listen-server session must inherit
+        // the party quest, rather than starting at NotAccepted locally.
+        if (ABasePlayerState* JoiningState = NewPlayer ? NewPlayer->GetPlayerState<ABasePlayerState>() : nullptr)
+        {
+            for (APlayerState* PlayerState : GS->PlayerArray)
+            {
+                ABasePlayerState* ExistingState = Cast<ABasePlayerState>(PlayerState);
+                if (ExistingState && ExistingState != JoiningState)
+                {
+                    JoiningState->CopyQuestProgressFrom(*ExistingState);
+                    JoiningState->ForceNetUpdate();
+                    break;
+                }
+            }
+        }
 	}
 }
 
