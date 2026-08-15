@@ -100,6 +100,7 @@ public:
 	void MulticastPlayR();
 
 	void ExecuteR();
+	void ApplyPaladinRHeal();
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayRHealEffect(FVector Location);
@@ -539,6 +540,7 @@ public:
 	void HealPlayer(float Amount);
 
 	FTimerHandle HealOverTimeHandle;
+	FTimerHandle PaladinRHealTimer;
 
 	int32 HealTickCount = 0;
 

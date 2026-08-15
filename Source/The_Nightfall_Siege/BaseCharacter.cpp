@@ -279,10 +279,10 @@ void ABaseCharacter::BeginPlay()
         DefenseRate = 0.f;
 
         // E
-        HealAmount = 0.f;
+        HealAmount = 0.1f;
 
         // R
-        RHealAmount = 0.f;
+        RHealAmount = 0.2f;
 
         break;
 
@@ -2916,39 +2916,18 @@ void ABaseCharacter::ExecuteR()
 		return;
 	}
 
-    TArray<AActor*> Players;
 
-    UGameplayStatics::GetAllActorsOfClass(
-        GetWorld(),
-        ABaseCharacter::StaticClass(),
-        Players);
-
-    for (AActor* Actor : Players)
+    // Paladin R's heal lands when its animation finishes, matching potion
+    // timing.  The actual HP change stays on the server.
+    if (CharacterType == ECharacterType::Paladin)
     {
-        ABaseCharacter* Player =
-            Cast<ABaseCharacter>(Actor);
-
-        if (!Player)
-        {
-            continue;
-        }
-
-        float Heal = Player->MaxHP * RHealAmount;
-
-        UE_LOG(LogTemp, Warning,
-            TEXT("%s HP : %.0f -> %.0f"),
-            *Player->GetName(),
-            Player->CurrentHP,
-            FMath::Min(Player->CurrentHP + Heal, Player->MaxHP));
-
-        Player->HealPlayer(Heal);
-
-        MulticastPlayRHealEffect(
-            Player->GetActorLocation());
-
-        UE_LOG(LogTemp, Warning,
-            TEXT("R Heal : %s"),
-            *Player->GetName());
+        const float HealDelay = RMontage ? RMontage->GetPlayLength() : 0.f;
+        GetWorldTimerManager().SetTimer(
+            PaladinRHealTimer,
+            this,
+            &ABaseCharacter::ApplyPaladinRHeal,
+            FMath::Max(HealDelay, KINDA_SMALL_NUMBER),
+            false);
     }
 
     TArray<AActor*> Monsters;
@@ -2978,6 +2957,32 @@ void ABaseCharacter::ExecuteR()
         }
 
         Monster->ApplyTaunt(this);
+    }
+}
+
+void ABaseCharacter::ApplyPaladinRHeal()
+{
+    if (!HasAuthority() || CharacterType != ECharacterType::Paladin)
+    {
+        return;
+    }
+
+    TArray<AActor*> Players;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+
+    for (AActor* Actor : Players)
+    {
+        ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
+        if (!Player || Player->IsDead() || Player->CurrentHP >= Player->MaxHP)
+        {
+            continue;
+        }
+
+        const float Heal = Player->MaxHP * RHealAmount;
+        Player->HealPlayer(Heal);
+
+        // Reuse the same NS_Heal effect spawned when a potion finishes.
+        MulticastPlayRHealEffect(Player->GetActorLocation());
     }
 }
 
@@ -4201,9 +4206,16 @@ void ABaseCharacter::HealOverTimeTick()
         Players.Add(Player);
 
         constexpr float TotalHealTicks = 5.f;
-        const float Heal = Player->MaxHP * HealAmount / TotalHealTicks;
+        if (Player->IsDead() || Player->CurrentHP >= Player->MaxHP)
+        {
+            continue;
+        }
 
+        const float Heal = Player->MaxHP * HealAmount / TotalHealTicks;
         Player->HealPlayer(Heal);
+
+        // Use the potion's heal visual at the exact time this tick restores HP.
+        MulticastPlayRHealEffect(Player->GetActorLocation());
     }
 
     if (HealTickCount >= 5)
