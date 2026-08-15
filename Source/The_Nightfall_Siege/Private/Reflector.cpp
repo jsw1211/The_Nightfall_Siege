@@ -42,14 +42,9 @@ void AReflector::Tick(float DeltaTime)
 
 void AReflector::ReflectBreath()
 {
-    if (!DragonBoss)
-    {
-        return;
-    }
-
-    UE_LOG(LogTemp, Warning,
-        TEXT("Breath Reflected"));
-
-    DragonBoss->OnBreathReflected();
+    // The projectile owns the reflection flow and resolves the result only
+    // when its reflected copy physically reaches the dragon.  Calling the
+    // boss here would resolve shield/damage as soon as the reflector is hit.
+    UE_LOG(LogTemp, Warning, TEXT("Breath reflected; awaiting dragon impact"));
 }
 

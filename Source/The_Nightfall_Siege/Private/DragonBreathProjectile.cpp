@@ -227,10 +227,12 @@ void ADragonBreathProjectile::OnOverlapBegin(
 
 		// 일반 화염구가 발사 직후 드래곤 자신과
 		// 겹친 경우에는 아무것도 하지 않음
-		if (!bReflected)
+		if (!bReflected || bResolvedAgainstDragon)
 		{
 			return;
 		}
+
+		bResolvedAgainstDragon = true;
 
 		// 반사된 화염구가 드래곤에게 맞은 경우
 		Dragon->OnBreathReflected();

@@ -155,12 +155,7 @@ void ADragonBoss::BeginPlay()
 	CurrentState = EDragonState::Idle;
 
 	UpdatePlayerList();
-
-	ChooseRandomTarget();
-
 	bFirstBreathDone = false;
-
-	StartAttackTelegraph(EDragonAttackType::Breath);
 
 }
 
@@ -172,6 +167,32 @@ void ADragonBoss::Tick(float DeltaTime)
 
 	if (!HasAuthority())
 	{
+		return;
+	}
+
+	if (!bEncounterStarted)
+	{
+		UpdatePlayerList();
+		const float StartRangeSquared = FMath::Square(EncounterStartRange);
+
+		for (ABaseCharacter* Player : AlivePlayers)
+		{
+			if (!Player ||
+				FVector::DistSquared(GetActorLocation(), Player->GetActorLocation()) > StartRangeSquared)
+			{
+				continue;
+			}
+
+			bEncounterStarted = true;
+			TargetPlayer = Player;
+			UE_LOG(LogTemp, Warning,
+				TEXT("Dragon encounter started by %s at %.0f units"),
+				*Player->GetName(),
+				FMath::Sqrt(FVector::DistSquared(GetActorLocation(), Player->GetActorLocation())));
+			StartAttackTelegraph(EDragonAttackType::Breath);
+			return;
+		}
+
 		return;
 	}
 
@@ -955,15 +976,45 @@ void ADragonBoss::TakeBossDamage(float Damage)
 
 void ADragonBoss::OnBreathReflected()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	// A reflected projectile reaching the dragon always breaks an active
+	// shield, regardless of which breath in the encounter produced it.
+	if (bShielded)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Shield Broken"));
+
+		bShielded = false;
+		bCanTakeDamage = true;
+		MulticastStopBarrierFX();
+
+		bStunned = true;
+
+		CurrentState = EDragonState::Attacking;
+
+		GetCharacterMovement()->DisableMovement();
+
+		GetWorldTimerManager().SetTimer(
+			StunTimerHandle,
+			this,
+			&ADragonBoss::EndStun,
+			5.f,
+			false
+		);
+		return;
+	}
+
 	if (bCenterMechanicActive)
 	{
 		OnCenterMechanicSuccess();
 		return;
 	}
 
-	if (!bShielded)
 	{
-		float Damage = MaxHP * 0.1f;
+		const float Damage = MaxHP * 0.1f;
 
 		CurrentHP = FMath::Max(
 			0.f,
@@ -983,30 +1034,8 @@ void ADragonBoss::OnBreathReflected()
 		{
 			Die();
 		}
-
-		return;
 	}
 
-	UE_LOG(LogTemp, Warning,
-		TEXT("Shield Broken"));
-
-	bShielded = false;
-	bCanTakeDamage = true;
-	MulticastStopBarrierFX();
-
-	bStunned = true;
-
-	CurrentState = EDragonState::Attacking;
-
-	GetCharacterMovement()->DisableMovement();
-
-	GetWorldTimerManager().SetTimer(
-		StunTimerHandle,
-		this,
-		&ADragonBoss::EndStun,
-		5.f,
-		false
-	);
 }
 
 void ADragonBoss::EndStun()

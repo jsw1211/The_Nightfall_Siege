@@ -366,6 +366,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Movement", meta = (ClampMin = "0.0"))
 	float FlyLandingRange = 700.f;
 
+	// The encounter remains idle until at least one living player enters this range.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Encounter", meta = (ClampMin = "0.0"))
+	float EncounterStartRange = 4000.f;
+
+	bool bEncounterStarted = false;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
 	TObjectPtr<UNiagaraSystem> BiteFX;
 
