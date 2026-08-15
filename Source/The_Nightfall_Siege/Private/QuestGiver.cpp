@@ -48,9 +48,6 @@ AQuestGiver::AQuestGiver()
     InteractionWidget->SetWidgetSpace(EWidgetSpace::Screen);
     InteractionWidget->SetDrawSize(FVector2D(420.f, 110.f));
     InteractionWidget->SetPivot(FVector2D(0.5f, 0.5f));
-    // This is an informational label, not a UI control. It must never absorb
-    // clicks that are intended to move the player on the ground behind it.
-    InteractionWidget->SetWindowVisibility(EWindowVisibility::SelfHitTestInvisible);
     InteractionWidget->SetWidgetClass(UQuestInteractionWidget::StaticClass());
 
     SpeakerName = FText::FromString(TEXT("수호자"));
@@ -65,6 +62,10 @@ AQuestGiver::AQuestGiver()
 void AQuestGiver::BeginPlay()
 {
     Super::BeginPlay();
+
+    // The widget is created during component registration, which has completed
+    // by BeginPlay. Calling this from the constructor fails during cooking.
+    InteractionWidget->SetWindowVisibility(EWindowVisibility::SelfHitTestInvisible);
 
     // Child Blueprints may have serialized the old component as visible.
     // Hide it again at runtime so only the Korean-capable UMG label renders.

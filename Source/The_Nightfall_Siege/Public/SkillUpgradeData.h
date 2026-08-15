@@ -31,14 +31,14 @@ struct FSkillUpgradeData
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	ESkillType SkillType;
+	ESkillType SkillType = ESkillType::Q;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	EUpgradeType UpgradeType;
+	EUpgradeType UpgradeType = EUpgradeType::Damage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 Level;
+	int32 Level = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Value;
+	float Value = 0.0f;
 };

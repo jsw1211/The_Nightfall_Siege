@@ -107,7 +107,6 @@ AAltar::AAltar()
 	InteractionPrompt->SetWidgetSpace(EWidgetSpace::Screen);
 	InteractionPrompt->SetDrawSize(FVector2D(280.f, 42.f));
 	InteractionPrompt->SetPivot(FVector2D(0.5f, 0.5f));
-	InteractionPrompt->SetWindowVisibility(EWindowVisibility::SelfHitTestInvisible);
 	InteractionPrompt->SetWidgetClass(UAltarInteractionWidget::StaticClass());
 	InteractionPrompt->SetVisibility(false);
 
@@ -140,6 +139,9 @@ void AAltar::BeginPlay()
 	// Screen-space widgets are rendered as billboards and always face the
 	// local player's camera, regardless of the altar actor's rotation.
 	InteractionPrompt->SetWidgetSpace(EWidgetSpace::Screen);
+	// InitWidget has completed by BeginPlay. Calling SetWindowVisibility in the
+	// constructor would run before the UUserWidget exists and fails during cook.
+	InteractionPrompt->SetWindowVisibility(EWindowVisibility::SelfHitTestInvisible);
 
 	// Child Blueprints may have serialized the component as visible.
 	InteractionPrompt->SetVisibility(false, true);
