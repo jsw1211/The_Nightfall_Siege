@@ -69,6 +69,10 @@ protected:
 	UPROPERTY(Replicated)
 	bool bReflected = false;
 
+	// The dragon has multiple hitbox components.  A returned projectile may
+	// overlap more than one of them in one frame, but must resolve only once.
+	bool bResolvedAgainstDragon = false;
+
 	// 반사된 화염구가 보스에게 돌아가는 속도
 	UPROPERTY(EditAnywhere, Category = "Projectile")
 	float ReturnSpeed = 2800.f;

@@ -366,6 +366,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Movement", meta = (ClampMin = "0.0"))
 	float FlyLandingRange = 700.f;
 
+	// The encounter remains idle until at least one living player enters this range.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Encounter", meta = (ClampMin = "0.0"))
+	float EncounterStartRange = 4000.f;
+
+	bool bEncounterStarted = false;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
 	TObjectPtr<UNiagaraSystem> BiteFX;
 
@@ -391,6 +397,12 @@ public:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UNiagaraComponent> PhaseTwoFXComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX|Barrier")
+	TObjectPtr<UNiagaraSystem> BarrierFX;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UNiagaraComponent> BarrierFXComponent;
 
 	UFUNCTION(BlueprintCallable)
 	void BiteHit();
@@ -427,8 +439,15 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastStartPhaseTwoFX();
 
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStartBarrierFX();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStopBarrierFX();
+
 	void CheckPhaseTwo();
 	void EnsurePhaseTwoFX();
+	void EnsureBarrierFX();
 	void ApplyPhaseTwoMaterial();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
