@@ -14,6 +14,7 @@ class UMaterialInterface;
 class ADangerZone;
 class UNiagaraComponent;
 class UCapsuleComponent;
+class UBoxComponent;
 
 UENUM(BlueprintType)
 enum class EDragonState : uint8
@@ -54,13 +55,13 @@ public:
 	ADragonBoss();
 
 	// The Character capsule remains the movement/root collider.  These three
-	// query-only capsules provide the actual damageable silhouette and are
+	// query-only hitbox components provide the actual damageable silhouette and are
 	// attached to the dragon's animated bones.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision|Hitboxes")
 	TObjectPtr<UCapsuleComponent> HeadHitbox;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision|Hitboxes")
-	TObjectPtr<UCapsuleComponent> BodyHitbox;
+	TObjectPtr<UBoxComponent> BodyHitbox;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision|Hitboxes")
 	TObjectPtr<UCapsuleComponent> TailHitbox;
@@ -304,6 +305,7 @@ public:
 	bool ArePrismHoldersGathered(const TArray<AActor*>& PlayerActors) const;
 
 	FTimerHandle CenterTrackingHandle;
+	void StopBreathTracking();
 
 	bool bCenterTracking = false;
 

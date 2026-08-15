@@ -73,7 +73,7 @@ UClass* AThe_Nightfall_SiegeGameMode::GetDefaultPawnClassForController_Implement
 {
     if (!InController)
     {
-        return PaladinClass;
+        return ArcherClass;
     }
 
     ABasePlayerState* PS =
@@ -81,7 +81,7 @@ UClass* AThe_Nightfall_SiegeGameMode::GetDefaultPawnClassForController_Implement
 
     if (!PS)
     {
-        return PaladinClass;
+        return ArcherClass;
     }
 
     UE_LOG(LogTemp, Warning,
@@ -100,7 +100,7 @@ UClass* AThe_Nightfall_SiegeGameMode::GetDefaultPawnClassForController_Implement
         return ArcherClass;
 
     default:
-        return PaladinClass;
+        return ArcherClass;
     }
 }
 

@@ -19,7 +19,7 @@ class THE_NIGHTFALL_SIEGE_API UTheNightfallSiegeInstance : public UGameInstance
 	
 public:
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    ECharacterType SelectedCharacter = ECharacterType::Paladin;
+    ECharacterType SelectedCharacter = ECharacterType::Archer;
 
 	UPROPERTY(BlueprintReadWrite)
 	TArray<FName> RemainingDungeons;

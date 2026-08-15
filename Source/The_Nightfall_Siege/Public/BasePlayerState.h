@@ -25,7 +25,7 @@ public:
 	ABasePlayerState();
 
 	UPROPERTY(ReplicatedUsing = OnRep_SelectedCharacter, BlueprintReadOnly)
-	ECharacterType SelectedCharacter = ECharacterType::Paladin;
+	ECharacterType SelectedCharacter = ECharacterType::Archer;
 
 	UPROPERTY(Replicated, BlueprintReadWrite)
 	bool bHasLantern = false;

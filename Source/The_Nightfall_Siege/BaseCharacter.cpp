@@ -2135,6 +2135,8 @@ void ABaseCharacter::SpawnQArrow()
             Arrow->SetupTrail();
 
             Arrow->DamageMultiplier = QMultiplier;
+            Arrow->ProjectileMovement->MaxSpeed = 1000.f;
+            Arrow->ProjectileMovement->Velocity = Direction * 1000.f;
         }
     }
 }
@@ -2201,8 +2203,9 @@ void ABaseCharacter::SpawnEArrow()
         Arrow->SetupTrail();
 
         Arrow->DamageMultiplier = EMultiplier;
+        Arrow->EExplosionRadius = 450.f;
 
-        FVector TargetLocation = GetActorLocation() + GetActorForwardVector() * 300.f;
+        FVector TargetLocation = GetActorLocation() + GetActorForwardVector() * 1000.f;
 
         FVector LaunchVelocity;
 
@@ -2672,7 +2675,8 @@ void ABaseCharacter::MulticastPlayE_Implementation()
 
     if (ESkillEffect)
     {
-        UNiagaraFunctionLibrary::SpawnSystemAttached(
+        if (UNiagaraComponent* ESkillEffectComponent =
+            UNiagaraFunctionLibrary::SpawnSystemAttached(
             ESkillEffect,
             GetMesh(),
             TEXT("RightHandSocket"),
@@ -2680,7 +2684,10 @@ void ABaseCharacter::MulticastPlayE_Implementation()
             FRotator::ZeroRotator,
             EAttachLocation::SnapToTarget,
             true
-        );
+        ))
+        {
+            ESkillEffectComponent->SetWorldScale3D(FVector(5.f));
+        }
     }
 }
 

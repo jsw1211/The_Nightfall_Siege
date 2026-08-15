@@ -8,6 +8,7 @@
 #include "TimerManager.h"
 #include "AIController.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/BoxComponent.h"
 #include "DungeonPrism.h"
 #include "BasePlayerState.h"
 #include "DragonBreathProjectile.h"
@@ -55,7 +56,19 @@ ADragonBoss::ADragonBoss()
 	};
 
 	ConfigureHitbox(HeadHitbox, TEXT("HeadHitbox"), TEXT("Head2"), 65.f, 200.f);
-	ConfigureHitbox(BodyHitbox, TEXT("BodyHitbox"), TEXT("Body1"), 250.f, 270.f);
+
+	BodyHitbox = CreateDefaultSubobject<UBoxComponent>(TEXT("BodyHitbox"));
+	BodyHitbox->SetupAttachment(GetMesh(), TEXT("Body1"));
+	BodyHitbox->SetAbsolute(false, false, true);
+	BodyHitbox->SetBoxExtent(FVector(270.f, 375.f, 500.f));
+	BodyHitbox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	BodyHitbox->SetCollisionObjectType(ECC_Pawn);
+	BodyHitbox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	BodyHitbox->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
+	BodyHitbox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	BodyHitbox->SetGenerateOverlapEvents(true);
+	BodyHitbox->SetCanEverAffectNavigation(false);
+
 	ConfigureHitbox(TailHitbox, TEXT("TailHitbox"), TEXT("Tail3"), 80.f, 420.f);
 
 	// Keep these gameplay effects wired even when the BP defaults have not
@@ -339,9 +352,44 @@ void ADragonBoss::UpdateDamageHitboxes()
 			ETeleportType::TeleportPhysics);
 	};
 
+	// The body is a box so its horizontal and vertical thickness can be
+	// independently widened beyond the capsule-shaped head and tail hitboxes.
+	auto FitBodyBoxToBones = [DragonMesh](UBoxComponent* Hitbox,
+		const FName StartBone, const FName EndBone, float RadiusRatio)
+	{
+		if (!Hitbox ||
+			DragonMesh->GetBoneIndex(StartBone) == INDEX_NONE ||
+			DragonMesh->GetBoneIndex(EndBone) == INDEX_NONE)
+		{
+			return;
+		}
+
+		const FVector Start = DragonMesh->GetBoneLocation(StartBone);
+		const FVector End = DragonMesh->GetBoneLocation(EndBone);
+		const FVector Segment = End - Start;
+		const float SegmentLength = Segment.Size();
+		if (SegmentLength <= KINDA_SMALL_NUMBER)
+		{
+			return;
+		}
+
+		const float Radius = FMath::Max(SegmentLength * RadiusRatio, 1.f);
+		const FQuat Rotation = FQuat::FindBetweenNormals(
+			FVector::ForwardVector, Segment / SegmentLength);
+
+		// SetBoxExtent uses half-extents: Y is horizontal width, Z is height.
+		Hitbox->SetBoxExtent(FVector(
+			SegmentLength * 0.5f,
+			Radius * 1.5f,
+			Radius * 2.0f), false);
+		Hitbox->SetWorldLocationAndRotation(
+			(Start + End) * 0.5f, Rotation, false, nullptr,
+			ETeleportType::TeleportPhysics);
+	};
+
 	// The ratios create a narrow head, broad body, and tapered tail silhouette.
-	FitCapsuleToBones(HeadHitbox, TEXT("Neck2"), TEXT("Head3"), 0.35f);
-	FitCapsuleToBones(BodyHitbox, TEXT("Body1"), TEXT("Tail1"), 0.38f);
+	FitCapsuleToBones(HeadHitbox, TEXT("Neck1"), TEXT("Head3"), 0.40f);
+	FitBodyBoxToBones(BodyHitbox, TEXT("Neck1"), TEXT("Tail1"), 0.38f);
 	FitCapsuleToBones(TailHitbox, TEXT("Tail1"), TEXT("Tail4"), 0.12f);
 }
 
@@ -578,6 +626,12 @@ void ADragonBoss::OnBreathMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 	{
 		OnAttackFinished();
 	}
+}
+
+void ADragonBoss::StopBreathTracking()
+{
+	bCenterTracking = false;
+	CurrentBreathZone = nullptr;
 }
 
 void ADragonBoss::DebuffAttack()
@@ -1405,6 +1459,9 @@ void ADragonBoss::Die()
 
 	GetWorldTimerManager().ClearTimer(
 		CenterFailHandle);
+
+	GetWorldTimerManager().ClearTimer(
+		CenterTrackingHandle);
 }
 
 void ADragonBoss::StartAttackTelegraph(
@@ -1700,11 +1757,10 @@ void ADragonBoss::ExecuteTelegraphedAttack(
 		break;
 
 	case EDragonAttackType::Breath:
-		if (CurrentBreathZone)
-		{
-			CurrentBreathZone = nullptr;
-		}
-
+		// Lock aim as the montage begins; the remaining decal is only the
+		// tail end of its visual lifetime and must no longer track the target.
+		GetWorldTimerManager().ClearTimer(CenterTrackingHandle);
+		StopBreathTracking();
 		BreathAttack();
 		break;
 
