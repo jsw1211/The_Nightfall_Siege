@@ -71,6 +71,14 @@ ADragonBoss::ADragonBoss()
 
 	ConfigureHitbox(TailHitbox, TEXT("TailHitbox"), TEXT("Tail3"), 80.f, 420.f);
 
+	BarrierFXComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("BarrierFXComponent"));
+	BarrierFXComponent->SetupAttachment(GetMesh());
+	// The dragon mesh is intentionally scaled up in BP; keep the barrier at
+	// the Niagara system's authored scale instead of inheriting that scale.
+	BarrierFXComponent->SetAbsolute(false, false, true);
+	BarrierFXComponent->SetWorldScale3D(FVector::OneVector);
+	BarrierFXComponent->SetAutoActivate(false);
+
 	// Keep these gameplay effects wired even when the BP defaults have not
 	// explicitly overridden the corresponding C++ properties.
 	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> BlackoutChargingAsset(
@@ -81,6 +89,8 @@ ADragonBoss::ADragonBoss()
 		TEXT("/Game/Effects/6_Dragon/Second_Phase/NS_Dragon_FX.NS_Dragon_FX"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> PhaseTwoMaterialAsset(
 		TEXT("/Game/Effects/6_Dragon/Second_Phase/M_Dragon_FX.M_Dragon_FX"));
+	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> BarrierAsset(
+		TEXT("/Game/Effects/6_Dragon/Barrier/NS_Dragon_Barrier.NS_Dragon_Barrier"));
 	static ConstructorHelpers::FClassFinder<ADragonBreathProjectile> BreathProjectileAsset(
 		TEXT("/Game/BP_Monster/Dragon/BP_DragonBreathProjectile"));
 
@@ -102,6 +112,12 @@ ADragonBoss::ADragonBoss()
 	if (PhaseTwoMaterialAsset.Succeeded())
 	{
 		PhaseTwoOverlayMaterial = PhaseTwoMaterialAsset.Object;
+	}
+
+	if (BarrierAsset.Succeeded())
+	{
+		BarrierFX = BarrierAsset.Object;
+		BarrierFXComponent->SetAsset(BarrierFX);
 	}
 
 	if (BreathProjectileAsset.Succeeded())
@@ -134,6 +150,7 @@ void ADragonBoss::BeginPlay()
 
 	bShielded = true;
 	bCanTakeDamage = false;
+	MulticastStartBarrierFX();
 
 	CurrentState = EDragonState::Idle;
 
@@ -975,6 +992,7 @@ void ADragonBoss::OnBreathReflected()
 
 	bShielded = false;
 	bCanTakeDamage = true;
+	MulticastStopBarrierFX();
 
 	bStunned = true;
 
@@ -2092,6 +2110,20 @@ void ADragonBoss::MulticastStartPhaseTwoFX_Implementation()
 	ApplyPhaseTwoMaterial();
 }
 
+void ADragonBoss::MulticastStartBarrierFX_Implementation()
+{
+	EnsureBarrierFX();
+}
+
+void ADragonBoss::MulticastStopBarrierFX_Implementation()
+{
+	if (IsValid(BarrierFXComponent))
+	{
+		BarrierFXComponent->DeactivateImmediate();
+		BarrierFXComponent->SetVisibility(false, true);
+	}
+}
+
 bool ADragonBoss::TakeArcherQVolleyDamage(ABaseCharacter* Attacker, int32 VolleyId, float Damage)
 {
 	if (!Attacker || VolleyId == INDEX_NONE || !HasAuthority())
@@ -2126,6 +2158,53 @@ void ADragonBoss::EnsurePhaseTwoFX()
 		FRotator::ZeroRotator,
 		EAttachLocation::KeepRelativeOffset,
 		false);
+}
+
+void ADragonBoss::EnsureBarrierFX()
+{
+	if (!BarrierFX)
+	{
+		BarrierFX = LoadObject<UNiagaraSystem>(
+			nullptr,
+			TEXT("/Game/Effects/6_Dragon/Barrier/NS_Dragon_Barrier.NS_Dragon_Barrier"));
+	}
+
+	if (!BarrierFX || !GetMesh())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Dragon barrier Niagara asset could not be loaded"));
+		return;
+	}
+
+	if (IsValid(BarrierFXComponent))
+	{
+		BarrierFXComponent->SetAsset(BarrierFX);
+		BarrierFXComponent->SetAbsolute(false, false, true);
+		BarrierFXComponent->SetWorldScale3D(FVector::OneVector);
+		BarrierFXComponent->SetVisibility(true, true);
+		BarrierFXComponent->SetHiddenInGame(false, true);
+		BarrierFXComponent->Activate(true);
+		return;
+	}
+
+	// The Niagara system intentionally does not auto-kill its finished particles,
+	// so this component stays attached until the shield is explicitly broken.
+	BarrierFXComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+		BarrierFX,
+		GetMesh(),
+		NAME_None,
+		FVector::ZeroVector,
+		FRotator::ZeroRotator,
+		EAttachLocation::KeepRelativeOffset,
+		false);
+
+	if (BarrierFXComponent)
+	{
+		BarrierFXComponent->SetAbsolute(false, false, true);
+		BarrierFXComponent->SetWorldScale3D(FVector::OneVector);
+		BarrierFXComponent->SetVisibility(true, true);
+		BarrierFXComponent->SetHiddenInGame(false, true);
+		BarrierFXComponent->Activate(true);
+	}
 }
 
 void ADragonBoss::ApplyPhaseTwoMaterial()
