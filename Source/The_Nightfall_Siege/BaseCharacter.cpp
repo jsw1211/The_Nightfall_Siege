@@ -268,7 +268,7 @@ void ABaseCharacter::BeginPlay()
     case ECharacterType::Paladin:
 
         MaxHP = 500.f;
-        AttackPower = 500.f;
+        AttackPower = 100.f;
 
         // Q
         QMultiplier = 1.0f;
@@ -2675,8 +2675,10 @@ void ABaseCharacter::MulticastPlayE_Implementation()
 
     if (ESkillEffect)
     {
-        if (UNiagaraComponent* ESkillEffectComponent =
-            UNiagaraFunctionLibrary::SpawnSystemAttached(
+        // The Niagara system already contains its authored size. Do not apply
+        // a world-scale multiplier here: it made Paladin's shield E effect
+        // five times larger in packaged builds.
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
             ESkillEffect,
             GetMesh(),
             TEXT("RightHandSocket"),
@@ -2684,10 +2686,7 @@ void ABaseCharacter::MulticastPlayE_Implementation()
             FRotator::ZeroRotator,
             EAttachLocation::SnapToTarget,
             true
-        ))
-        {
-            ESkillEffectComponent->SetWorldScale3D(FVector(5.f));
-        }
+        );
     }
 }
 
@@ -3916,7 +3915,7 @@ void ABaseCharacter::ServerPickupCoin_Implementation(ACoin* CoinActor)
         return;
     }
 
-    Coin++;
+    Coin += 5;
 
     OnRep_Coin();
 

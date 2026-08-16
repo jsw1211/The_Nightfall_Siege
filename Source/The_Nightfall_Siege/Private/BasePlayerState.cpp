@@ -169,7 +169,7 @@ FText ABasePlayerState::GetQuestObjectiveText() const
 {
     switch (QuestStage)
     {
-    case EQuestStage::NotAccepted: return FText::FromString(TEXT("F를 눌러 수호자에게 퀘스트를 받으세요."));
+    case EQuestStage::NotAccepted: return FText::FromString(TEXT("F를 눌러 마을 촌장에게 퀘스트를 받으세요."));
     case EQuestStage::FindDungeonPortal: return FText::FromString(FString::Printf(TEXT("던전 포탈을 찾으세요. (%d/3 완료)"), ClearedDungeonCount));
     case EQuestStage::ClearDungeon: return FText::FromString(TEXT("던전의 몬스터를 모두 처치하세요."));
     case EQuestStage::CollectPrism: return FText::FromString(TEXT("던전 프리즘을 획득하세요."));

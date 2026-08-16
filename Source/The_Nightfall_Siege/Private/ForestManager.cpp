@@ -4,6 +4,7 @@
 #include "ForestManager.h"
 #include "DungeonPortal.h"
 #include "TheNightfallSiegeInstance.h"
+#include "UObject/ConstructorHelpers.h"
 
 // Sets default values
 AForestManager::AForestManager()
@@ -11,6 +12,15 @@ AForestManager::AForestManager()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
+	// Keep the runtime-spawned portal Blueprint as a hard reference.  The
+	// fallback in SpawnDungeonPortal uses a string path, which the cooker cannot
+	// discover reliably when the placed ForestManager Blueprint has no class set.
+	static ConstructorHelpers::FClassFinder<ADungeonPortal> DungeonPortalClass(
+		TEXT("/Game/BP/BP_DungeonPortal"));
+	if (DungeonPortalClass.Succeeded())
+	{
+		PortalClass = DungeonPortalClass.Class;
+	}
 }
 
 // Called when the game starts or when spawned

@@ -36,7 +36,7 @@ AQuestGiver::AQuestGiver()
     InteractionText->SetupAttachment(SceneRoot);
     InteractionText->SetRelativeLocation(FVector(0.f, 0.f, 180.f));
     InteractionText->SetHorizontalAlignment(EHTA_Center);
-    InteractionText->SetText(FText::FromString(TEXT("퀘스트 수호자\n[F] 대화")));
+    InteractionText->SetText(FText::FromString(TEXT("마을 촌장\n[F] 대화")));
     // TextRender's default font has no Korean glyphs. Keep the component for
     // backwards-compatible Blueprint layouts, but render the actual label via
     // UMG using the imported Noto Sans KR FontFace.
@@ -50,7 +50,7 @@ AQuestGiver::AQuestGiver()
     InteractionWidget->SetPivot(FVector2D(0.5f, 0.5f));
     InteractionWidget->SetWidgetClass(UQuestInteractionWidget::StaticClass());
 
-    SpeakerName = FText::FromString(TEXT("수호자"));
+    SpeakerName = FText::FromString(TEXT("마을 촌장"));
     DialogueLines = {
         FText::FromString(TEXT("여행자여, 사악한 용에 의해 세상이 어둠에 잠겼습니다.")),
         FText::FromString(TEXT("부디 용을 처치하고 세상에 빛을 되찾아주세요.")),
