@@ -13,6 +13,7 @@
 class UProgressBar;
 class UTextBlock;
 class UImage;
+class UTexture2D;
 class UDragDropOperation;
 class FDragDropEvent;
 
@@ -21,6 +22,8 @@ class THE_NIGHTFALL_SIEGE_API UPlayerHUDWidget : public UUserWidget
 {
 	GENERATED_BODY()
 public:
+
+    UPlayerHUDWidget(const FObjectInitializer& ObjectInitializer);
 
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
@@ -38,6 +41,12 @@ public:
     // Keep it bound so the native HUD can replace it with a camera vignette.
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     UImage* DarknessOverlay;
+
+    // A native hard reference makes the vignette part of the cook dependency
+    // graph.  Loading it only from NativeTick left packaged builds free to
+    // omit the texture even though it was available in the editor.
+    UPROPERTY(Transient)
+    TObjectPtr<UTexture2D> DarknessVignetteTexture;
 
     UPROPERTY(meta = (BindWidget))
     UImage* SkillQImage;

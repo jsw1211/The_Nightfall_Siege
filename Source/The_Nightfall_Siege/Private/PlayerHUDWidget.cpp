@@ -10,6 +10,21 @@
 #include "Engine/Texture2D.h"
 #include "Blueprint/DragDropOperation.h"
 #include "InventoryItemSlotWidget.h"
+#include "UObject/ConstructorHelpers.h"
+
+UPlayerHUDWidget::UPlayerHUDWidget(const FObjectInitializer& ObjectInitializer)
+    : Super(ObjectInitializer)
+{
+    // Store this on the widget CDO rather than loading by path at runtime.
+    // This keeps the texture in the packaged asset registry and pak/IoStore.
+    static ConstructorHelpers::FObjectFinder<UTexture2D> DarknessVignetteAsset(
+        TEXT("/Game/BP_Character/Textures/T_DarknessVignette.T_DarknessVignette"));
+
+    if (DarknessVignetteAsset.Succeeded())
+    {
+        DarknessVignetteTexture = DarknessVignetteAsset.Object;
+    }
+}
 
 bool UPlayerHUDWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
@@ -58,17 +73,9 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
     // while the surrounding screen darkens.
     if (DarknessOverlay)
     {
-        static TWeakObjectPtr<UTexture2D> DarknessVignetteTexture;
-        if (!DarknessVignetteTexture.IsValid())
+        if (DarknessVignetteTexture)
         {
-            DarknessVignetteTexture = LoadObject<UTexture2D>(
-                nullptr,
-                TEXT("/Game/BP_Character/Textures/T_DarknessVignette.T_DarknessVignette"));
-        }
-
-        if (DarknessVignetteTexture.IsValid())
-        {
-            DarknessOverlay->SetBrushFromTexture(DarknessVignetteTexture.Get(), true);
+            DarknessOverlay->SetBrushFromTexture(DarknessVignetteTexture, true);
         }
 
         DarknessOverlay->SetColorAndOpacity(FLinearColor::White);
