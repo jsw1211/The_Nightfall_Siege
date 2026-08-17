@@ -1070,7 +1070,7 @@ void ABaseCharacter::UsePurchasedItemAtIndex(int32 ItemIndex)
 
 void ABaseCharacter::ServerAssignPurchasedItemToSlot4_Implementation(int32 ItemIndex)
 {
-    if (!PurchasedItems.IsValidIndex(ItemIndex))
+	if (bIsUsingPotion || !PurchasedItems.IsValidIndex(ItemIndex))
     {
         return;
     }
@@ -1088,7 +1088,7 @@ void ABaseCharacter::ServerAssignPurchasedItemToSlot4_Implementation(int32 ItemI
 
 void ABaseCharacter::ServerMovePurchasedItem_Implementation(int32 FromIndex, int32 ToIndex)
 {
-    if (FromIndex == ToIndex || !PurchasedItems.IsValidIndex(FromIndex) || !PurchasedItems.IsValidIndex(ToIndex))
+	if (bIsUsingPotion || FromIndex == ToIndex || !PurchasedItems.IsValidIndex(FromIndex) || !PurchasedItems.IsValidIndex(ToIndex))
     {
         return;
     }
@@ -1804,6 +1804,7 @@ void ABaseCharacter::ServerUsePotion_Implementation()
     }
 
     bIsUsingPotion = true;
+	PendingPurchasedPotionIndex = INDEX_NONE;
     MulticastStartPotionUse();
     const float AnimationDuration = GetPotionAnimation()
         ? GetPotionAnimation()->GetPlayLength()
@@ -1860,24 +1861,76 @@ void ABaseCharacter::FinishPotionUse()
     }
 
     bIsUsingPotion = false;
+	const bool bIsHealingPotion = PendingPurchasedPotionIndex == INDEX_NONE;
 
-    --PotionCount;
+	if (PendingPurchasedPotionIndex != INDEX_NONE)
+	{
+		const int32 ItemIndex = PendingPurchasedPotionIndex;
+		PendingPurchasedPotionIndex = INDEX_NONE;
 
-    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
-    {
-        PS->PotionCount = PotionCount;
-    }
+		// The item can only be consumed after its drinking animation completes.
+		if (PurchasedItems.IsValidIndex(ItemIndex)
+			&& PurchasedItems[ItemIndex].ItemType == PendingPurchasedPotionType
+			&& PurchasedItems[ItemIndex].Quantity > 0)
+		{
+			if (PendingPurchasedPotionType == EShopItemType::HPPotion)
+			{
+				const float BonusHP = MaxHP * 0.2f;
+				MaxHP += BonusHP;
+				CurrentHP += BonusHP;
+				OnRep_CurrentHP();
+			}
+			else if (PendingPurchasedPotionType == EShopItemType::AttackPotion)
+			{
+				AttackPower *= 1.2f;
+			}
 
-    // 포션 애니메이션이 끝나는 순간 체력 회복
-    HealPlayer(MaxHP * PotionHealPercent);
+			if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+			{
+				PS->bHasShopStatBonuses = true;
+				PS->SavedMaxHP = MaxHP;
+				PS->SavedAttackPower = AttackPower;
+			}
 
-    // 체력 회복과 동시에 힐 이펙트 재생
-    if (HealEffect)
-    {
-        MulticastPlayRHealEffect(GetActorLocation());
-    }
+			--PurchasedItems[ItemIndex].Quantity;
+			if (PurchasedItems[ItemIndex].Quantity <= 0)
+			{
+				PurchasedItems.RemoveAt(ItemIndex);
 
-    OnRep_PotionCount();
+				if (Slot4PurchasedItemIndex == ItemIndex)
+				{
+					Slot4PurchasedItemIndex = INDEX_NONE;
+				}
+				else if (Slot4PurchasedItemIndex > ItemIndex)
+				{
+					--Slot4PurchasedItemIndex;
+				}
+			}
+
+			OnRep_PurchasedItems();
+			OnRep_Slot4PurchasedItemIndex();
+		}
+	}
+	else
+	{
+		--PotionCount;
+
+		if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+		{
+			PS->PotionCount = PotionCount;
+		}
+
+		// 포션 애니메이션이 끝나는 순간 체력 회복
+		HealPlayer(MaxHP * PotionHealPercent);
+		OnRep_PotionCount();
+	}
+
+	// The healing Niagara effect belongs only to the healing potion.  Stat
+	// potions still use the drinking animation but do not visually heal.
+	if (bIsHealingPotion && HealEffect)
+	{
+		MulticastPlayRHealEffect(GetActorLocation());
+	}
 
     MulticastCancelPotionUse();
 
@@ -1896,6 +1949,7 @@ void ABaseCharacter::CancelPotionUse()
     }
 
     bIsUsingPotion = false;
+	PendingPurchasedPotionIndex = INDEX_NONE;
     GetWorldTimerManager().ClearTimer(PotionUseTimer);
     MulticastCancelPotionUse();
     ForceNetUpdate();
@@ -1957,52 +2011,30 @@ void ABaseCharacter::ServerUseSlot4_Implementation()
 
 void ABaseCharacter::ServerUsePurchasedItem_Implementation(int32 ItemIndex)
 {
-    if (!PurchasedItems.IsValidIndex(ItemIndex) || PurchasedItems[ItemIndex].Quantity <= 0)
+    if (bIsUsingPotion || bIsDead || bLanternEquipped || bPrismEquipped
+		|| !PurchasedItems.IsValidIndex(ItemIndex) || PurchasedItems[ItemIndex].Quantity <= 0)
     {
         return;
     }
 
     const EShopItemType ItemType = PurchasedItems[ItemIndex].ItemType;
-    if (ItemType == EShopItemType::HPPotion)
-    {
-        const float BonusHP = MaxHP * 0.2f;
-        MaxHP += BonusHP;
-        CurrentHP += BonusHP;
-        OnRep_CurrentHP();
-    }
-    else if (ItemType == EShopItemType::AttackPotion)
-    {
-        AttackPower *= 1.2f;
-    }
-    else
+    if (ItemType != EShopItemType::HPPotion && ItemType != EShopItemType::AttackPotion)
     {
         return;
     }
 
-    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
-    {
-        PS->bHasShopStatBonuses = true;
-        PS->SavedMaxHP = MaxHP;
-        PS->SavedAttackPower = AttackPower;
-    }
-
-    --PurchasedItems[ItemIndex].Quantity;
-    if (PurchasedItems[ItemIndex].Quantity <= 0)
-    {
-        PurchasedItems.RemoveAt(ItemIndex);
-
-        if (Slot4PurchasedItemIndex == ItemIndex)
-        {
-            Slot4PurchasedItemIndex = INDEX_NONE;
-        }
-        else if (Slot4PurchasedItemIndex > ItemIndex)
-        {
-            --Slot4PurchasedItemIndex;
-        }
-    }
-
-    OnRep_PurchasedItems();
-    OnRep_Slot4PurchasedItemIndex();
+	// Stat potions share the normal potion's animation, weapon hiding,
+	// movement behavior, and cancellation rules.  Their effect is delayed
+	// until the drink animation completes.
+	bIsUsingPotion = true;
+	PendingPurchasedPotionIndex = ItemIndex;
+	PendingPurchasedPotionType = ItemType;
+	MulticastStartPotionUse();
+	const float AnimationDuration = GetPotionAnimation()
+		? GetPotionAnimation()->GetPlayLength()
+		: PotionUseDuration;
+	GetWorldTimerManager().SetTimer(PotionUseTimer, this, &ABaseCharacter::FinishPotionUse,
+		FMath::Max(AnimationDuration, KINDA_SMALL_NUMBER), false);
     ForceNetUpdate();
 }
 

@@ -637,6 +637,11 @@ public:
 	FTimerHandle PotionUseTimer;
 	TObjectPtr<UAnimMontage> ActivePotionMontage = nullptr;
 	TObjectPtr<UNiagaraComponent> PotionHealEffectComponent = nullptr;
+	// INDEX_NONE means the standard healing potion is being consumed.  A valid
+	// index represents a queued shop stat potion that finishes after the same
+	// drinking animation and interruption window.
+	int32 PendingPurchasedPotionIndex = INDEX_NONE;
+	EShopItemType PendingPurchasedPotionType = EShopItemType::HealPotion;
 
 	UFUNCTION(Server, Reliable)
 	void ServerCancelPotionUse();
