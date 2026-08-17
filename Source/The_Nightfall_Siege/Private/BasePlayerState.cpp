@@ -57,6 +57,13 @@ void ABasePlayerState::NotifyDungeonEntered()
     if (QuestStage == EQuestStage::FindDungeonPortal)
     {
         QuestStage = EQuestStage::ClearDungeon;
+    }
+
+    // Retrying a failed dungeon keeps the quest in ClearDungeon.  Reset the
+    // previous attempt's UI progress here as well, before the new dungeon
+    // manager publishes its freshly spawned monster total.
+    if (QuestStage == EQuestStage::ClearDungeon)
+    {
         DungeonMonsterKillCount = 0;
         DungeonMonsterTotalCount = 0;
         SyncQuestProgressToParty();
@@ -221,6 +228,8 @@ void ABasePlayerState::CopyProperties(APlayerState* PlayerState)
     NewPS->bPrismEquipped = bPrismEquipped;
 
     NewPS->Coin = Coin;
+	NewPS->DungeonEntryCoin = DungeonEntryCoin;
+	NewPS->bHasDungeonCoinCheckpoint = bHasDungeonCoinCheckpoint;
     NewPS->PotionCount = PotionCount;
     NewPS->SkillPoints = SkillPoints;
     NewPS->QuestStage = QuestStage;

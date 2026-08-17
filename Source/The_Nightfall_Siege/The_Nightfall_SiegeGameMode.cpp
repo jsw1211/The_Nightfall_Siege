@@ -242,9 +242,27 @@ void AThe_Nightfall_SiegeGameMode::RequestPartyRetry(ABaseController* Requesting
 {
     if (!HasAuthority() || !bPartyRetryAvailable || !RequestingController) return;
 
+	const bool bWasBossEncounter = GetWorld()->GetMapName().Contains(TEXT("Boss_Arena"));
+	if (!bWasBossEncounter && GameState)
+	{
+		// Restore the balance saved when this dungeon attempt began.  PlayerState
+		// survives the travel and then restores this value onto the fresh pawn.
+		for (APlayerState* PlayerState : GameState->PlayerArray)
+		{
+			ABasePlayerState* BasePlayerState = Cast<ABasePlayerState>(PlayerState);
+			if (!BasePlayerState || !BasePlayerState->bHasDungeonCoinCheckpoint)
+			{
+				continue;
+			}
+
+			BasePlayerState->Coin = BasePlayerState->DungeonEntryCoin;
+			BasePlayerState->ForceNetUpdate();
+		}
+	}
+
     if (UTheNightfallSiegeInstance* GI = GetGameInstance<UTheNightfallSiegeInstance>())
     {
-        GI->BeginRetry(GetWorld()->GetMapName().Contains(TEXT("Boss_Arena")));
+        GI->BeginRetry(bWasBossEncounter);
     }
 
     bPartyRetryAvailable = false;

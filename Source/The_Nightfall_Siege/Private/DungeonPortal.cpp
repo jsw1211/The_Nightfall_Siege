@@ -7,6 +7,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "TheNightfallSiegeInstance.h"
 #include "BaseCharacter.h"
+#include "BasePlayerState.h"
 
 // Sets default values
 ADungeonPortal::ADungeonPortal()
@@ -114,6 +115,25 @@ void ADungeonPortal::ServerEnterDungeon_Implementation()
 	if (!GI)
 	{
 		return;
+	}
+
+	// A failed dungeon attempt must not keep coins collected inside it.  Store
+	// a separate checkpoint per player because each player can have a
+	// different balance in multiplayer.
+	TArray<AActor*> Players;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+	for (AActor* Actor : Players)
+	{
+		if (ABaseCharacter* Player = Cast<ABaseCharacter>(Actor))
+		{
+			if (ABasePlayerState* PlayerState = Player->GetPlayerState<ABasePlayerState>())
+			{
+				PlayerState->Coin = Player->Coin;
+				PlayerState->DungeonEntryCoin = Player->Coin;
+				PlayerState->bHasDungeonCoinCheckpoint = true;
+				PlayerState->ForceNetUpdate();
+			}
+		}
 	}
 
 	FString MapPath =

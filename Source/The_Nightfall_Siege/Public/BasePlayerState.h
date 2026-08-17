@@ -42,6 +42,15 @@ public:
 	UPROPERTY(Replicated, BlueprintReadWrite)
 	int32 Coin = 0;
 
+	// Gold is committed only after a dungeon is cleared.  This checkpoint is
+	// captured just before entering a dungeon and restored when that attempt
+	// is abandoned through the party retry flow.
+	UPROPERTY()
+	int32 DungeonEntryCoin = 0;
+
+	UPROPERTY()
+	bool bHasDungeonCoinCheckpoint = false;
+
 	UPROPERTY(Replicated, BlueprintReadWrite)
 	int32 PotionCount = 5;
 
