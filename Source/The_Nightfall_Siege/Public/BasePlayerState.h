@@ -52,7 +52,7 @@ public:
 	bool bHasDungeonCoinCheckpoint = false;
 
 	UPROPERTY(Replicated, BlueprintReadWrite)
-	int32 PotionCount = 5;
+	int32 PotionCount = 0;
 
 	UPROPERTY(Replicated, BlueprintReadWrite)
 	int32 SkillPoints = 0;

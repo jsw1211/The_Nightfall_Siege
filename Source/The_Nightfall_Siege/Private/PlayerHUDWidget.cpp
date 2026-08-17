@@ -162,8 +162,11 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
         Item1->SetBrushFromTexture(Player->Slot1Icon);
     }
 
-    if (Item2 && Player->Slot2Icon)
+    if (Item2)
     {
+        // Always assign the brush, including nullptr.  Otherwise, when the
+        // last potion is consumed and the empty-slot texture is unset, UMG
+        // keeps rendering the previous potion image.
         Item2->SetBrushFromTexture(Player->Slot2Icon);
     }
 
@@ -172,7 +175,7 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
         Item3->SetBrushFromTexture(Player->Slot3Icon);
     }
 
-    if (Item4 && Player->Slot4Icon)
+    if (Item4)
     {
         // Item4 is a valid drop target for HP/attack potions from the inventory.
         Item4->SetVisibility(ESlateVisibility::Visible);
