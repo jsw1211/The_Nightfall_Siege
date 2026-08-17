@@ -25,6 +25,7 @@ public:
 
     UPlayerHUDWidget(const FObjectInitializer& ObjectInitializer);
 
+    virtual void NativeConstruct() override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 
@@ -41,6 +42,11 @@ public:
     // Keep it bound so the native HUD can replace it with a camera vignette.
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     UImage* DarknessOverlay;
+
+	// Center-screen guidance shown to every locally controlled player while
+	// their replicated darkness debuff is active.
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UTextBlock* DarknessPrismGuideText;
 
     // A native hard reference makes the vignette part of the cook dependency
     // graph.  Loading it only from NativeTick left packaged builds free to

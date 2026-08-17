@@ -7,10 +7,13 @@
 #include "Components/TextBlock.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Image.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Engine/Texture2D.h"
 #include "Blueprint/DragDropOperation.h"
 #include "InventoryItemSlotWidget.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Blueprint/WidgetTree.h"
 
 UPlayerHUDWidget::UPlayerHUDWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -23,6 +26,46 @@ UPlayerHUDWidget::UPlayerHUDWidget(const FObjectInitializer& ObjectInitializer)
     if (DarknessVignetteAsset.Succeeded())
     {
         DarknessVignetteTexture = DarknessVignetteAsset.Object;
+    }
+}
+
+void UPlayerHUDWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
+
+    // WBP_PlayerHUD can override this by adding a TextBlock named
+    // DarknessPrismGuideText.  Keep a native fallback so existing copies of
+    // the WBP show the mechanic immediately as well.
+    if (DarknessPrismGuideText || !WidgetTree)
+    {
+        return;
+    }
+
+    UCanvasPanel* RootCanvas = Cast<UCanvasPanel>(GetRootWidget());
+    if (!RootCanvas)
+    {
+        return;
+    }
+
+    DarknessPrismGuideText = WidgetTree->ConstructWidget<UTextBlock>(
+        UTextBlock::StaticClass(), TEXT("DarknessPrismGuideText"));
+    DarknessPrismGuideText->SetText(FText::FromString(
+        TEXT("프리즘을 들고 파티원과 모인 뒤 [F] 키를 누르세요")));
+    DarknessPrismGuideText->SetJustification(ETextJustify::Center);
+    DarknessPrismGuideText->SetColorAndOpacity(FSlateColor(
+        FLinearColor(0.72f, 0.92f, 1.0f, 1.0f)));
+
+    FSlateFontInfo GuideFont = DarknessPrismGuideText->GetFont();
+    GuideFont.Size = 30;
+    DarknessPrismGuideText->SetFont(GuideFont);
+    DarknessPrismGuideText->SetVisibility(ESlateVisibility::Hidden);
+
+    if (UCanvasPanelSlot* GuideSlot = RootCanvas->AddChildToCanvas(DarknessPrismGuideText))
+    {
+        GuideSlot->SetAnchors(FAnchors(0.5f, 0.5f));
+        GuideSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+        GuideSlot->SetPosition(FVector2D(0.f, -110.f));
+        GuideSlot->SetSize(FVector2D(900.f, 80.f));
     }
 }
 
@@ -83,6 +126,13 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
             ? ESlateVisibility::HitTestInvisible
             : ESlateVisibility::Hidden);
     }
+
+	if (DarknessPrismGuideText)
+	{
+		DarknessPrismGuideText->SetVisibility(Player->bDarknessDebuff
+			? ESlateVisibility::HitTestInvisible
+			: ESlateVisibility::Hidden);
+	}
 
     HPBar->SetPercent(Player->CurrentHP / Player->MaxHP);
 
