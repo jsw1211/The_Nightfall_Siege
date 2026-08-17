@@ -61,7 +61,7 @@ public:
 	bool bPrismEquipped = false;
 
 	UPROPERTY(BlueprintReadWrite)
-	int32 SkillPoints = 5;
+	int32 SkillPoints = 0;
 
 	UPROPERTY(BlueprintReadWrite)
 	TMap<ESkillType, int32> SkillLevels;
