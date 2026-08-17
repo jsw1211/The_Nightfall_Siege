@@ -398,10 +398,12 @@ void ABaseCharacter::BeginPlay()
         if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
         {
             PotionCount = PS->PotionCount;
+			Coin = PS->Coin;
         }
     }
 
     OnRep_PotionCount();
+	OnRep_Coin();
 
     UTheNightfallSiegeInstance* GI =
         Cast<UTheNightfallSiegeInstance>(GetGameInstance());
@@ -1140,6 +1142,14 @@ void ABaseCharacter::ServerBuyShopItem_Implementation(EShopItemType ItemType)
     }
 
     Coin -= Price;
+
+    // The pawn is replaced on map travel.  Keep the authoritative PlayerState
+    // in sync so the balance follows this player into the next map.
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        PS->Coin = Coin;
+        PS->ForceNetUpdate();
+    }
 
     int32 ItemIndex = PurchasedItems.IndexOfByPredicate(
         [ItemType](const FShopInventoryItem& Item)
@@ -3902,6 +3912,8 @@ void ABaseCharacter::PrepareForPortalTravel()
 	if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
 	{
 		PS->bLanternEquipped = false;
+		PS->Coin = Coin;
+		PS->ForceNetUpdate();
 	}
 
 	OnRep_LanternEquipped();
@@ -3916,6 +3928,12 @@ void ABaseCharacter::ServerPickupCoin_Implementation(ACoin* CoinActor)
     }
 
     Coin += 5;
+
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        PS->Coin = Coin;
+        PS->ForceNetUpdate();
+    }
 
     OnRep_Coin();
 
@@ -3977,6 +3995,7 @@ void ABaseCharacter::OnRep_PlayerState()
 
     if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
     {
+		Coin = PS->Coin;
         bHasLantern = PS->bHasLantern;
         bLanternEquipped = PS->bLanternEquipped;
 
@@ -3990,6 +4009,8 @@ void ABaseCharacter::OnRep_PlayerState()
 
         UE_LOG(LogTemp, Warning,
             TEXT("OnRep_PlayerState Finished"));
+
+		OnRep_Coin();
     }
 
     if (bHasLantern)
@@ -4017,6 +4038,7 @@ void ABaseCharacter::PossessedBy(AController* NewController)
 
     if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
     {
+		Coin = PS->Coin;
         bHasLantern = PS->bHasLantern;
         bLanternEquipped = PS->bLanternEquipped;
 

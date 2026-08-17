@@ -744,7 +744,7 @@ public:
 	void OnRep_IsDead();
 
 	UPROPERTY(ReplicatedUsing = OnRep_Coin, BlueprintReadOnly)
-	int32 Coin = 15;
+	int32 Coin = 0;
 
 	UFUNCTION()
 	void OnRep_Coin();
