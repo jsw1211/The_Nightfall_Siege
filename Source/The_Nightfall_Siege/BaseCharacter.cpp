@@ -4289,6 +4289,11 @@ void ABaseCharacter::ServerDebugTeleportToDungeonPortal_Implementation()
     {
         for (TActorIterator<AAltar> It(GetWorld()); It; ++It)
         {
+            if (It->bCleared)
+            {
+                continue;
+            }
+
             const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
             if (DistanceSquared < ClosestDistanceSquared)
             {
