@@ -3,6 +3,7 @@
 
 #include "BaseController.h"
 #include "BaseCharacter.h"
+#include "PauseMenuWidget.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "Blueprint/UserWidget.h"
 #include "BasePlayerState.h"
@@ -13,6 +14,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
 #include "DrawDebugHelpers.h"
 #include "Components/Button.h"
@@ -26,6 +28,9 @@ void ABaseController::SetupInputComponent()
     Super::SetupInputComponent();
 
 	InputComponent->BindAction("RightClick", IE_Pressed, this, &ABaseController::MoveToMouse);
+	FInputKeyBinding& PauseBinding = InputComponent->BindKey(
+		EKeys::Escape, IE_Pressed, this, &ABaseController::TogglePauseMenu);
+	PauseBinding.bExecuteWhenPaused = true;
 }
 
 void ABaseController::OnRightClick()
@@ -367,6 +372,7 @@ ABaseController::ABaseController()
 
     static ConstructorHelpers::FClassFinder<UUserWidget> DeathScreenWidgetBP(TEXT("/Game/BP/WBP_DeathScreen"));
     static ConstructorHelpers::FClassFinder<UUserWidget> GameClearWidgetBP(TEXT("/Game/BP/WBP_GameClear"));
+    static ConstructorHelpers::FClassFinder<UPauseMenuWidget> PauseMenuWidgetBP(TEXT("/Game/BP/WBP_PauseMenuDesigner"));
 
     if (DeathScreenWidgetBP.Succeeded())
     {
@@ -376,6 +382,11 @@ ABaseController::ABaseController()
     if (GameClearWidgetBP.Succeeded())
     {
         GameClearWidgetClass = GameClearWidgetBP.Class;
+    }
+
+    if (PauseMenuWidgetBP.Succeeded())
+    {
+        PauseMenuWidgetClass = PauseMenuWidgetBP.Class;
     }
 }
 
@@ -589,6 +600,71 @@ void ABaseController::ClientShowGameClear_Implementation()
         InputMode.SetWidgetToFocus(GameClearWidget->TakeWidget());
     }
     SetInputMode(InputMode);
+}
+
+void ABaseController::TogglePauseMenu()
+{
+	if (!IsLocalController())
+    {
+        return;
+    }
+
+    if (bPauseMenuVisible)
+    {
+        ResumePausedGame();
+        return;
+    }
+
+    if (!PauseMenuWidget)
+    {
+        TSubclassOf<UPauseMenuWidget> WidgetClass = PauseMenuWidgetClass;
+        if (!WidgetClass)
+        {
+            WidgetClass = UPauseMenuWidget::StaticClass();
+        }
+        PauseMenuWidget = CreateWidget<UPauseMenuWidget>(this, WidgetClass);
+    }
+    if (!PauseMenuWidget)
+    {
+        return;
+    }
+
+    PauseMenuWidget->AddToViewport(2000);
+    bPauseMenuVisible = true;
+    UGameplayStatics::SetGamePaused(this, true);
+
+    bShowMouseCursor = true;
+    FInputModeUIOnly InputMode;
+    InputMode.SetWidgetToFocus(PauseMenuWidget->TakeWidget());
+    SetInputMode(InputMode);
+}
+
+void ABaseController::ResumePausedGame()
+{
+    if (!bPauseMenuVisible)
+    {
+        return;
+    }
+
+    UGameplayStatics::SetGamePaused(this, false);
+    if (PauseMenuWidget)
+    {
+        PauseMenuWidget->RemoveFromParent();
+    }
+    bPauseMenuVisible = false;
+
+    bShowMouseCursor = true;
+    FInputModeGameOnly InputMode;
+    InputMode.SetConsumeCaptureMouseDown(false);
+    SetInputMode(InputMode);
+    SetIgnoreMoveInput(false);
+    SetIgnoreLookInput(false);
+}
+
+void ABaseController::ExitPausedGame()
+{
+    UGameplayStatics::SetGamePaused(this, false);
+    ExitGame();
 }
 
 void ABaseController::RequestRetry()

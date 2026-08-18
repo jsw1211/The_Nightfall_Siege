@@ -9,6 +9,7 @@
 #include "NiagaraSystem.h"
 
 class UHierarchicalInstancedStaticMeshComponent;
+class UPauseMenuWidget;
 
 #include "BaseController.generated.h"
 
@@ -80,6 +81,10 @@ protected:
 	UFUNCTION(Client, Reliable)
 	void ClientShowGameClear();
 
+	void TogglePauseMenu();
+	void ResumePausedGame();
+	void ExitPausedGame();
+
 	bool IsRetryAvailable() const { return bRetryAvailable; }
 	bool IsGameClearVisible() const { return bGameClearVisible; }
 
@@ -101,14 +106,21 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "UI|Game Clear")
 	TSubclassOf<UUserWidget> GameClearWidgetClass;
 
+	UPROPERTY(EditDefaultsOnly, Category = "UI|Pause")
+	TSubclassOf<UPauseMenuWidget> PauseMenuWidgetClass;
+
 	UPROPERTY()
 	TObjectPtr<UUserWidget> DeathScreenWidget = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UUserWidget> GameClearWidget = nullptr;
 
+	UPROPERTY()
+	TObjectPtr<UPauseMenuWidget> PauseMenuWidget = nullptr;
+
 	bool bRetryAvailable = false;
 	bool bGameClearVisible = false;
+	bool bPauseMenuVisible = false;
 
 
 public:
