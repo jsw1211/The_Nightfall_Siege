@@ -23,7 +23,7 @@ void UTheNightfallSiegeInstance::StartRaid()
     // so only the failed entry in that order is attempted again.
     RemainingDungeons = { "LV_Dungeon1", "LV_Dungeon2", "LV_Dungeon3" };
 
-    RemainingDungeonPortalLocations =
+    DungeonPortalLocations =
     {
         FVector(27900.f, 28190.f, 870.f),
         FVector(-440.f, 13730.f, 0.f),
@@ -32,6 +32,8 @@ void UTheNightfallSiegeInstance::StartRaid()
         FVector(19370.f, 6540.f, 1980.f),
         FVector(6360.f, 25440.f, 0.f)
     };
+
+    RemainingDungeonPortalLocations = DungeonPortalLocations;
 
     ClearedDungeonCount = 0;
     CurrentDungeon = NAME_None;
@@ -76,6 +78,18 @@ bool UTheNightfallSiegeInstance::SelectNextDungeonPortalLocation(FVector& OutLoc
     const int32 RandomIndex = FMath::RandRange(0, RemainingDungeonPortalLocations.Num() - 1);
     OutLocation = RemainingDungeonPortalLocations[RandomIndex];
     RemainingDungeonPortalLocations.RemoveAtSwap(RandomIndex);
+    return true;
+}
+
+bool UTheNightfallSiegeInstance::SelectBossPortalLocation(FVector& OutLocation) const
+{
+    if (DungeonPortalLocations.IsEmpty())
+    {
+        return false;
+    }
+
+    const int32 RandomIndex = FMath::RandRange(0, DungeonPortalLocations.Num() - 1);
+    OutLocation = DungeonPortalLocations[RandomIndex];
     return true;
 }
 

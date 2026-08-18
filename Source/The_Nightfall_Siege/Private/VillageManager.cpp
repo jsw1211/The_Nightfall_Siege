@@ -52,26 +52,37 @@ void AVillageManager::Tick(float DeltaTime)
 
 void AVillageManager::SpawnBossPortal()
 {
-    if (!BossPortalClass)
+    if (!HasAuthority() || !BossPortalClass)
     {
         return;
     }
 
+    UTheNightfallSiegeInstance* GI =
+        Cast<UTheNightfallSiegeInstance>(GetGameInstance());
+    FVector SpawnLocation;
+    if (!GI || !GI->SelectBossPortalLocation(SpawnLocation))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Unable to select a boss portal location."));
+        return;
+    }
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
     APortal* Portal =
         GetWorld()->SpawnActor<APortal>(
             BossPortalClass,
-            BossPortalLocation,
-            FRotator::ZeroRotator);
+            SpawnLocation,
+            FRotator::ZeroRotator,
+            SpawnParams);
 
     if (Portal)
     {
         Portal->PortalType = EPortalType::Boss;
         Portal->OnRep_PortalType();
         Portal->ForceNetUpdate();
-        if (UTheNightfallSiegeInstance* GI = Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
-        {
-            GI->bBossPortalSpawned = true;
-        }
+        GI->bBossPortalSpawned = true;
+        UE_LOG(LogTemp, Warning, TEXT("Boss portal spawned at %s"), *SpawnLocation.ToString());
     }
 
 }

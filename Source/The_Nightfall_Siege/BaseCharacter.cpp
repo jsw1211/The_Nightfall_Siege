@@ -4154,6 +4154,25 @@ void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
     GI->bHasPrism = true;
     GI->bPrismEquipped = false;
 
+    // The debug shortcut transitions directly to the boss phase, so ordinary
+    // dungeon portals must not remain usable alongside the boss portal.
+    for (TActorIterator<ADungeonPortal> It(GetWorld()); It; ++It)
+    {
+        It->Destroy();
+    }
+
+    SkillPoints += 8;
+    Coin += 50;
+    GI->SkillPoints = SkillPoints;
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        PS->SkillPoints = SkillPoints;
+        PS->Coin = Coin;
+        PS->ForceNetUpdate();
+    }
+    OnRep_Coin();
+    ForceNetUpdate();
+
     TArray<AActor*> Players;
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
     for (AActor* Actor : Players)
@@ -4192,16 +4211,23 @@ void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
         }
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("Debug raid complete: all players received prisms and the boss portal is ready."));
+    UE_LOG(LogTemp, Warning, TEXT("Debug raid complete: dungeon portals removed, +8 skill points and +50 gold granted, and the boss portal is ready."));
 }
 
 void ABaseCharacter::ServerDebugTeleportToDungeonPortal_Implementation()
 {
-    ADungeonPortal* ClosestPortal = nullptr;
+    AActor* ClosestPortal = nullptr;
     float ClosestDistanceSquared = TNumericLimits<float>::Max();
 
-    for (TActorIterator<ADungeonPortal> It(GetWorld()); It; ++It)
+    // Once the boss portal exists, the shortcut should lead to it instead of
+    // an ordinary dungeon portal.
+    for (TActorIterator<APortal> It(GetWorld()); It; ++It)
     {
+        if (It->PortalType != EPortalType::Boss)
+        {
+            continue;
+        }
+
         const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
         if (DistanceSquared < ClosestDistanceSquared)
         {
@@ -4210,9 +4236,23 @@ void ABaseCharacter::ServerDebugTeleportToDungeonPortal_Implementation()
         }
     }
 
+    // Before the boss phase, preserve the existing dungeon-portal behavior.
     if (!ClosestPortal)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Debug portal teleport failed: no dungeon portal exists."));
+        for (TActorIterator<ADungeonPortal> It(GetWorld()); It; ++It)
+        {
+            const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
+            if (DistanceSquared < ClosestDistanceSquared)
+            {
+                ClosestDistanceSquared = DistanceSquared;
+                ClosestPortal = *It;
+            }
+        }
+    }
+
+    if (!ClosestPortal)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Debug portal teleport failed: no boss or dungeon portal exists."));
         return;
     }
 

@@ -29,6 +29,11 @@ public:
 	UPROPERTY(BlueprintReadWrite)
 	TArray<FVector> RemainingDungeonPortalLocations;
 
+	// All valid village portal positions.  Unlike the remaining list, this is
+	// retained so the boss portal can use any of the six dungeon positions.
+	UPROPERTY(BlueprintReadWrite)
+	TArray<FVector> DungeonPortalLocations;
+
 	UPROPERTY(BlueprintReadWrite)
 	FName CurrentDungeon;
 
@@ -40,6 +45,8 @@ public:
 	FName SelectNextDungeon();
 
 	bool SelectNextDungeonPortalLocation(FVector& OutLocation);
+
+	bool SelectBossPortalLocation(FVector& OutLocation) const;
 
 	bool ClearCurrentDungeon();
 
