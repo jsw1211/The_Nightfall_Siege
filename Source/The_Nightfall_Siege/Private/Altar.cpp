@@ -256,15 +256,16 @@ void AAltar::PlaceLantern(ABaseCharacter* Player)
 	Player->bLanternEquipped = false;
 	Player->bLanternPoseActive = false;
 
-	Player->Slot1Icon = Player->EmptySlotIcon;
-
 	if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
 	{
 		PS->bHasLantern = false;
 		PS->bLanternEquipped = false;
+		PS->ForceNetUpdate();
 	}
 
+	Player->OnRep_HasLantern();
 	Player->RefreshLanternState();
+	Player->ForceNetUpdate();
 
 	LanternMesh->SetVisibility(true);
 
@@ -289,16 +290,17 @@ void AAltar::RemoveLantern(ABaseCharacter* Player)
 	Player->bLanternEquipped = true;
 	Player->bLanternPoseActive = true;
 
-	Player->Slot1Icon = Player->LanternIcon;
-
 	if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
 	{
 		PS->bHasLantern = true;
 		PS->bLanternEquipped = true;
+		PS->ForceNetUpdate();
 	}
 
+	Player->OnRep_HasLantern();
 	Player->RefreshLanternState();
 	Player->ResumeLanternGuidanceAfterAltar();
+	Player->ForceNetUpdate();
 
 	LanternMesh->SetVisibility(false);
 

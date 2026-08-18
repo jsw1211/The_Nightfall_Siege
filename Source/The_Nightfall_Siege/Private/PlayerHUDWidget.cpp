@@ -207,8 +207,10 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
         SkillRImage->SetOpacity(1.f);
     }
 
-    if (Item1 && Player->Slot1Icon)
+    if (Item1)
     {
+        // Assign the empty brush as well, otherwise UMG keeps rendering the
+        // lantern image after it is placed on an altar.
         Item1->SetBrushFromTexture(Player->Slot1Icon);
     }
 

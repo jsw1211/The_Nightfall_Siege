@@ -5,7 +5,11 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/SphereComponent.h"
 #include "BaseCharacter.h"
+#include "Altar.h"
+#include "BasePlayerState.h"
+#include "TheNightfallSiegeInstance.h"
 #include "Kismet/GameplayStatics.h"
+#include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
 
 // Sets default values
@@ -154,6 +158,48 @@ void APortal::Interact(ABaseCharacter* Player)
     if (!Player)
     {
         return;
+    }
+
+    if (PortalType == EPortalType::ReturnVillage && HasAuthority())
+    {
+        TArray<AActor*> Altars;
+        UGameplayStatics::GetAllActorsOfClass(GetWorld(), AAltar::StaticClass(), Altars);
+        const bool bLanternWasPlacedAtAltar = Altars.ContainsByPredicate(
+            [](const AActor* Actor)
+            {
+                const AAltar* Altar = Cast<AAltar>(Actor);
+                return Altar && Altar->bLanternPlaced;
+            });
+
+        // The quest lantern belongs to the listen-server host.  A placed
+        // altar is destroyed by travel, so restore it before leaving.
+        if (bLanternWasPlacedAtAltar)
+        {
+            if (APlayerController* HostController = GetWorld()->GetFirstPlayerController())
+            {
+                if (ABaseCharacter* HostPlayer = Cast<ABaseCharacter>(HostController->GetPawn()))
+                {
+                    HostPlayer->bHasLantern = true;
+                    HostPlayer->bLanternEquipped = false;
+                    HostPlayer->bLanternPoseActive = false;
+                    if (ABasePlayerState* HostPlayerState = HostPlayer->GetPlayerState<ABasePlayerState>())
+                    {
+                        HostPlayerState->bHasLantern = true;
+                        HostPlayerState->bLanternEquipped = false;
+                        HostPlayerState->ForceNetUpdate();
+                    }
+                    if (UTheNightfallSiegeInstance* GI =
+                        Cast<UTheNightfallSiegeInstance>(GetWorld()->GetGameInstance()))
+                    {
+                        GI->bHasLantern = true;
+                        GI->bLanternEquipped = false;
+                    }
+                    HostPlayer->OnRep_HasLantern();
+                    HostPlayer->OnRep_LanternEquipped();
+                    HostPlayer->ForceNetUpdate();
+                }
+            }
+        }
     }
 
     // The next-map pawn must always start with the lantern put away.
