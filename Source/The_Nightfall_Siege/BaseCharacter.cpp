@@ -486,8 +486,9 @@ void ABaseCharacter::BeginPlay()
         TEXT("Authority : %d"),
         HasAuthority());
 
+    const FString DarknessMapName = GetWorld()->GetMapName();
     if (HasAuthority() &&
-        GetWorld()->GetMapName().Contains(TEXT("Village")))
+        (DarknessMapName.Contains(TEXT("Village")) || DarknessMapName.Contains(TEXT("Dungeon"))))
     {
         GetWorldTimerManager().SetTimer(
             DarknessTimer,
