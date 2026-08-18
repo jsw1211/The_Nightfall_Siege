@@ -3425,8 +3425,14 @@ void ABaseCharacter::OnRep_LanternEquipped()
 
     LanternLight->SetVisibility(bLanternEquipped, true);
 
-    const bool bIsVillage = GetWorld() && GetWorld()->GetMapName().Contains(TEXT("Village_Forest"));
-    LanternSafeZoneDecal->SetVisibility(bLanternEquipped && bIsVillage, true);
+    // The decal is sized from LanternLightSphere in BeginPlay, the same
+    // sphere used for the authoritative darkness-protection overlap.  Show
+    // it on every map where darkness damage is active so the visible range
+    // always matches gameplay, including dungeons.
+    const FString CurrentMapName = GetWorld() ? GetWorld()->GetMapName() : FString();
+    const bool bUsesDarkness = CurrentMapName.Contains(TEXT("Village"))
+        || CurrentMapName.Contains(TEXT("Dungeon"));
+    LanternSafeZoneDecal->SetVisibility(bLanternEquipped && bUsesDarkness, true);
 
     // Tick will resolve the portal and activate the local guide effect. Hide
     // immediately on unequip so it never lingers for one update interval.
