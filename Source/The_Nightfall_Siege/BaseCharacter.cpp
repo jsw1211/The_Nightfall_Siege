@@ -47,6 +47,7 @@
 #include "Components/Button.h"
 #include "Components/GridPanel.h"
 #include "Components/Image.h"
+#include "Components/TextBlock.h"
 #include "Blueprint/WidgetTree.h"
 #include "InventoryItemSlotWidget.h"
 #include "BasePlayerState.h"
@@ -957,6 +958,7 @@ void ABaseCharacter::ToggleShop()
         ShopWidget->SetIsFocusable(true);
         ShopWidget->AddToViewport(20);
         BindShopButtons();
+        UpdateShopGold();
         ShopWidget->SetKeyboardFocus();
 
         FInputModeGameAndUI InputMode;
@@ -1281,6 +1283,20 @@ void ABaseCharacter::BindShopButtons()
     {
         Button->OnClicked.Clear();
         Button->OnClicked.AddDynamic(this, &ABaseCharacter::BuyAttackPotionFromShop);
+    }
+}
+
+void ABaseCharacter::UpdateShopGold()
+{
+    if (!ShopWidget)
+    {
+        return;
+    }
+
+    if (UTextBlock* GoldText = Cast<UTextBlock>(
+        ShopWidget->GetWidgetFromName(TEXT("GoldText"))))
+    {
+        GoldText->SetText(FText::AsNumber(Coin));
     }
 }
 
@@ -3982,6 +3998,8 @@ void ABaseCharacter::OnRep_Coin()
     {
         HUDWidget->UpdateCoin(Coin);
     }
+
+    UpdateShopGold();
 }
 
 void ABaseCharacter::OnRep_PotionCount()

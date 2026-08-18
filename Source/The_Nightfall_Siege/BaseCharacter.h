@@ -685,6 +685,7 @@ public:
 
 	void RefreshInventoryWidget();
 	void BindShopButtons();
+	void UpdateShopGold();
 
 	UFUNCTION()
 	void OnRep_PotionCount();
