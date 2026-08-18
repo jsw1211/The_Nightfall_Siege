@@ -1003,6 +1003,12 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerDebugCompleteRaid();
 
+	UFUNCTION(Server, Reliable)
+	void ServerSetDebugMoveSpeed(bool bEnable);
+
+	UFUNCTION(Client, Reliable)
+	void ClientSetDebugMoveSpeed(float NewMaxWalkSpeed);
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_Debug1;
 
@@ -1022,4 +1028,8 @@ protected:
 	void DebugBossCenterMechanic();
 	void DebugTeleportToDungeonPortal();
 	void DebugCompleteRaid();
+	void DebugEnableMoveSpeed();
+	void DebugResetMoveSpeed();
+
+	float DebugDefaultWalkSpeed = 0.f;
 };

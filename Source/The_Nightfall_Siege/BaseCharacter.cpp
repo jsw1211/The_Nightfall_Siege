@@ -37,6 +37,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Altar.h"
 #include "DungeonPortal.h"
+#include "DungeonManager.h"
 #include "QuestGiver.h"
 #include "QuestWidget.h"
 #include "QuestDialogueWidget.h"
@@ -733,6 +734,8 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	PlayerInputComponent->BindKey(EKeys::B, IE_Pressed, this, &ABaseCharacter::DebugBossCenterMechanic);
 	PlayerInputComponent->BindKey(EKeys::Equals, IE_Pressed, this, &ABaseCharacter::DebugTeleportToDungeonPortal);
     PlayerInputComponent->BindKey(EKeys::Hyphen, IE_Pressed, this, &ABaseCharacter::DebugCompleteRaid);
+	PlayerInputComponent->BindKey(EKeys::Nine, IE_Pressed, this, &ABaseCharacter::DebugEnableMoveSpeed);
+	PlayerInputComponent->BindKey(EKeys::Zero, IE_Pressed, this, &ABaseCharacter::DebugResetMoveSpeed);
 #endif
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
@@ -4140,11 +4143,47 @@ void ABaseCharacter::DebugCompleteRaid()
     ServerDebugCompleteRaid();
 }
 
+void ABaseCharacter::DebugEnableMoveSpeed()
+{
+    ServerSetDebugMoveSpeed(true);
+}
+
+void ABaseCharacter::DebugResetMoveSpeed()
+{
+    ServerSetDebugMoveSpeed(false);
+}
+
 void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
 {
     UTheNightfallSiegeInstance* GI = Cast<UTheNightfallSiegeInstance>(GetGameInstance());
     if (!GI)
     {
+        return;
+    }
+
+    if (GetWorld()->GetMapName().Contains(TEXT("Dungeon")))
+    {
+        ADungeonManager* DungeonManager = Cast<ADungeonManager>(
+            UGameplayStatics::GetActorOfClass(GetWorld(), ADungeonManager::StaticClass()));
+        const int32 DefeatedMonsterCount = DungeonManager
+            ? DungeonManager->DebugClearDungeon(this)
+            : 0;
+        if (DefeatedMonsterCount <= 0)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Debug dungeon clear failed: no living dungeon monsters found."));
+            return;
+        }
+
+        Coin += DefeatedMonsterCount * 5;
+        if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+        {
+            PS->Coin = Coin;
+            PS->ForceNetUpdate();
+        }
+        OnRep_Coin();
+        ForceNetUpdate();
+        UE_LOG(LogTemp, Warning, TEXT("Debug dungeon clear: %d monsters defeated and %d gold granted."),
+            DefeatedMonsterCount, DefeatedMonsterCount * 5);
         return;
     }
 
@@ -4219,20 +4258,36 @@ void ABaseCharacter::ServerDebugTeleportToDungeonPortal_Implementation()
     AActor* ClosestPortal = nullptr;
     float ClosestDistanceSquared = TNumericLimits<float>::Max();
 
+    if (GetWorld()->GetMapName().Contains(TEXT("Dungeon")))
+    {
+        for (TActorIterator<AAltar> It(GetWorld()); It; ++It)
+        {
+            const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
+            if (DistanceSquared < ClosestDistanceSquared)
+            {
+                ClosestDistanceSquared = DistanceSquared;
+                ClosestPortal = *It;
+            }
+        }
+    }
+
     // Once the boss portal exists, the shortcut should lead to it instead of
     // an ordinary dungeon portal.
-    for (TActorIterator<APortal> It(GetWorld()); It; ++It)
+    if (!ClosestPortal)
     {
-        if (It->PortalType != EPortalType::Boss)
+        for (TActorIterator<APortal> It(GetWorld()); It; ++It)
         {
-            continue;
-        }
+            if (It->PortalType != EPortalType::Boss)
+            {
+                continue;
+            }
 
-        const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
-        if (DistanceSquared < ClosestDistanceSquared)
-        {
-            ClosestDistanceSquared = DistanceSquared;
-            ClosestPortal = *It;
+            const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
+            if (DistanceSquared < ClosestDistanceSquared)
+            {
+                ClosestDistanceSquared = DistanceSquared;
+                ClosestPortal = *It;
+            }
         }
     }
 
@@ -4260,6 +4315,35 @@ void ABaseCharacter::ServerDebugTeleportToDungeonPortal_Implementation()
         + FVector(350.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
     TeleportTo(Destination, GetActorRotation(), false, true);
     UE_LOG(LogTemp, Warning, TEXT("Debug teleported beside dungeon portal: %s"), *Destination.ToString());
+}
+
+void ABaseCharacter::ServerSetDebugMoveSpeed_Implementation(bool bEnable)
+{
+    UCharacterMovementComponent* Movement = GetCharacterMovement();
+    if (!Movement)
+    {
+        return;
+    }
+
+    if (DebugDefaultWalkSpeed <= 0.f)
+    {
+        DebugDefaultWalkSpeed = Movement->MaxWalkSpeed;
+    }
+
+    const float NewMaxWalkSpeed = bEnable
+        ? DebugDefaultWalkSpeed * 2.f
+        : DebugDefaultWalkSpeed;
+    Movement->MaxWalkSpeed = NewMaxWalkSpeed;
+    ClientSetDebugMoveSpeed(NewMaxWalkSpeed);
+    ForceNetUpdate();
+}
+
+void ABaseCharacter::ClientSetDebugMoveSpeed_Implementation(float NewMaxWalkSpeed)
+{
+    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+    {
+        Movement->MaxWalkSpeed = NewMaxWalkSpeed;
+    }
 }
 
 void ABaseCharacter::ServerDebugBossPattern_Implementation(uint8 PatternIndex)

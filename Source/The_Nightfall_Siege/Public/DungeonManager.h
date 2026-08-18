@@ -9,6 +9,7 @@
 class ADungeonPrism;
 class AAltar;
 class AMonster;
+class ABaseCharacter;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ADungeonManager : public AActor
@@ -58,6 +59,14 @@ public:
 	// 몬스터 생성 함수
 	void SpawnMonsters();
 
+	// Development shortcut: defeats every living dungeon monster while keeping
+	// the normal dungeon-clear and quest progression flow intact.
+	int32 DebugClearDungeon(ABaseCharacter* RewardPlayer);
+
+	bool IsDebugClearInProgress() const { return bDebugClearInProgress; }
+
 private:
 	void UpdatePlayerMonsterProgress(bool bMonsterWasKilled);
+
+	bool bDebugClearInProgress = false;
 };

@@ -6,6 +6,7 @@
 	#include "Monster.h"
 	#include "BaseCharacter.h"
 	#include "BasePlayerState.h"
+	#include "DungeonPrism.h"
 	#include "Kismet/GameplayStatics.h"
 	#include "DrawDebugHelpers.h"
 
@@ -147,3 +148,66 @@ void ADungeonManager::UpdatePlayerMonsterProgress(bool bMonsterWasKilled)
 		// if a spawn location is blocked or a class fails to load.
 		UpdatePlayerMonsterProgress(false);
 	}
+
+int32 ADungeonManager::DebugClearDungeon(ABaseCharacter* RewardPlayer)
+{
+	if (!HasAuthority() || !RewardPlayer || AliveMonsterCount <= 0)
+	{
+		return 0;
+	}
+
+	TArray<AActor*> FoundMonsters;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMonster::StaticClass(), FoundMonsters);
+
+	TArray<AMonster*> LivingMonsters;
+	TSubclassOf<ADungeonPrism> PrismClass;
+	for (AActor* Actor : FoundMonsters)
+	{
+		AMonster* Monster = Cast<AMonster>(Actor);
+		if (!Monster || Monster->bIsDead)
+		{
+			continue;
+		}
+
+		LivingMonsters.Add(Monster);
+		if (!PrismClass && Monster->PrismClass)
+		{
+			PrismClass = Monster->PrismClass;
+		}
+	}
+
+	if (LivingMonsters.IsEmpty())
+	{
+		return 0;
+	}
+
+	bDebugClearInProgress = true;
+	for (AMonster* Monster : LivingMonsters)
+	{
+		Monster->TakeMonsterDamage(Monster->CurrentHP);
+	}
+	bDebugClearInProgress = false;
+
+	if (!PrismClass)
+	{
+		PrismClass = LoadClass<ADungeonPrism>(
+			nullptr,
+			TEXT("/Game/BP/BP_DungeonPrism.BP_DungeonPrism_C"));
+	}
+
+	if (PrismClass)
+	{
+		const FVector SpawnLocation = RewardPlayer->GetActorLocation()
+			+ RewardPlayer->GetActorForwardVector() * 250.f
+			+ FVector(0.f, 0.f, 50.f);
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		GetWorld()->SpawnActor<ADungeonPrism>(
+			PrismClass,
+			SpawnLocation,
+			RewardPlayer->GetActorRotation(),
+			SpawnParams);
+	}
+
+	return LivingMonsters.Num();
+}

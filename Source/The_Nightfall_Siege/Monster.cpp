@@ -370,11 +370,17 @@ void AMonster::TakeMonsterDamage(float Damage)
             bLastMonster = DungeonManager->OnMonsterDead();
         }
 
-        SpawnCoin();
+        if (!DungeonManager || !DungeonManager->IsDebugClearInProgress())
+        {
+            SpawnCoin();
+        }
 
         if (bLastMonster)
         {
-            SpawnPrism();
+            if (!DungeonManager || !DungeonManager->IsDebugClearInProgress())
+            {
+                SpawnPrism();
+            }
 
             UTheNightfallSiegeInstance* GI =
                 Cast<UTheNightfallSiegeInstance>(GetGameInstance());
