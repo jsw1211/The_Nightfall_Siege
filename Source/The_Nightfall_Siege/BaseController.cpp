@@ -544,6 +544,15 @@ void ABaseController::ClientShowGameClear_Implementation()
 {
     if (!IsLocalController()) return;
 
+    // A dead player can still see the party defeat the dragon.  The clear
+    // result replaces the death result, so never leave both overlays visible.
+    bRetryAvailable = false;
+    if (DeathScreenWidget)
+    {
+        DeathScreenWidget->RemoveFromParent();
+        DeathScreenWidget = nullptr;
+    }
+
     bGameClearVisible = true;
     bShowMouseCursor = true;
     if (!GameClearWidget && GameClearWidgetClass)
