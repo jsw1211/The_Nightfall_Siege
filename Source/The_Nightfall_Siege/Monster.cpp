@@ -385,7 +385,9 @@ void AMonster::TakeMonsterDamage(float Damage)
             UTheNightfallSiegeInstance* GI =
                 Cast<UTheNightfallSiegeInstance>(GetGameInstance());
 
-            if (GI)
+            // Debug dungeon clears grant this reward explicitly after every
+            // monster is processed, so it cannot be missed or awarded twice.
+            if (GI && (!DungeonManager || !DungeonManager->IsDebugClearInProgress()))
             {
                 GI->SkillPoints += 2;
 

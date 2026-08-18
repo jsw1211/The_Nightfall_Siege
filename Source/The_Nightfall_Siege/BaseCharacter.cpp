@@ -4174,11 +4174,38 @@ void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
             return;
         }
 
+        // Match the normal dungeon-clear reward, but award it here rather
+        // than depending on the final monster callback during a bulk clear.
+        GI->SkillPoints += 2;
+        TArray<AActor*> Players;
+        UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+        for (AActor* Actor : Players)
+        {
+            if (ABaseCharacter* Player = Cast<ABaseCharacter>(Actor))
+            {
+                Player->SkillPoints = GI->SkillPoints;
+                if (ABasePlayerState* PartyPlayerState = Player->GetPlayerState<ABasePlayerState>())
+                {
+                    PartyPlayerState->SkillPoints = Player->SkillPoints;
+                    PartyPlayerState->ForceNetUpdate();
+                }
+                Player->ForceNetUpdate();
+            }
+        }
+
         Coin += DefeatedMonsterCount * 5;
         if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
         {
             PS->Coin = Coin;
+            // Do not rely only on the per-monster callbacks for the debug
+            // shortcut.  Mark the objective complete explicitly so its UI
+            // and every party member advance to the prism collection step.
+            PS->DungeonMonsterTotalCount = DungeonManager->TotalMonsterCount;
+            PS->DungeonMonsterKillCount = DungeonManager->TotalMonsterCount;
+            PS->NotifyDungeonCleared();
+            PS->SyncQuestProgressToParty();
             PS->ForceNetUpdate();
+            ClientShowQuestMessage(PS->GetQuestObjectiveText().ToString());
         }
         OnRep_Coin();
         ForceNetUpdate();
