@@ -275,6 +275,7 @@ public:
 
 	void StartAttackTelegraph(
 		EDragonAttackType AttackType);
+	FVector GetCloseBreathCenter() const;
 
 	void ExecuteTelegraphedAttack(
 		EDragonAttackType AttackType);
@@ -285,6 +286,14 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<ADangerZone> DangerZoneClass;
+
+	// Close-breath damage and its DangerZone both use these same values.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Close Breath", meta = (ClampMin = "0.0"))
+	float CloseBreathHitRadius = 525.f;
+
+	// Distance from MouthSocket to the centre of the close-breath area.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Close Breath", meta = (ClampMin = "0.0"))
+	float CloseBreathForwardOffset = 200.f;
 
 	// The bite hitbox is a rectangle extending forward from MouthSocket.
 	// These values are shared by damage detection and its warning decal.

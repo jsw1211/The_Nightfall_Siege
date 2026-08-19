@@ -1665,14 +1665,7 @@ void ADragonBoss::StartAttackTelegraph(
 
 	case EDragonAttackType::CloseBreath:
 	{
-		FVector MouthLocation =
-			GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
-
-		FVector Forward =
-			GetActorForwardVector();
-
-		FVector SpawnLocation =
-			MouthLocation + Forward * 700.f;
+		FVector SpawnLocation = GetCloseBreathCenter();
 
 		FRotator ZoneRotation =
 			TelegraphRotation;
@@ -1687,6 +1680,9 @@ void ADragonBoss::StartAttackTelegraph(
 
 		if (Zone)
 		{
+			// SetCloseBreathShape uses these exact radii for the warning decal.
+			Zone->LineLength = CloseBreathHitRadius;
+			Zone->LineWidth = CloseBreathHitRadius;
 			Zone->ZoneType =
 				EDangerZoneType::Cone;
 
@@ -1981,6 +1977,14 @@ void ADragonBoss::BiteHit()
 	}
 }
 
+FVector ADragonBoss::GetCloseBreathCenter() const
+{
+	FVector Center = GetMesh()->GetSocketLocation(TEXT("MouthSocket"))
+		+ GetActorForwardVector() * CloseBreathForwardOffset;
+	Center.Z = GetActorLocation().Z;
+	return Center;
+}
+
 void ADragonBoss::CloseBreathFire()
 {
 	if (!HasAuthority())
@@ -1990,13 +1994,7 @@ void ADragonBoss::CloseBreathFire()
 
 	float Damage = AttackPower * 2.0f * GetCurrentDamageMultiplier();
 
-	FVector MouthLocation = GetMesh()->GetSocketLocation(TEXT("MouthSocket"));
-
-	FVector Forward = GetActorForwardVector();
-
-	FVector BreathCenter = MouthLocation + Forward * 700.f;
-
-	BreathCenter.Z = GetActorLocation().Z;
+	const FVector BreathCenter = GetCloseBreathCenter();
 
 	MulticastSpawnCloseBreathFX(BreathCenter);
 
@@ -2015,7 +2013,7 @@ void ADragonBoss::CloseBreathFire()
 
 		float Distance = FVector::Dist(Player->GetActorLocation(), BreathCenter);
 
-		if (Distance <= 350.f)
+		if (Distance <= CloseBreathHitRadius)
 		{
 			Player->TakePlayerDamage(Damage);
 

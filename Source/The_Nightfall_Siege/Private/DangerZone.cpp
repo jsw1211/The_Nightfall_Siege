@@ -73,8 +73,8 @@ void ADangerZone::SetCloseBreathShape()
 	Decal->DecalSize =
 		FVector(
 			300.f,
-			1000.f,
-			700.f);
+			LineWidth,
+			LineLength);
 }
 
 void ADangerZone::SetFullMapShape()
@@ -119,6 +119,22 @@ void ADangerZone::OnRep_LineLength()
 	{
 		SetLineShape();
 	}
+	else if (ZoneType == EDangerZoneType::Cone)
+	{
+		SetCloseBreathShape();
+	}
+}
+
+void ADangerZone::OnRep_LineWidth()
+{
+	if (ZoneType == EDangerZoneType::Line)
+	{
+		SetLineShape();
+	}
+	else if (ZoneType == EDangerZoneType::Cone)
+	{
+		SetCloseBreathShape();
+	}
 }
 
 void ADangerZone::GetLifetimeReplicatedProps(
@@ -128,5 +144,6 @@ void ADangerZone::GetLifetimeReplicatedProps(
 
 	DOREPLIFETIME(ADangerZone, ZoneType);
 	DOREPLIFETIME(ADangerZone, LineLength);
+	DOREPLIFETIME(ADangerZone, LineWidth);
 }
 

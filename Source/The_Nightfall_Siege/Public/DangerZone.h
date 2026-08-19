@@ -52,7 +52,7 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_LineLength, EditAnywhere, BlueprintReadWrite, Category = "DangerZone", meta = (ClampMin = "0.0"))
 	float LineLength = 5000.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DangerZone", meta = (ClampMin = "0.0"))
+	UPROPERTY(ReplicatedUsing = OnRep_LineWidth, EditAnywhere, BlueprintReadWrite, Category = "DangerZone", meta = (ClampMin = "0.0"))
 	float LineWidth = 100.f;
 
 	UPROPERTY(ReplicatedUsing = OnRep_ZoneType)
@@ -63,6 +63,9 @@ public:
 
 	UFUNCTION()
 	void OnRep_LineLength();
+
+	UFUNCTION()
+	void OnRep_LineWidth();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
