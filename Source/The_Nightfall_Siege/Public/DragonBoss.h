@@ -282,10 +282,15 @@ public:
 	// The bite hitbox is a rectangle extending forward from MouthSocket.
 	// These values are shared by damage detection and its warning decal.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Bite", meta = (ClampMin = "0.0"))
-	float BiteHitRange = 300.f;
+	float BiteHitRange = 600.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Bite", meta = (ClampMin = "0.0"))
-	float BiteHalfWidth = 100.f;
+	float BiteHalfWidth = 150.f;
+
+	// Pulls the entire bite rectangle back from MouthSocket while preserving its size.
+	// This value is shared by damage detection and its warning decal.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Bite", meta = (ClampMin = "0.0"))
+	float BiteBackwardOffset = 300.f;
 
 	// The projectile travels at 2200 units/sec for 8 seconds by default.
 	// Keep the warning zone long enough to cover its full reachable path.

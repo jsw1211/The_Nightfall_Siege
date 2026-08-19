@@ -1601,7 +1601,7 @@ void ADragonBoss::StartAttackTelegraph(
 			GetActorForwardVector();
 
 		FVector SpawnLocation =
-			MouthLocation + Forward * (BiteHitRange * 0.5f);
+			MouthLocation + Forward * (BiteHitRange * 0.5f - BiteBackwardOffset);
 
 		FRotator ZoneRotation =
 			Forward.Rotation();
@@ -1943,10 +1943,10 @@ void ADragonBoss::BiteHit()
 			FVector::DotProduct(ToPlayer, Right);
 
 		// 직사각형 범위
-		// 길이 300 → 앞쪽 0 ~ 300
-		// 폭 200 → 좌우 -100 ~ +100
-		if (ForwardDistance >= 0.f &&
-			ForwardDistance <= BiteHitRange &&
+		// 길이 600 → MouthSocket 기준 앞쪽 -150 ~ +450
+		// 폭 300 → 좌우 -150 ~ +150
+		if (ForwardDistance >= -BiteBackwardOffset &&
+			ForwardDistance <= BiteHitRange - BiteBackwardOffset &&
 			FMath::Abs(RightDistance) <= BiteHalfWidth)
 		{
 			Player->TakePlayerDamage(Damage);
