@@ -9,6 +9,7 @@
 #include "AIController.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/BoxComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "DungeonPrism.h"
 #include "BasePlayerState.h"
 #include "DragonBreathProjectile.h"
@@ -465,7 +466,7 @@ void ADragonBoss::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 
 void ADragonBoss::StartAttackCycle()
 {
-	if (!HasAuthority())
+	if (!HasAuthority() || IsActorBeingDestroyed() || CurrentState == EDragonState::Dead)
 	{
 		return;
 	}
@@ -474,11 +475,6 @@ void ADragonBoss::StartAttackCycle()
 		AttackTimerHandle);
 
 	if (bStunned)
-	{
-		return;
-	}
-
-	if (CurrentState == EDragonState::Dead)
 	{
 		return;
 	}
@@ -568,14 +564,10 @@ void ADragonBoss::BiteAttack()
 
 	MulticastPlayAttack(EDragonAttackType::Bite);
 
-	FTimerHandle AttackEndHandle;
-
 	GetWorldTimerManager().SetTimer(
 		AttackEndHandle,
-		[this]()
-		{
-			OnAttackFinished();
-		},
+		this,
+		&ADragonBoss::OnAttackFinished,
 		2.0f,
 		false
 	);
@@ -614,14 +606,10 @@ void ADragonBoss::CloseBreathAttack()
 
 	MulticastPlayAttack(EDragonAttackType::CloseBreath);
 
-	FTimerHandle AttackEndHandle;
-
 	GetWorldTimerManager().SetTimer(
 		AttackEndHandle,
-		[this]()
-		{
-			OnAttackFinished();
-		},
+		this,
+		&ADragonBoss::OnAttackFinished,
 		3.0f,
 		false
 	);
@@ -677,7 +665,6 @@ void ADragonBoss::BreathAttack()
 	}
 
 	// Only used if the montage is not assigned or an anim instance is missing.
-	FTimerHandle AttackEndHandle;
 	GetWorldTimerManager().SetTimer(AttackEndHandle, this,
 		&ADragonBoss::OnAttackFinished, 4.0f, false);
 }
@@ -694,6 +681,14 @@ void ADragonBoss::StopBreathTracking()
 {
 	bCenterTracking = false;
 	CurrentBreathZone = nullptr;
+}
+
+void ADragonBoss::StartBlackoutChargingFX()
+{
+	if (HasAuthority() && !IsActorBeingDestroyed() && CurrentState != EDragonState::Dead)
+	{
+		MulticastSpawnBlackoutChargingFX();
+	}
 }
 
 void ADragonBoss::DebuffAttack()
@@ -765,14 +760,10 @@ void ADragonBoss::DebuffAttack()
 		}
 	}
 
-	FTimerHandle AttackEndHandle;
-
 	GetWorldTimerManager().SetTimer(
 		AttackEndHandle,
-		[this]()
-		{
-			OnAttackFinished();
-		},
+		this,
+		&ADragonBoss::OnAttackFinished,
 		2.5f,
 		false
 	);
@@ -997,6 +988,38 @@ void ADragonBoss::TakeBossDamage(float Damage)
 	{
 		Die();
 	}
+}
+
+bool ADragonBoss::IsWithinDamageRadius(const FVector& Location, float Radius) const
+{
+	const float DamageRadius = FMath::Max(0.f, Radius);
+	const TObjectPtr<UPrimitiveComponent> Hitboxes[] =
+	{
+		HeadHitbox,
+		BodyHitbox,
+		TailHitbox
+	};
+
+	for (const UPrimitiveComponent* Hitbox : Hitboxes)
+	{
+		if (!IsValid(Hitbox) ||
+			Hitbox->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
+		{
+			continue;
+		}
+
+		const FBoxSphereBounds Bounds = Hitbox->Bounds;
+		const FVector2D HorizontalOffset(
+			Location.X - Bounds.Origin.X,
+			Location.Y - Bounds.Origin.Y);
+		const float HitboxRadius = FMath::Max(Bounds.BoxExtent.X, Bounds.BoxExtent.Y);
+		if (HorizontalOffset.SizeSquared() <= FMath::Square(DamageRadius + HitboxRadius))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void ADragonBoss::OnBreathReflected()
@@ -1500,6 +1523,8 @@ void ADragonBoss::Die()
 	GetWorldTimerManager().ClearTimer(
 		AttackTimerHandle
 	);
+	GetWorldTimerManager().ClearTimer(AttackEndHandle);
+	GetWorldTimerManager().ClearTimer(ChargingEffectHandle);
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("Dragon Dead"));
@@ -1534,6 +1559,10 @@ void ADragonBoss::Die()
 
 	GetWorldTimerManager().ClearTimer(
 		CenterTrackingHandle);
+
+	// All remaining actor-bound callbacks (including recovery timers) must not
+	// re-enter the attack cycle after death or while the level is unloading.
+	GetWorldTimerManager().ClearAllTimersForObject(this);
 }
 
 void ADragonBoss::StartAttackTelegraph(
@@ -1758,17 +1787,10 @@ void ADragonBoss::StartAttackTelegraph(
 		MulticastPlayAttack(EDragonAttackType::Debuff);
 
 		// 차징 이펙트는 대기 시작 후 1초 뒤 재생
-		FTimerHandle ChargingEffectHandle;
-
 		GetWorldTimerManager().SetTimer(
 			ChargingEffectHandle,
-			[this]()
-			{
-				if (CurrentState != EDragonState::Dead)
-				{
-					MulticastSpawnBlackoutChargingFX();
-				}
-			},
+			this,
+			&ADragonBoss::StartBlackoutChargingFX,
 			1.0f,
 			false);
 
@@ -1798,13 +1820,7 @@ void ADragonBoss::StartAttackTelegraph(
 
 	// Breath / Debuff는 기존처럼 3초 대기
 	FTimerDelegate Delegate;
-
-	Delegate.BindLambda(
-		[this, AttackType]()
-		{
-			ExecuteTelegraphedAttack(
-				AttackType);
-		});
+	Delegate.BindUObject(this, &ADragonBoss::ExecuteTelegraphedAttack, AttackType);
 
 	GetWorldTimerManager().SetTimer(
 		TelegraphHandle,
@@ -1816,6 +1832,11 @@ void ADragonBoss::StartAttackTelegraph(
 void ADragonBoss::ExecuteTelegraphedAttack(
 	EDragonAttackType AttackType)
 {
+	if (!HasAuthority() || IsActorBeingDestroyed() || CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
 	bIsTelegraphing = false;
 
 	switch (AttackType)

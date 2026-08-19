@@ -2305,7 +2305,7 @@ void ABaseCharacter::ApplyArcherERainDamage()
     for (TActorIterator<ADragonBoss> It(GetWorld()); It; ++It)
     {
         ADragonBoss* Dragon = *It;
-        if (Dragon && FVector::DistSquared(Dragon->GetActorLocation(), ArcherERainCenter) <= FMath::Square(ERadius))
+        if (Dragon && Dragon->IsWithinDamageRadius(ArcherERainCenter, ERadius))
         {
             Dragon->TakeBossDamage(Damage);
         }

@@ -114,6 +114,10 @@ public:
 	// projectiles or overlapping explosions from that volley connect.
 	bool TakeArcherQVolleyDamage(ABaseCharacter* Attacker, int32 VolleyId, float Damage);
 
+	// Checks the boss's animated damage hitboxes instead of its root location.
+	// Ground-targeted skills use this so they also register on the head or tail.
+	bool IsWithinDamageRadius(const FVector& Location, float Radius) const;
+
 	// =========================
 	// Phase Two
 	// =========================
@@ -169,6 +173,8 @@ public:
 	// =========================
 
 	FTimerHandle AttackTimerHandle;
+	FTimerHandle AttackEndHandle;
+	FTimerHandle ChargingEffectHandle;
 
 	// =========================
 	// Functions
@@ -272,6 +278,7 @@ public:
 
 	void ExecuteTelegraphedAttack(
 		EDragonAttackType AttackType);
+	void StartBlackoutChargingFX();
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsTelegraphing = false;

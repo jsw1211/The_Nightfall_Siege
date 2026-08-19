@@ -6,6 +6,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Monster.h"
 #include "BaseCharacter.h"
+#include "EngineUtils.h"
 #include "Engine/OverlapResult.h"
 #include "DragonBoss.h"
 #include "NiagaraFunctionLibrary.h"
@@ -203,13 +204,12 @@ void AArrowProjectile::Explode()
 	FCollisionShape Sphere =
 		FCollisionShape::MakeSphere(Radius);
 
+	TSet<ADragonBoss*> ExplodedDragons;
 	bool bHit =
 		GetWorld()->OverlapMultiByChannel(Overlaps, GetActorLocation(), FQuat::Identity, ECC_Pawn, Sphere);
 
 	if (bHit)
 	{
-		TSet<ADragonBoss*> ExplodedDragons;
-
 		for (auto& Result : Overlaps)
 		{
 			AMonster* Monster = Cast<AMonster>(Result.GetActor());
@@ -253,6 +253,28 @@ void AArrowProjectile::Explode()
 		}
 	}
 
+	// Explosion overlap can miss a bone-attached hitbox while the dragon is
+	// animating.  Query its segmented hitboxes as a fallback so Archer Q still
+	// damages the boss when the visual explosion reaches any part of it.
+	for (TActorIterator<ADragonBoss> It(GetWorld()); It; ++It)
+	{
+		ADragonBoss* Dragon = *It;
+		if (!Dragon || !OwnerCharacter || ExplodedDragons.Contains(Dragon) ||
+			!Dragon->IsWithinDamageRadius(GetActorLocation(), Radius))
+		{
+			continue;
+		}
+
+		ExplodedDragons.Add(Dragon);
+		if (ArrowType == EArrowType::QExplosive)
+		{
+			Dragon->TakeArcherQVolleyDamage(
+				OwnerCharacter,
+				QVolleyId,
+				OwnerCharacter->GetAttackPower() * DamageMultiplier);
+		}
+	}
+
 	Destroy();
 }
 
@@ -263,11 +285,32 @@ void AArrowProjectile::OnProjectileStop(
 		ArrowType == EArrowType::QExplosive)
 	{
 		Explode();
+		return;
 	}
-	else
+
+	if (ArrowType == EArrowType::Pierce && OwnerCharacter)
 	{
-		Destroy();
+		for (TActorIterator<ADragonBoss> It(GetWorld()); It; ++It)
+		{
+			ADragonBoss* Dragon = *It;
+			if (!Dragon || HitDragons.Contains(Dragon) ||
+				!Dragon->IsWithinDamageRadius(ImpactResult.ImpactPoint, 150.f))
+			{
+				continue;
+			}
+
+			HitDragons.Add(Dragon);
+			float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
+			if (OwnerCharacter->bRBonusDamage)
+			{
+				Damage += Dragon->MaxHP * 0.05f;
+			}
+			Dragon->TakeBossDamage(Damage);
+			break;
+		}
 	}
+
+	Destroy();
 }
 
 void AArrowProjectile::SetupTrail()
