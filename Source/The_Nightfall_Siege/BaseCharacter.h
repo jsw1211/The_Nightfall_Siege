@@ -1063,5 +1063,9 @@ protected:
 	void DebugEnableMoveSpeed();
 	void DebugResetMoveSpeed();
 
+	// Developer shortcuts are intentionally restricted to the listen-server
+	// host.  The check is also repeated in every Server RPC implementation.
+	bool IsDeveloperHost() const;
+
 	float DebugDefaultWalkSpeed = 0.f;
 };

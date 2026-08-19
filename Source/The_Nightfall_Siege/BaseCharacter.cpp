@@ -11,6 +11,7 @@
 #include "Components/DecalComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "Blueprint/UserWidget.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -726,10 +727,13 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         EnhancedInput->BindAction(IA_Slot3, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot3);
         EnhancedInput->BindAction(IA_Slot4, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot4);
 
-        EnhancedInput->BindAction(IA_Debug1, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern1);
-        EnhancedInput->BindAction(IA_Debug2, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern2);
-        EnhancedInput->BindAction(IA_Debug3, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern3);
-        EnhancedInput->BindAction(IA_Debug4, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern4);
+        if (IsDeveloperHost())
+        {
+            EnhancedInput->BindAction(IA_Debug1, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern1);
+            EnhancedInput->BindAction(IA_Debug2, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern2);
+            EnhancedInput->BindAction(IA_Debug3, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern3);
+            EnhancedInput->BindAction(IA_Debug4, ETriggerEvent::Started, this, &ABaseCharacter::DebugBossPattern4);
+        }
     }
 
     // The shop is deliberately bound directly so it works without requiring a
@@ -737,11 +741,14 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     PlayerInputComponent->BindKey(EKeys::P, IE_Pressed, this, &ABaseCharacter::ToggleShop);
     PlayerInputComponent->BindKey(EKeys::F, IE_Pressed, this, &ABaseCharacter::InteractWithQuestGiver);
 #if !UE_BUILD_SHIPPING
-	PlayerInputComponent->BindKey(EKeys::B, IE_Pressed, this, &ABaseCharacter::DebugBossCenterMechanic);
-	PlayerInputComponent->BindKey(EKeys::Equals, IE_Pressed, this, &ABaseCharacter::DebugTeleportToDungeonPortal);
-    PlayerInputComponent->BindKey(EKeys::Hyphen, IE_Pressed, this, &ABaseCharacter::DebugCompleteRaid);
-	PlayerInputComponent->BindKey(EKeys::Nine, IE_Pressed, this, &ABaseCharacter::DebugEnableMoveSpeed);
-	PlayerInputComponent->BindKey(EKeys::Zero, IE_Pressed, this, &ABaseCharacter::DebugResetMoveSpeed);
+    if (IsDeveloperHost())
+    {
+	    PlayerInputComponent->BindKey(EKeys::B, IE_Pressed, this, &ABaseCharacter::DebugBossCenterMechanic);
+	    PlayerInputComponent->BindKey(EKeys::Equals, IE_Pressed, this, &ABaseCharacter::DebugTeleportToDungeonPortal);
+        PlayerInputComponent->BindKey(EKeys::Hyphen, IE_Pressed, this, &ABaseCharacter::DebugCompleteRaid);
+	    PlayerInputComponent->BindKey(EKeys::Nine, IE_Pressed, this, &ABaseCharacter::DebugEnableMoveSpeed);
+	    PlayerInputComponent->BindKey(EKeys::Zero, IE_Pressed, this, &ABaseCharacter::DebugResetMoveSpeed);
+    }
 #endif
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
@@ -4271,51 +4278,62 @@ void ABaseCharacter::OnRep_DarknessDebuff()
 
 void ABaseCharacter::DebugBossPattern1()
 {
-    ServerDebugBossPattern(0);
+    if (IsDeveloperHost()) ServerDebugBossPattern(0);
 }
 
 void ABaseCharacter::DebugBossPattern2()
 {
-    ServerDebugBossPattern(1);
+    if (IsDeveloperHost()) ServerDebugBossPattern(1);
 }
 
 void ABaseCharacter::DebugBossPattern3()
 {
-    ServerDebugBossPattern(2);
+    if (IsDeveloperHost()) ServerDebugBossPattern(2);
 }
 
 void ABaseCharacter::DebugBossPattern4()
 {
-    ServerDebugBossPattern(3);
+    if (IsDeveloperHost()) ServerDebugBossPattern(3);
 }
 
 void ABaseCharacter::DebugBossCenterMechanic()
 {
-    ServerDebugBossPattern(4);
+    if (IsDeveloperHost()) ServerDebugBossPattern(4);
 }
 
 void ABaseCharacter::DebugTeleportToDungeonPortal()
 {
-    ServerDebugTeleportToDungeonPortal();
+    if (IsDeveloperHost()) ServerDebugTeleportToDungeonPortal();
 }
 
 void ABaseCharacter::DebugCompleteRaid()
 {
-    ServerDebugCompleteRaid();
+    if (IsDeveloperHost()) ServerDebugCompleteRaid();
 }
 
 void ABaseCharacter::DebugEnableMoveSpeed()
 {
-    ServerSetDebugMoveSpeed(true);
+    if (IsDeveloperHost()) ServerSetDebugMoveSpeed(true);
 }
 
 void ABaseCharacter::DebugResetMoveSpeed()
 {
-    ServerSetDebugMoveSpeed(false);
+    if (IsDeveloperHost()) ServerSetDebugMoveSpeed(false);
+}
+
+bool ABaseCharacter::IsDeveloperHost() const
+{
+    const APlayerController* PlayerController = Cast<APlayerController>(GetController());
+    return HasAuthority() && PlayerController && PlayerController->IsLocalController();
 }
 
 void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
 {
+    if (!IsDeveloperHost())
+    {
+        return;
+    }
+
     UTheNightfallSiegeInstance* GI = Cast<UTheNightfallSiegeInstance>(GetGameInstance());
     if (!GI)
     {
@@ -4354,7 +4372,22 @@ void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
             }
         }
 
-        Coin += DefeatedMonsterCount * 5;
+        const int32 GoldReward = DefeatedMonsterCount * 5;
+        for (AActor* Actor : Players)
+        {
+            if (ABaseCharacter* Player = Cast<ABaseCharacter>(Actor))
+            {
+                Player->Coin += GoldReward;
+                if (ABasePlayerState* PartyPlayerState = Player->GetPlayerState<ABasePlayerState>())
+                {
+                    PartyPlayerState->Coin = Player->Coin;
+                    PartyPlayerState->ForceNetUpdate();
+                }
+                Player->OnRep_Coin();
+                Player->ForceNetUpdate();
+            }
+        }
+
         if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
         {
             PS->Coin = Coin;
@@ -4368,10 +4401,8 @@ void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
             PS->ForceNetUpdate();
             ClientShowQuestMessage(PS->GetQuestObjectiveText().ToString());
         }
-        OnRep_Coin();
-        ForceNetUpdate();
         UE_LOG(LogTemp, Warning, TEXT("Debug dungeon clear: %d monsters defeated and %d gold granted."),
-            DefeatedMonsterCount, DefeatedMonsterCount * 5);
+            DefeatedMonsterCount, GoldReward);
         return;
     }
 
@@ -4388,17 +4419,7 @@ void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
         It->Destroy();
     }
 
-    SkillPoints += 8;
-    Coin += 50;
-    GI->SkillPoints = SkillPoints;
-    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
-    {
-        PS->SkillPoints = SkillPoints;
-        PS->Coin = Coin;
-        PS->ForceNetUpdate();
-    }
-    OnRep_Coin();
-    ForceNetUpdate();
+    GI->SkillPoints += 8;
 
     TArray<AActor*> Players;
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
@@ -4407,6 +4428,8 @@ void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
         ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
         if (!Player) continue;
 
+        Player->SkillPoints = GI->SkillPoints;
+        Player->Coin += 50;
         Player->bHasPrism = true;
         Player->bPrismEquipped = false;
         Player->bPrismPoseActive = false;
@@ -4420,7 +4443,12 @@ void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
             PS->bPrismEquipped = false;
             PS->ClearedDungeonCount = 3;
             PS->QuestStage = EQuestStage::FindBossPortal;
+            PS->SkillPoints = Player->SkillPoints;
+            PS->Coin = Player->Coin;
+            PS->ForceNetUpdate();
         }
+        Player->OnRep_Coin();
+        Player->ForceNetUpdate();
     }
 
     if (!GetWorld()->GetMapName().Contains(TEXT("Village_Forest")))
@@ -4443,6 +4471,34 @@ void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
 
 void ABaseCharacter::ServerDebugTeleportToDungeonPortal_Implementation()
 {
+	if (!IsDeveloperHost())
+	{
+		return;
+	}
+
+	auto TeleportParty = [this](const FVector& Destination, const FRotator& Rotation)
+	{
+		TArray<AActor*> Players;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+
+		int32 PlayerIndex = 0;
+		for (AActor* Actor : Players)
+		{
+			ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
+			if (!Player)
+			{
+				continue;
+			}
+
+			const int32 Row = PlayerIndex / 3;
+			const int32 Column = PlayerIndex % 3;
+			const FVector FormationOffset(Row * 180.f, (Column - 1) * 180.f, 0.f);
+			Player->TeleportTo(Destination + FormationOffset, Rotation, false, true);
+			Player->ForceNetUpdate();
+			++PlayerIndex;
+		}
+	};
+
 	for (TActorIterator<ADragonBoss> It(GetWorld()); It; ++It)
 	{
 		ADragonBoss* Dragon = *It;
@@ -4456,8 +4512,8 @@ void ABaseCharacter::ServerDebugTeleportToDungeonPortal_Implementation()
 			+ Dragon->GetActorForwardVector() * DragonFrontTeleportDistance;
 		Destination.Z += GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 
-		TeleportTo(Destination, Dragon->GetActorForwardVector().Rotation(), false, true);
-		UE_LOG(LogTemp, Warning, TEXT("Debug teleported in front of dragon: %s"), *Destination.ToString());
+		TeleportParty(Destination, Dragon->GetActorForwardVector().Rotation());
+		UE_LOG(LogTemp, Warning, TEXT("Debug teleported party in front of dragon: %s"), *Destination.ToString());
 		return;
 	}
 
@@ -4524,29 +4580,40 @@ void ABaseCharacter::ServerDebugTeleportToDungeonPortal_Implementation()
 
     const FVector Destination = ClosestPortal->GetActorLocation()
         + FVector(350.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
-    TeleportTo(Destination, GetActorRotation(), false, true);
-    UE_LOG(LogTemp, Warning, TEXT("Debug teleported beside dungeon portal: %s"), *Destination.ToString());
+    TeleportParty(Destination, GetActorRotation());
+    UE_LOG(LogTemp, Warning, TEXT("Debug teleported party beside dungeon portal: %s"), *Destination.ToString());
 }
 
 void ABaseCharacter::ServerSetDebugMoveSpeed_Implementation(bool bEnable)
 {
-    UCharacterMovementComponent* Movement = GetCharacterMovement();
-    if (!Movement)
+    if (!IsDeveloperHost())
     {
         return;
     }
 
-    if (DebugDefaultWalkSpeed <= 0.f)
+    TArray<AActor*> Players;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
+    for (AActor* Actor : Players)
     {
-        DebugDefaultWalkSpeed = Movement->MaxWalkSpeed;
-    }
+        ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
+        UCharacterMovementComponent* Movement = Player ? Player->GetCharacterMovement() : nullptr;
+        if (!Movement)
+        {
+            continue;
+        }
 
-    const float NewMaxWalkSpeed = bEnable
-        ? DebugDefaultWalkSpeed * 2.f
-        : DebugDefaultWalkSpeed;
-    Movement->MaxWalkSpeed = NewMaxWalkSpeed;
-    ClientSetDebugMoveSpeed(NewMaxWalkSpeed);
-    ForceNetUpdate();
+        if (Player->DebugDefaultWalkSpeed <= 0.f)
+        {
+            Player->DebugDefaultWalkSpeed = Movement->MaxWalkSpeed;
+        }
+
+        const float NewMaxWalkSpeed = bEnable
+            ? Player->DebugDefaultWalkSpeed * 2.f
+            : Player->DebugDefaultWalkSpeed;
+        Movement->MaxWalkSpeed = NewMaxWalkSpeed;
+        Player->ClientSetDebugMoveSpeed(NewMaxWalkSpeed);
+        Player->ForceNetUpdate();
+    }
 }
 
 void ABaseCharacter::ClientSetDebugMoveSpeed_Implementation(float NewMaxWalkSpeed)
@@ -4559,6 +4626,11 @@ void ABaseCharacter::ClientSetDebugMoveSpeed_Implementation(float NewMaxWalkSpee
 
 void ABaseCharacter::ServerDebugBossPattern_Implementation(uint8 PatternIndex)
 {
+    if (!IsDeveloperHost())
+    {
+        return;
+    }
+
     TArray<AActor*> Bosses;
 
     UGameplayStatics::GetAllActorsOfClass(
