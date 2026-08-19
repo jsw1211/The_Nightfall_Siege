@@ -196,9 +196,7 @@ void AAltar::PushMonstersOffAltar()
 			Monster->GetCapsuleComponent()->GetScaledCapsuleRadius() + 50.f;
 		FVector SafeLocation = AltarLocation + AwayFromAltar * EjectDistance;
 		SafeLocation.Z = Monster->GetActorLocation().Z;
-		// Sweep prevents an altar ejection from teleporting a monster through a
-		// nearby wall or floor when the calculated exit point is obstructed.
-		Monster->SetActorLocation(SafeLocation, true, nullptr, ETeleportType::TeleportPhysics);
+		Monster->SetActorLocation(SafeLocation, false, nullptr, ETeleportType::TeleportPhysics);
 	}
 }
 
