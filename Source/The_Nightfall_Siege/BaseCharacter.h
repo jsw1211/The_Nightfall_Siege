@@ -41,6 +41,23 @@ enum class EShopItemType : uint8
 	AttackPotion UMETA(DisplayName = "Attack Potion")
 };
 
+// The held-item pose deliberately has its own lifecycle.  In particular, an
+// equip animation must finish before the looping held idle state takes over.
+// Keeping this separate from bLanternEquipped/bPrismEquipped lets locomotion
+// keep evaluating throughout the montage for every character class.
+UENUM(BlueprintType)
+enum class EItemAnimationState : uint8
+{
+	None,
+	LanternEquipping,
+	LanternIdle,
+	LanternUnequipping,
+	PrismEquipping,
+	PrismIdle,
+	PrismUnequipping,
+	PotionUsing
+};
+
 // One entry is added for every successful purchase.  Entries are deliberately
 // not stacked: the inventory can therefore display its slots in purchase order.
 USTRUCT(BlueprintType)
@@ -498,6 +515,25 @@ public:
 
 	UPROPERTY(Replicated, BlueprintReadOnly)
 	bool bPrismPoseActive = false;
+
+	// Replicated state-machine output for animation blueprints and debugging.
+// The two pose flags keep the relevant layered state machine visible while
+// it progresses through Equipping, Idle, and Unequipping.
+	UPROPERTY(ReplicatedUsing = OnRep_ItemAnimationState, BlueprintReadOnly, Category = "Animation|Item State")
+	EItemAnimationState ItemAnimationState = EItemAnimationState::None;
+
+	void SetItemAnimationState(EItemAnimationState NewState);
+
+	UFUNCTION()
+	void OnRep_ItemAnimationState();
+	void CompleteHeldItemAnimation(UAnimMontage* Montage, bool bInterrupted);
+	void CompleteLanternItemAnimation();
+	void CompletePrismItemAnimation();
+	void StartLanternItemAnimationTimer();
+	void StartPrismItemAnimationTimer();
+
+	FTimerHandle LanternItemAnimationTimer;
+	FTimerHandle PrismItemAnimationTimer;
 
 	UFUNCTION()
 	void OnRep_PrismEquipped();

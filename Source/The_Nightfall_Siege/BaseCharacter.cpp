@@ -458,11 +458,15 @@ void ABaseCharacter::BeginPlay()
     if (bLanternEquipped)
     {
         OnRep_LanternEquipped();
+        bLanternPoseActive = true;
+        SetItemAnimationState(EItemAnimationState::LanternIdle);
     }
 
     if (bPrismEquipped)
     {
         OnRep_PrismEquipped();
+        bPrismPoseActive = true;
+        SetItemAnimationState(EItemAnimationState::PrismIdle);
     }
 
     if (HasAuthority() && bHasLantern)
@@ -1376,11 +1380,137 @@ void ABaseCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
     bIsUsingSkill = false;
     bIsAttacking = false;
 
+    CompleteHeldItemAnimation(Montage, bInterrupted);
+
     if (IsLocallyControlled() && Montage == LanternEquipMontage && !bInterrupted && bLanternEquipped)
     {
         bLanternGuideReady = true;
         LanternDirectionUpdateElapsed = 0.15f;
     }
+}
+
+void ABaseCharacter::SetItemAnimationState(EItemAnimationState NewState)
+{
+    ItemAnimationState = NewState;
+
+    OnRep_ItemAnimationState();
+
+    if (HasAuthority())
+    {
+        ForceNetUpdate();
+    }
+}
+
+void ABaseCharacter::OnRep_ItemAnimationState()
+{
+    if (ItemAnimationState == EItemAnimationState::LanternIdle
+        && IsLocallyControlled()
+        && bLanternEquipped)
+    {
+        bLanternGuideReady = true;
+        LanternDirectionUpdateElapsed = 0.15f;
+    }
+}
+
+void ABaseCharacter::CompleteHeldItemAnimation(UAnimMontage* Montage, bool bInterrupted)
+{
+    // Gameplay and mesh visibility are authoritative here. The AnimBP has
+    // already played its matching transition sequence while this completion
+    // advances its state machine to Idle or None.
+    if (Montage == LanternEquipMontage)
+    {
+        bIsEquippingLantern = false;
+        if (bLanternEquipped)
+        {
+            bLanternPoseActive = true;
+            SetItemAnimationState(EItemAnimationState::LanternIdle);
+        }
+    }
+    else if (Montage == LanternUnequipMontage)
+    {
+        bIsEquippingLantern = false;
+        if (!bLanternEquipped)
+        {
+            bLanternPoseActive = false;
+            SetItemAnimationState(EItemAnimationState::None);
+        }
+    }
+    else if (Montage == PrismEquipMontage)
+    {
+        bIsEquippingPrism = false;
+        if (bPrismEquipped)
+        {
+            bPrismPoseActive = true;
+            SetItemAnimationState(EItemAnimationState::PrismIdle);
+        }
+    }
+    else if (Montage == PrismUnequipMontage)
+    {
+        bIsEquippingPrism = false;
+        if (!bPrismEquipped)
+        {
+            bPrismPoseActive = false;
+            SetItemAnimationState(EItemAnimationState::None);
+        }
+    }
+
+    // An interrupted held-item montage still needs a coherent final pose. The
+    // equipped state above is authoritative, rather than the interruption.
+    (void)bInterrupted;
+}
+
+void ABaseCharacter::CompleteLanternItemAnimation()
+{
+    CompleteHeldItemAnimation(
+        bLanternEquipped ? LanternEquipMontage : LanternUnequipMontage,
+        false);
+}
+
+void ABaseCharacter::CompletePrismItemAnimation()
+{
+    CompleteHeldItemAnimation(
+        bPrismEquipped ? PrismEquipMontage : PrismUnequipMontage,
+        false);
+}
+
+void ABaseCharacter::StartLanternItemAnimationTimer()
+{
+    UAnimMontage* ActiveMontage = bLanternEquipped
+        ? LanternEquipMontage
+        : LanternUnequipMontage;
+
+    if (!ActiveMontage)
+    {
+        CompleteLanternItemAnimation();
+        return;
+    }
+
+    GetWorldTimerManager().SetTimer(
+        LanternItemAnimationTimer,
+        this,
+        &ABaseCharacter::CompleteLanternItemAnimation,
+        ActiveMontage->GetPlayLength(),
+        false);
+}
+
+void ABaseCharacter::StartPrismItemAnimationTimer()
+{
+    UAnimMontage* ActiveMontage = bPrismEquipped
+        ? PrismEquipMontage
+        : PrismUnequipMontage;
+
+    if (!ActiveMontage)
+    {
+        CompletePrismItemAnimation();
+        return;
+    }
+
+    GetWorldTimerManager().SetTimer(
+        PrismItemAnimationTimer,
+        this,
+        &ABaseCharacter::CompletePrismItemAnimation,
+        ActiveMontage->GetPlayLength(),
+        false);
 }
 
 void ABaseCharacter::EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketName, AActor*& OutWeapon)
@@ -1794,7 +1924,9 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
         bHasLantern,
         bLanternEquipped);
 
-    if (bPrismEquipped)
+    // A prism transition—including Unequipping—must finish before a lantern
+    // action or an item switch can begin.
+    if (bPrismEquipped || bIsEquippingPrism)
     {
         return;
     }
@@ -1824,6 +1956,7 @@ void ABaseCharacter::ServerUsePotion_Implementation()
     }
 
     bIsUsingPotion = true;
+	SetItemAnimationState(EItemAnimationState::PotionUsing);
 	PendingPurchasedPotionIndex = INDEX_NONE;
     MulticastStartPotionUse();
     const float AnimationDuration = GetPotionAnimation()
@@ -1881,6 +2014,7 @@ void ABaseCharacter::FinishPotionUse()
     }
 
     bIsUsingPotion = false;
+	SetItemAnimationState(EItemAnimationState::None);
 	const bool bIsHealingPotion = PendingPurchasedPotionIndex == INDEX_NONE;
 
 	if (PendingPurchasedPotionIndex != INDEX_NONE)
@@ -1969,6 +2103,7 @@ void ABaseCharacter::CancelPotionUse()
     }
 
     bIsUsingPotion = false;
+	SetItemAnimationState(EItemAnimationState::None);
 	PendingPurchasedPotionIndex = INDEX_NONE;
     GetWorldTimerManager().ClearTimer(PotionUseTimer);
     MulticastCancelPotionUse();
@@ -2005,7 +2140,7 @@ void ABaseCharacter::UseSlot3(const FInputActionValue& Value)
 {
     if (bInventoryOpen) return;
     ServerCancelPotionUse();
-    if (bLanternEquipped)
+    if (bLanternEquipped || bIsEquippingLantern)
     {
         return;
     }
@@ -3249,6 +3384,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABaseCharacter, bHasPrism);
     DOREPLIFETIME(ABaseCharacter, bPrismEquipped);
     DOREPLIFETIME(ABaseCharacter, bPrismPoseActive);
+    DOREPLIFETIME(ABaseCharacter, ItemAnimationState);
 	DOREPLIFETIME(ABaseCharacter, Coin);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, PotionCount, COND_OwnerOnly);
 	DOREPLIFETIME(ABaseCharacter, bIsUsingPotion);
@@ -3461,7 +3597,9 @@ void ABaseCharacter::OnRep_LanternEquipped()
         }
     }
 
-    bLanternPoseActive = bLanternEquipped;
+    // bLanternEquipped is the gameplay/mesh state.  Do not activate the held
+    // idle layer here: this function is called as soon as replication arrives,
+    // which is earlier than the equip montage finishing.
 }
 
 void ABaseCharacter::RefreshLanternState()
@@ -3479,7 +3617,10 @@ void ABaseCharacter::ServerUseSlot1_Implementation()
         bLanternEquipped,
         (int32)GetLocalRole());
 
-    if (bPrismEquipped)
+    // The server is authoritative for this lock as well: a prism that is
+    // unequipping cannot be replaced until its Unequipping -> None transition
+    // has completed.
+    if (bPrismEquipped || bIsEquippingPrism)
         return;
 
     if (!bHasLantern)
@@ -3498,15 +3639,19 @@ void ABaseCharacter::ServerUseSlot1_Implementation()
         TEXT("ServerUseSlot1 After Equipped=%d"),
         bLanternEquipped);
 
-    bLanternPoseActive = bEquip;
-
-    bIsEquippingLantern = false;
+    // The dedicated pose state machine now plays the transition sequence
+    // itself, so it must be visible from the first equip frame through the
+    // final unequip frame. It is disabled only after Unequipping -> None.
+    bLanternPoseActive = true;
+    SetItemAnimationState(bEquip
+        ? EItemAnimationState::LanternEquipping
+        : EItemAnimationState::LanternUnequipping);
 
     OnRep_LanternEquipped();
 
     ForceNetUpdate();
 
-    bIsEquippingLantern = false;
+    StartLanternItemAnimationTimer();
 
     MulticastPlayLanternMontage(bEquip);
 }
@@ -3516,29 +3661,19 @@ void ABaseCharacter::MulticastPlayLanternMontage_Implementation(bool bEquip)
     if (bEquip)
     {
         bLanternGuideReady = false;
-        if (LanternEquipMontage)
-        {
-            PlayAnimMontage(LanternEquipMontage);
-        }
-        else if (IsLocallyControlled())
-        {
-            // Characters without an assigned montage have no completion event.
-            bLanternGuideReady = true;
-            LanternDirectionUpdateElapsed = 0.15f;
-        }
+        // The AnimBP's layered state machine owns this animation. Playing the
+        // same montage through DefaultSlot would override locomotion.
     }
     else
     {
-        if (LanternUnequipMontage)
-        {
-            PlayAnimMontage(LanternUnequipMontage);
-        }
+        // Completion is driven by the authoritative timer started on server.
     }
 }
 
 void ABaseCharacter::ServerUseSlot3_Implementation()
 {
-    if (bLanternEquipped)
+    // Symmetric lock for prism input while lantern state is not settled.
+    if (bLanternEquipped || bIsEquippingLantern)
         return;
 
     if (!bHasPrism)
@@ -3552,13 +3687,16 @@ void ABaseCharacter::ServerUseSlot3_Implementation()
     const bool bEquip = !bPrismEquipped;
 
     bPrismEquipped = bEquip;
-    bPrismPoseActive = bEquip;
-
-    bIsEquippingPrism = false;
+    bPrismPoseActive = true;
+    SetItemAnimationState(bEquip
+        ? EItemAnimationState::PrismEquipping
+        : EItemAnimationState::PrismUnequipping);
 
     RefreshPrismState();
 
     ForceNetUpdate();
+
+    StartPrismItemAnimationTimer();
 
     MulticastPlayPrismMontage(bEquip);
 }
@@ -3581,7 +3719,8 @@ void ABaseCharacter::OnRep_PrismEquipped()
 {
     EquippedPrismMesh->SetVisibility(bPrismEquipped);
 
-    bPrismPoseActive = bPrismEquipped;
+    // The layered state machine is enabled at transition start; its internal
+    // ItemAnimationState rule selects Equipping, Idle, or Unequipping.
 
     if (bPrismEquipped)
     {
@@ -3613,17 +3752,12 @@ void ABaseCharacter::MulticastPlayPrismMontage_Implementation(bool bEquip)
 {
     if (bEquip)
     {
-        if (PrismEquipMontage)
-        {
-            PlayAnimMontage(PrismEquipMontage);
-        }
+        // See MulticastPlayLanternMontage: the layered state machine owns the
+        // held-item sequence, preserving the locomotion base pose.
     }
     else
     {
-        if (PrismUnequipMontage)
-        {
-            PlayAnimMontage(PrismUnequipMontage);
-        }
+        // Completion is driven by the authoritative timer started on server.
     }
 }
 
