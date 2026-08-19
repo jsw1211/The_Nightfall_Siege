@@ -15,4 +15,10 @@ class THE_NIGHTFALL_SIEGE_API UItemAnimationStateLibrary : public UBlueprintFunc
 public:
 	UFUNCTION(BlueprintPure, Category = "Animation|Item State", meta = (BlueprintThreadSafe, DefaultToSelf = "AnimInstance"))
 	static bool IsItemAnimationState(const UAnimInstance* AnimInstance, EItemAnimationState ExpectedState);
+
+	UFUNCTION(BlueprintPure, Category = "Animation|Item State", meta = (BlueprintThreadSafe, DefaultToSelf = "AnimInstance"))
+	static bool IsNotItemAnimationState(const UAnimInstance* AnimInstance, EItemAnimationState State);
+
+	UFUNCTION(BlueprintPure, Category = "Animation|Item State", meta = (BlueprintThreadSafe, DefaultToSelf = "AnimInstance"))
+	static float GetPotionPoseWeight(const UAnimInstance* AnimInstance);
 };

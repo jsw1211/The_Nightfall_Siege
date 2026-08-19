@@ -1950,7 +1950,7 @@ void ABaseCharacter::ServerUsePotion_Implementation()
     // Potions require both hands.  The player must put away the lantern or
     // prism before drinking, just as other held-item actions are gated.
     if (bIsUsingPotion || PotionCount <= 0 || CurrentHP >= MaxHP || bIsDead
-        || bLanternEquipped || bPrismEquipped)
+        || bLanternEquipped || bPrismEquipped || bIsEquippingLantern || bIsEquippingPrism)
     {
         return;
     }
@@ -1991,19 +1991,17 @@ void ABaseCharacter::MulticastStartPotionUse_Implementation()
         }
     }
 
+    // PotionSlot exists inside the Potion Pose layer, so this event-driven
+    // montage restarts from frame zero without replacing the locomotion pose.
     if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
     {
         if (UAnimSequenceBase* PotionAnimation = GetPotionAnimation())
         {
-            ActivePotionMontage =
-                AnimInstance->PlaySlotAnimationAsDynamicMontage(
-                    PotionAnimation,
-                    TEXT("DefaultSlot"));
+            ActivePotionMontage = AnimInstance->PlaySlotAnimationAsDynamicMontage(
+                PotionAnimation,
+                TEXT("PotionSlot"));
         }
     }
-
-    // 힐 이펙트는 여기서 재생하지 않음.
-    // 포션 애니메이션이 끝난 뒤 FinishPotionUse()에서 재생함.
 }
 
 void ABaseCharacter::FinishPotionUse()
@@ -2166,7 +2164,8 @@ void ABaseCharacter::ServerUseSlot4_Implementation()
 
 void ABaseCharacter::ServerUsePurchasedItem_Implementation(int32 ItemIndex)
 {
-    if (bIsUsingPotion || bIsDead || bLanternEquipped || bPrismEquipped
+	if (bIsUsingPotion || bIsDead || bLanternEquipped || bPrismEquipped
+		|| bIsEquippingLantern || bIsEquippingPrism
 		|| !PurchasedItems.IsValidIndex(ItemIndex) || PurchasedItems[ItemIndex].Quantity <= 0)
     {
         return;
@@ -2182,6 +2181,7 @@ void ABaseCharacter::ServerUsePurchasedItem_Implementation(int32 ItemIndex)
 	// movement behavior, and cancellation rules.  Their effect is delayed
 	// until the drink animation completes.
 	bIsUsingPotion = true;
+	SetItemAnimationState(EItemAnimationState::PotionUsing);
 	PendingPurchasedPotionIndex = ItemIndex;
 	PendingPurchasedPotionType = ItemType;
 	MulticastStartPotionUse();
