@@ -991,7 +991,8 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerDebugBossPattern(uint8 PatternIndex);
 
-	// Development-only shortcut: teleports the player beside the active dungeon portal.
+	// Development-only shortcut: teleports in front of the dragon when one is
+	// present; otherwise it teleports beside the active dungeon portal.
 	UFUNCTION(Server, Reliable)
 	void ServerDebugTeleportToDungeonPortal();
 

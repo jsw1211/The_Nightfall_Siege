@@ -4309,7 +4309,25 @@ void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
 
 void ABaseCharacter::ServerDebugTeleportToDungeonPortal_Implementation()
 {
-    AActor* ClosestPortal = nullptr;
+	for (TActorIterator<ADragonBoss> It(GetWorld()); It; ++It)
+	{
+		ADragonBoss* Dragon = *It;
+		if (!IsValid(Dragon))
+		{
+			continue;
+		}
+
+		constexpr float DragonFrontTeleportDistance = 1200.f;
+		FVector Destination = Dragon->GetActorLocation()
+			+ Dragon->GetActorForwardVector() * DragonFrontTeleportDistance;
+		Destination.Z += GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+
+		TeleportTo(Destination, Dragon->GetActorForwardVector().Rotation(), false, true);
+		UE_LOG(LogTemp, Warning, TEXT("Debug teleported in front of dragon: %s"), *Destination.ToString());
+		return;
+	}
+
+	AActor* ClosestPortal = nullptr;
     float ClosestDistanceSquared = TNumericLimits<float>::Max();
 
     if (GetWorld()->GetMapName().Contains(TEXT("Dungeon")))
