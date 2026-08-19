@@ -99,6 +99,14 @@ ABaseCharacter::ABaseCharacter()
 	GetCharacterMovement()->bOrientRotationToMovement = false;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f);
 
+	// Dragon uses its own collision object channel, so players can pass
+	// ordinary monsters but are still stopped by the boss.
+	GetCapsuleComponent()->SetCollisionResponseToChannel(
+		ECC_GameTraceChannel2, ECR_Block);
+	// Monsters remain on Pawn for combat and navigation. Ignoring Pawn here
+	// lets players pass through them while monsters still block each other.
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+
     SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
     SpringArm->SetupAttachment(RootComponent);
 
@@ -239,6 +247,10 @@ void ABaseCharacter::BeginPlay()
     bIsDead = false;
     GetCharacterMovement()->SetMovementMode(MOVE_Walking);
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    GetCapsuleComponent()->SetCollisionResponseToChannel(
+        ECC_GameTraceChannel2, ECR_Block);
+    GetCapsuleComponent()->SetCollisionResponseToChannel(
+        ECC_Pawn, ECR_Ignore);
     if (APlayerController* RespawnController = Cast<APlayerController>(GetController()))
     {
         EnableInput(RespawnController);
@@ -4523,6 +4535,18 @@ void ABaseCharacter::CheckDarknessDamage()
     if (bInsideVillageSafeZone)
     {
         return;
+    }
+
+    // A lantern placed on an altar creates the same safe circle in which its
+    // assigned monsters become vulnerable. Use the altar's authoritative
+    // radius here as well, rather than a separate overlap volume, so players
+    // receive no darkness tick damage anywhere inside that visible zone.
+    for (TActorIterator<AAltar> AltarIt(GetWorld()); AltarIt; ++AltarIt)
+    {
+        if (AltarIt->IsInsideActiveLightZone(Location))
+        {
+            return;
+        }
     }
 
     if (bInsideLanternLight)

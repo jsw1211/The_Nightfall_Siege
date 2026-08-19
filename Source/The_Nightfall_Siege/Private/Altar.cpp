@@ -196,7 +196,9 @@ void AAltar::PushMonstersOffAltar()
 			Monster->GetCapsuleComponent()->GetScaledCapsuleRadius() + 50.f;
 		FVector SafeLocation = AltarLocation + AwayFromAltar * EjectDistance;
 		SafeLocation.Z = Monster->GetActorLocation().Z;
-		Monster->SetActorLocation(SafeLocation, false, nullptr, ETeleportType::TeleportPhysics);
+		// Sweep prevents an altar ejection from teleporting a monster through a
+		// nearby wall or floor when the calculated exit point is obstructed.
+		Monster->SetActorLocation(SafeLocation, true, nullptr, ETeleportType::TeleportPhysics);
 	}
 }
 
@@ -218,7 +220,9 @@ void AAltar::RegisterMonster(AMonster* Monster)
 
 bool AAltar::IsInsideActiveLightZone(const FVector& WorldLocation) const
 {
-	if (!bActivated || !LightRange)
+	// The green ground decal is visible while the lantern is placed. Use that
+	// exact state for all safe-zone checks, including player darkness damage.
+	if (!bLanternPlaced || !LightRange)
 	{
 		return false;
 	}
