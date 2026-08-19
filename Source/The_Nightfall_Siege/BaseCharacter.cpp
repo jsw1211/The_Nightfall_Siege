@@ -295,7 +295,7 @@ void ABaseCharacter::BeginPlay()
         AttackPower = 200.f;
 
         QMultiplier = 1.5f;
-        EMultiplier = 1.5f;
+        EMultiplier = 1.0f;
         RMultiplier = 3.0f;
 
         AttackSpeed = 1.0f;
@@ -1660,7 +1660,7 @@ void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
             else if (SkillLevel == 4)
             {
                 EMultiplier = 2.0f;
-                ERadius += 100.f;
+                ERadius = 700.f * 1.2f;
             }
 
             break;
@@ -2281,11 +2281,7 @@ void ABaseCharacter::SpawnEArrow()
             if (HasAuthority())
             {
                 ArcherERainCenter = TargetLocation;
-                GetWorldTimerManager().ClearTimer(ArcherERainDamageTimer);
-                GetWorldTimerManager().ClearTimer(ArcherERainEndTimer);
                 ApplyArcherERainDamage();
-                GetWorldTimerManager().SetTimer(ArcherERainDamageTimer, this, &ABaseCharacter::ApplyArcherERainDamage, 1.f, true);
-                GetWorldTimerManager().SetTimer(ArcherERainEndTimer, this, &ABaseCharacter::EndArcherERainDamage, ArcherERainDuration, false);
             }
         }
     }
@@ -2295,19 +2291,25 @@ void ABaseCharacter::ApplyArcherERainDamage()
 {
     if (!HasAuthority()) return;
 
+    const float Damage = ArcherERainDamage * EMultiplier;
+
+    for (TActorIterator<AMonster> It(GetWorld()); It; ++It)
+    {
+        AMonster* Monster = *It;
+        if (Monster && FVector::DistSquared(Monster->GetActorLocation(), ArcherERainCenter) <= FMath::Square(ERadius))
+        {
+            Monster->TakeMonsterDamage(Damage);
+        }
+    }
+
     for (TActorIterator<ADragonBoss> It(GetWorld()); It; ++It)
     {
         ADragonBoss* Dragon = *It;
         if (Dragon && FVector::DistSquared(Dragon->GetActorLocation(), ArcherERainCenter) <= FMath::Square(ERadius))
         {
-            Dragon->TakeBossDamage(ArcherERainDamagePerSecond);
+            Dragon->TakeBossDamage(Damage);
         }
     }
-}
-
-void ABaseCharacter::EndArcherERainDamage()
-{
-    GetWorldTimerManager().ClearTimer(ArcherERainDamageTimer);
 }
 
 bool ABaseCharacter::IsDead() const

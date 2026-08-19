@@ -66,6 +66,12 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 
 	if (Monster && OwnerCharacter)
 	{
+		if (ArrowType == EArrowType::Explosive)
+		{
+			Explode();
+			return;
+		}
+
 		if (HitMonsters.Contains(Monster))
 		{
 			return;
@@ -208,7 +214,7 @@ void AArrowProjectile::Explode()
 		{
 			AMonster* Monster = Cast<AMonster>(Result.GetActor());
 
-			if (Monster && OwnerCharacter)
+			if (Monster && OwnerCharacter && ArrowType != EArrowType::Explosive)
 			{
 				float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
 
