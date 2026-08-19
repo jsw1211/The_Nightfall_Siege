@@ -18,6 +18,8 @@ class THE_NIGHTFALL_SIEGE_API UTheNightfallSiegeInstance : public UGameInstance
 	GENERATED_BODY()
 	
 public:
+    UTheNightfallSiegeInstance();
+
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     ECharacterType SelectedCharacter = ECharacterType::Archer;
 
@@ -54,6 +56,11 @@ public:
 	bool ConsumeDungeonRetry();
 
 	virtual void Init() override;
+	virtual void Shutdown() override;
+
+	/** Opens the WBP_IP-style address dialog from the main-menu Join Server button. */
+	UFUNCTION(BlueprintCallable, Category = "Network")
+	void ShowIPJoinDialog();
 
 	UPROPERTY(BlueprintReadWrite)
 	bool bHasLantern = false;
@@ -87,4 +94,18 @@ public:
 
 	UPROPERTY()
 	bool bWorldLanternDestroyed = false;
+
+private:
+	void HandlePostLoadMap(UWorld* LoadedWorld);
+	void BindMainMenuJoinButton();
+	void HandleNetworkFailure(UWorld* World, class UNetDriver* NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString);
+
+	UFUNCTION()
+	void OnMainMenuJoinClicked();
+
+	UPROPERTY(Transient)
+	TObjectPtr<class UIPJoinWidget> IPJoinWidget;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Network|UI")
+	TSubclassOf<class UIPJoinWidget> IPJoinWidgetClass;
 };
