@@ -2267,7 +2267,7 @@ void ABaseCharacter::SpawnEArrow()
         Arrow->DamageMultiplier = EMultiplier;
         Arrow->EExplosionRadius = 450.f;
 
-        FVector TargetLocation = GetActorLocation() + GetActorForwardVector() * 1000.f;
+        FVector TargetLocation = GetActorLocation() + GetActorForwardVector() * 1500.f;
 
         FVector LaunchVelocity;
 
