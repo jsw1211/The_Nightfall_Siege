@@ -135,6 +135,14 @@ public:
 	UFUNCTION()
 	void OnRep_IsPhaseTwo();
 
+	// Kept separate from bIsPhaseTwo so joining clients do not show the phase-two
+	// overlay before the transition montage reaches its final half second.
+	UPROPERTY(ReplicatedUsing = OnRep_PhaseTwoMaterialApplied, BlueprintReadOnly, Category = "Boss|Phase Two")
+	bool bPhaseTwoMaterialApplied = false;
+
+	UFUNCTION()
+	void OnRep_PhaseTwoMaterialApplied();
+
 	UFUNCTION(BlueprintPure, Category = "Boss|Phase Two")
 	float GetCurrentDamageMultiplier() const;
 
@@ -175,6 +183,9 @@ public:
 	FTimerHandle AttackTimerHandle;
 	FTimerHandle AttackEndHandle;
 	FTimerHandle ChargingEffectHandle;
+	FTimerHandle PhaseTwoMaterialHandle;
+	FTimerHandle PhaseTwoMaterialReplicationHandle;
+	FTimerHandle PhaseTransitionEndHandle;
 
 	// =========================
 	// Functions
@@ -466,12 +477,17 @@ public:
 	void MulticastStartPhaseTwoFX();
 
 	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStartPhaseTwoTransition();
+
+	UFUNCTION(NetMulticast, Reliable)
 	void MulticastStartBarrierFX();
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastStopBarrierFX();
 
 	void CheckPhaseTwo();
+	void FinishPhaseTwoTransition();
+	void MarkPhaseTwoMaterialApplied();
 	void EnsurePhaseTwoFX();
 	void EnsureBarrierFX();
 	void ApplyPhaseTwoMaterial();

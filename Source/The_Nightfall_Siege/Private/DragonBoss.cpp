@@ -2180,7 +2180,36 @@ void ADragonBoss::MulticastSpawnBlackoutReleaseFX_Implementation(FVector Locatio
 void ADragonBoss::MulticastStartPhaseTwoFX_Implementation()
 {
 	EnsurePhaseTwoFX();
-	ApplyPhaseTwoMaterial();
+}
+
+void ADragonBoss::MulticastStartPhaseTwoTransition_Implementation()
+{
+	EnsurePhaseTwoFX();
+
+	float MontageDuration = 0.f;
+	if (DebuffMontage && GetMesh())
+	{
+		if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+		{
+			MontageDuration = AnimInstance->Montage_Play(DebuffMontage);
+		}
+	}
+
+	// If the montage is unavailable, apply the material immediately rather
+	// than leaving this client permanently in the phase-one appearance.
+	const float MaterialDelay = FMath::Max(0.f, MontageDuration - 0.5f);
+	if (MaterialDelay <= 0.f)
+	{
+		ApplyPhaseTwoMaterial();
+		return;
+	}
+
+	GetWorldTimerManager().SetTimer(
+		PhaseTwoMaterialHandle,
+		this,
+		&ADragonBoss::ApplyPhaseTwoMaterial,
+		MaterialDelay,
+		false);
 }
 
 void ADragonBoss::MulticastStartBarrierFX_Implementation()
@@ -2301,8 +2330,49 @@ void ADragonBoss::CheckPhaseTwo()
 	}
 
 	bIsPhaseTwo = true;
+	bIsAttacking = true;
+	bIsTelegraphing = false;
+	CurrentState = EDragonState::Attacking;
+
+	if (AAIController* AIController = Cast<AAIController>(GetController()))
+	{
+		AIController->StopMovement();
+	}
+	GetCharacterMovement()->StopMovementImmediately();
+
+	// A phase transition replaces any attack already in progress.  Otherwise a
+	// previous telegraph or attack-end callback can interrupt its montage.
+	GetWorldTimerManager().ClearTimer(AttackTimerHandle);
+	GetWorldTimerManager().ClearTimer(AttackEndHandle);
+	GetWorldTimerManager().ClearTimer(ChargingEffectHandle);
+	GetWorldTimerManager().ClearTimer(TelegraphHandle);
+
 	ForceNetUpdate();
-	MulticastStartPhaseTwoFX();
+	MulticastStartPhaseTwoTransition();
+
+	float MontageDuration = 0.f;
+	if (DebuffMontage && GetMesh())
+	{
+		if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+		{
+			MontageDuration = DebuffMontage->GetPlayLength() /
+				FMath::Max(AnimInstance->Montage_GetPlayRate(DebuffMontage), KINDA_SMALL_NUMBER);
+		}
+	}
+
+	const float MaterialDelay = FMath::Max(0.f, MontageDuration - 0.5f);
+	GetWorldTimerManager().SetTimer(
+		PhaseTwoMaterialReplicationHandle,
+		this,
+		&ADragonBoss::MarkPhaseTwoMaterialApplied,
+		MaterialDelay,
+		false);
+	GetWorldTimerManager().SetTimer(
+		PhaseTransitionEndHandle,
+		this,
+		&ADragonBoss::FinishPhaseTwoTransition,
+		MontageDuration,
+		false);
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("Dragon entered phase two. Damage multiplier: %.2f"),
@@ -2314,8 +2384,38 @@ void ADragonBoss::OnRep_IsPhaseTwo()
 	if (bIsPhaseTwo)
 	{
 		EnsurePhaseTwoFX();
+	}
+}
+
+void ADragonBoss::OnRep_PhaseTwoMaterialApplied()
+{
+	if (bPhaseTwoMaterialApplied)
+	{
 		ApplyPhaseTwoMaterial();
 	}
+}
+
+void ADragonBoss::MarkPhaseTwoMaterialApplied()
+{
+	if (!HasAuthority() || bPhaseTwoMaterialApplied)
+	{
+		return;
+	}
+
+	bPhaseTwoMaterialApplied = true;
+	ForceNetUpdate();
+}
+
+void ADragonBoss::FinishPhaseTwoTransition()
+{
+	if (!HasAuthority() || CurrentState == EDragonState::Dead)
+	{
+		return;
+	}
+
+	bIsAttacking = false;
+	CurrentState = EDragonState::Walking;
+	StartAttackCycle();
 }
 
 void ADragonBoss::OnRep_CurrentState()
@@ -2334,6 +2434,7 @@ void ADragonBoss::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ADragonBoss, CurrentHP);
 	DOREPLIFETIME(ADragonBoss, bIsFlying);
 	DOREPLIFETIME(ADragonBoss, bIsPhaseTwo);
+	DOREPLIFETIME(ADragonBoss, bPhaseTwoMaterialApplied);
 }
 
 void ADragonBoss::OnRep_CurrentHP()
