@@ -240,6 +240,14 @@ void ABaseCharacter::BeginPlay()
     bIsDead = false;
     GetCharacterMovement()->SetMovementMode(MOVE_Walking);
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    // Cover the opposite spawn order from AMonster::BeginPlay. Movement-ignore
+    // lists are local state, so this intentionally runs on server and clients.
+    for (TActorIterator<AMonster> It(GetWorld()); It; ++It)
+    {
+        MoveIgnoreActorAdd(*It);
+        It->MoveIgnoreActorAdd(this);
+    }
+
     if (APlayerController* RespawnController = Cast<APlayerController>(GetController()))
     {
         EnableInput(RespawnController);
@@ -570,6 +578,19 @@ void ABaseCharacter::PlayHit()
         {
             bIsHit = false;
         });
+}
+
+bool ABaseCharacter::CanBeBaseForCharacter(APawn* Pawn) const
+{
+    // Reject only the two enemy character families requested here. Keeping the
+    // capsule's normal slope rules lets CharacterMovement land momentarily and
+    // invoke its built-in JumpOff path instead of hovering on an unwalkable top.
+    if (Pawn && (Pawn->IsA<AMonster>() || Pawn->IsA<ADragonBoss>()))
+    {
+        return false;
+    }
+
+    return Super::CanBeBaseForCharacter(Pawn);
 }
 
 // Called every frame

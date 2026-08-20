@@ -96,6 +96,25 @@ void AMonster::BeginPlay()
 	Super::BeginPlay();
 	
     DungeonManager = Cast<ADungeonManager>(UGameplayStatics::GetActorOfClass(GetWorld(), ADungeonManager::StaticClass()));
+
+    // Monsters and players can be spawned in either order (including on
+    // replicated clients). Ignore only their movement sweeps in both
+    // directions; the Pawn collision profile remains untouched for damage,
+    // monster-to-monster blocking, and floor collision.
+    TArray<AActor*> Players;
+    UGameplayStatics::GetAllActorsOfClass(
+        GetWorld(),
+        ABaseCharacter::StaticClass(),
+        Players);
+
+    for (AActor* Actor : Players)
+    {
+        if (ABaseCharacter* Player = Cast<ABaseCharacter>(Actor))
+        {
+            MoveIgnoreActorAdd(Player);
+            Player->MoveIgnoreActorAdd(this);
+        }
+    }
     
     if (UUserWidget* Widget =
         HPWidget->GetUserWidgetObject())

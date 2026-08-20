@@ -31,6 +31,9 @@ ADragonBoss::ADragonBoss()
 	// gameplay projectiles on that broad capsule so only the bone-following
 	// hitboxes below can receive weapon/arrow damage.
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Ignore);
+	// Reflectors use a dedicated object channel. Block their actual mesh only,
+	// allowing the boss to approach without introducing an exclusion radius.
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Block);
 
 	auto ConfigureHitbox = [this](TObjectPtr<UCapsuleComponent>& Hitbox, const TCHAR* Name,
 		const FName BoneName, float Radius, float HalfHeight)
@@ -142,6 +145,12 @@ void ADragonBoss::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Blueprint collision defaults can override native constructor responses.
+	// Apply this on every network role because movement collision is local.
+	GetCapsuleComponent()->SetCollisionResponseToChannel(
+		ECC_GameTraceChannel2,
+		ECR_Block);
+
 	if (!HasAuthority())
 	{
 		return;
@@ -249,15 +258,15 @@ void ADragonBoss::Tick(float DeltaTime)
 			const FVector NewLocation = FMath::VInterpConstantTo(
 				PreviousLocation, ArenaCenter, DeltaTime, 1200.f);
 
+			MoveWithSweepAndSlide(NewLocation);
+
 			if (DeltaTime > UE_SMALL_NUMBER)
 			{
 				GetCharacterMovement()->Velocity =
-					(NewLocation - PreviousLocation) / DeltaTime;
+					(GetActorLocation() - PreviousLocation) / DeltaTime;
 			}
 
-			SetActorLocation(NewLocation);
-
-			FVector CenterDirection = ArenaCenter - NewLocation;
+			FVector CenterDirection = ArenaCenter - GetActorLocation();
 			CenterDirection.Z = 0.f;
 			if (!CenterDirection.IsNearlyZero())
 			{
@@ -902,6 +911,22 @@ void ADragonBoss::FlyToTarget()
 		CurrentState =
 			EDragonState::Landing;
 
+		// Do not freeze in MOVE_Flying during the landing montage. Falling
+		// immediately runs the normal walkable-floor/base checks, so a player
+		// capsule or reflector cannot become its movement base. Keep a deliberate
+		// lateral escape velocity as well: a purely vertical fall onto the flat
+		// top of an unwalkable capsule would otherwise have no slide direction.
+		FVector EscapeDirection = GetActorLocation() - TargetPlayer->GetActorLocation();
+		EscapeDirection.Z = 0.f;
+		if (!EscapeDirection.Normalize())
+		{
+			EscapeDirection = GetActorRightVector().GetSafeNormal2D();
+		}
+
+		UCharacterMovementComponent* LandingMovement = GetCharacterMovement();
+		LandingMovement->SetMovementMode(MOVE_Falling);
+		LandingMovement->Velocity = EscapeDirection * FMath::Max(ChaseStopRange, 500.f);
+
 		MulticastPlayMovementTransition(true);
 		GetWorldTimerManager().SetTimer(LandingRecoveryHandle, this, &ADragonBoss::OnLandFinished, 2.f, false);
 
@@ -924,20 +949,85 @@ void ADragonBoss::FlyToTarget()
 			DeltaSeconds,
 			1200.f);
 
+	// Sweep the movement capsule so manual flight cannot teleport onto a player
+	// or through a reflector. Slide on contact so the dragon keeps routing along
+	// the real mesh instead of becoming stuck at an invisible exclusion radius.
+	MoveWithSweepAndSlide(ClampToMovementBounds(NewLocation));
+
 	// SetActorLocation does not provide a stable CharacterMovement velocity.
 	// Keep it updated so animation blueprints never see a zero-speed frame
-	// while the dragon is visibly flying.
+	// while the dragon is visibly flying. Use the actual swept result so a
+	// blocked flight does not report movement that never occurred.
 	if (DeltaSeconds > UE_SMALL_NUMBER)
 	{
 		GetCharacterMovement()->Velocity =
-			(NewLocation - PreviousLocation) / DeltaSeconds;
+			(GetActorLocation() - PreviousLocation) / DeltaSeconds;
 	}
-
-	SetActorLocation(ClampToMovementBounds(NewLocation));
 
 	SetActorRotation(
 		(TargetLoc - GetActorLocation())
 		.Rotation());
+}
+
+void ADragonBoss::MoveWithSweepAndSlide(const FVector& DesiredLocation)
+{
+	const FVector MoveDelta = DesiredLocation - GetActorLocation();
+	if (MoveDelta.IsNearlyZero())
+	{
+		return;
+	}
+
+	FHitResult MoveHit;
+	SetActorLocation(DesiredLocation, true, &MoveHit);
+
+	if (MoveHit.IsValidBlockingHit())
+	{
+		// CharacterMovement narrows this override to protected in UE 5.7, but
+		// the public MovementComponent interface still dispatches to it.
+		UMovementComponent* Movement = GetCharacterMovement();
+		const FVector BeforeSlide = GetActorLocation();
+		Movement->SlideAlongSurface(
+			MoveDelta,
+			1.f - MoveHit.Time,
+			MoveHit.Normal,
+			MoveHit,
+			true);
+
+		// A perfectly head-on hit projects to a zero slide vector. Take one
+		// deterministic tangential step so repeated straight-line flight can
+		// route around a player/reflector instead of retrying the same point.
+		if (FVector::DistSquared(BeforeSlide, GetActorLocation()) <= 1.f)
+		{
+			FVector SideStepDirection = FVector::CrossProduct(
+				FVector::UpVector,
+				FVector(MoveHit.Normal.X, MoveHit.Normal.Y, 0.f));
+
+			if (!SideStepDirection.Normalize())
+			{
+				SideStepDirection = GetActorRightVector().GetSafeNormal2D();
+			}
+			else if (FVector::DotProduct(SideStepDirection, GetActorRightVector()) < 0.f)
+			{
+				SideStepDirection *= -1.f;
+			}
+
+			const float RemainingFraction = FMath::Clamp(1.f - MoveHit.Time, 0.f, 1.f);
+			const float SideStepDistance = MoveDelta.Size() * RemainingFraction;
+			const FVector BeforeSideStep = GetActorLocation();
+			FHitResult SideStepHit;
+			AddActorWorldOffset(
+				SideStepDirection * SideStepDistance,
+				true,
+				&SideStepHit);
+
+			if (FVector::DistSquared(BeforeSideStep, GetActorLocation()) <= 1.f)
+			{
+				AddActorWorldOffset(
+					SideStepDirection * -SideStepDistance,
+					true);
+			}
+		}
+	}
 }
 
 void ADragonBoss::FlyToCenter()

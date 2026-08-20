@@ -74,6 +74,7 @@ protected:
 	// Fits the damage hitboxes to the current animated bone positions.
 	void UpdateDamageHitboxes();
 	FVector ClampToMovementBounds(const FVector& DesiredLocation) const;
+	void MoveWithSweepAndSlide(const FVector& DesiredLocation);
 
 	int32 BiteCount = 0;
 	int32 CloseBreathCount = 0;

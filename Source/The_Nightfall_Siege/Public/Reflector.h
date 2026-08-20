@@ -25,6 +25,7 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+	virtual bool CanBeBaseForCharacter(APawn* Pawn) const override;
 
 	UPROPERTY(VisibleAnywhere)
 	UStaticMeshComponent* Mesh;
