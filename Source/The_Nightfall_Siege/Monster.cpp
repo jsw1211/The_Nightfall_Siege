@@ -13,6 +13,8 @@
 #include "Components/WidgetComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/CapsuleComponent.h"
+#include "Materials/MaterialInterface.h"
+#include "UObject/ConstructorHelpers.h"
 #include "AIController.h"
 #include "Coin.h"
 #include "DungeonPrism.h"
@@ -79,6 +81,13 @@ AMonster::AMonster()
     AttackCooldown = 2.0f;
 
     bIsDead = false;
+
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> HitFlashMaterialAsset(
+        TEXT("/Game/BP_Monster/Shared/M_MonsterHitFlash.M_MonsterHitFlash"));
+    if (HitFlashMaterialAsset.Succeeded())
+    {
+        HitFlashOverlayMaterial = HitFlashMaterialAsset.Object;
+    }
 }
 
 // Called when the game starts or when spawned
@@ -305,6 +314,39 @@ void AMonster::ClearTaunt()
 void AMonster::MulticastShowDamage_Implementation(float Damage)
 {
     ShowDamage(Damage);
+    PlayHitFlash();
+}
+
+void AMonster::PlayHitFlash()
+{
+    if (!GetMesh() || !HitFlashOverlayMaterial)
+    {
+        return;
+    }
+
+    GetWorldTimerManager().ClearTimer(HitFlashTimerHandle);
+    GetMesh()->SetOverlayMaterial(HitFlashOverlayMaterial);
+
+    if (HitFlashDuration <= 0.f)
+    {
+        ClearHitFlash();
+        return;
+    }
+
+    GetWorldTimerManager().SetTimer(
+        HitFlashTimerHandle,
+        this,
+        &AMonster::ClearHitFlash,
+        HitFlashDuration,
+        false);
+}
+
+void AMonster::ClearHitFlash()
+{
+    if (GetMesh())
+    {
+        GetMesh()->SetOverlayMaterial(nullptr);
+    }
 }
 
 void AMonster::MulticastPlayDeath_Implementation()

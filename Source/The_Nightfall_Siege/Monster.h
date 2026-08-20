@@ -14,6 +14,7 @@ class UWidgetComponent;
 class ABaseCharacter;
 class ACoin;
 class ADungeonPrism;
+class UMaterialInterface;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API AMonster : public ACharacter
@@ -88,6 +89,21 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void ShowDamage(float Damage);
+	/** Red overlay shown whenever this monster takes valid damage. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hit Reaction", meta = (ClampMin = "0.0", Units = "s"))
+	float HitFlashDuration = 0.5f;
+
+	/** Material applied over the mesh during the hit reaction. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit Reaction")
+	TObjectPtr<UMaterialInterface> HitFlashOverlayMaterial;
+
+	/** Plays the hit-flash locally; invoked through the damage multicast. */
+	void PlayHitFlash();
+
+	/** Removes the temporary hit-flash material overlay. */
+	void ClearHitFlash();
+
+	FTimerHandle HitFlashTimerHandle;
 
 	UPROPERTY()
 	ADungeonManager* DungeonManager;
