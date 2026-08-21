@@ -111,6 +111,15 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
         return;
     }
 
+    if (Text_ATK)
+    {
+        Text_ATK->SetText(
+            FText::FromString(
+                FString::Printf(TEXT("%.0f"), Player->GetAttackPower())
+            )
+        );
+    }
+
     // Apply the authored UMG overlay directly.  Its PNG has a transparent
     // centre and a black falloff at the edges, so UI and the pawn stay clear
     // while the surrounding screen darkens.

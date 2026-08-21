@@ -93,6 +93,9 @@ public:
     UPROPERTY(meta = (BindWidget))
     UTextBlock* CoinText;
 
+    UPROPERTY(meta = (BindWidget))
+    UTextBlock* Text_ATK;
+
     UFUNCTION(BlueprintCallable)
     void UpdateCoin(int32 Coin);
 };

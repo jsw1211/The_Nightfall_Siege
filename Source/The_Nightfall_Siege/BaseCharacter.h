@@ -136,6 +136,9 @@ public:
 	UFUNCTION(Server, Reliable)
 	void ServerRotate(FRotator NewRotation);
 
+	UFUNCTION(BlueprintPure)
+	float GetAttackPower() const { return AttackPower; }
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -738,11 +741,6 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void DisableWeaponCollision();
-
-	float GetAttackPower() const
-	{
-		return AttackPower;
-	}
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Projectile")
 	TSubclassOf<AArrowProjectile> ArrowClass;
