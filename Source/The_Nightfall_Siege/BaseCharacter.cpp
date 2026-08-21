@@ -1246,49 +1246,84 @@ void ABaseCharacter::RefreshInventoryWidget()
         return;
     }
 
-    UGridPanel* InventoryGrid = Cast<UGridPanel>(InventoryWidget->GetWidgetFromName(TEXT("GridPanel_0")));
-    if (!InventoryGrid)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("WBP_Inventory is missing GridPanel_0."));
-        return;
-    }
+    constexpr int32 SlotCount = 12;
 
-    // Replace the old placeholder WBP_ItemSlot children with slots that own
-    // their drag/drop logic.  Array index == visible slot order at all times.
-    InventoryGrid->ClearChildren();
-
-    APlayerController* PC = Cast<APlayerController>(GetController());
-    if (!PC)
+    for (int32 SlotIndex = 0; SlotIndex < SlotCount; ++SlotIndex)
     {
-        return;
-    }
+        const FString ImageName =
+            FString::Printf(TEXT("Image_%d"), SlotIndex);
 
-    constexpr int32 Columns = 4;
-    constexpr int32 MinimumVisibleSlots = 12;
-    const int32 VisibleSlotCount = FMath::Max(PurchasedItems.Num(), MinimumVisibleSlots);
-    for (int32 SlotIndex = 0; SlotIndex < VisibleSlotCount; ++SlotIndex)
-    {
-        UInventoryItemSlotWidget* Slot = CreateWidget<UInventoryItemSlotWidget>(PC, UInventoryItemSlotWidget::StaticClass());
-        if (!Slot)
+        const FString TextName =
+            FString::Printf(TEXT("Text_%d"), SlotIndex);
+
+        const FString SlotInputName =
+            FString::Printf(TEXT("SlotInput_%d"), SlotIndex);
+
+        UImage* SlotImage =
+            Cast<UImage>(
+                InventoryWidget->GetWidgetFromName(*ImageName)
+            );
+
+        UTextBlock* SlotText =
+            Cast<UTextBlock>(
+                InventoryWidget->GetWidgetFromName(*TextName)
+            );
+
+        UInventoryItemSlotWidget* SlotInput =
+            Cast<UInventoryItemSlotWidget>(
+                InventoryWidget->GetWidgetFromName(*SlotInputName)
+            );
+
+        if (!SlotImage || !SlotText || !SlotInput)
         {
+            UE_LOG(
+                LogTemp,
+                Warning,
+                TEXT("Inventory slot %d setup failed. Image=%s Text=%s SlotInput=%s"),
+                SlotIndex,
+                SlotImage ? TEXT("OK") : TEXT("MISSING"),
+                SlotText ? TEXT("OK") : TEXT("MISSING"),
+                SlotInput ? TEXT("OK") : TEXT("MISSING")
+            );
+
             continue;
         }
 
         if (PurchasedItems.IsValidIndex(SlotIndex))
         {
-            const FShopInventoryItem& Item = PurchasedItems[SlotIndex];
-            const FText SlotText = FText::FromString(FString::Printf(
-                TEXT("%s x%d"),
-                *Item.DisplayName.ToString(),
-                Item.Quantity));
-            Slot->Configure(this, SlotIndex, SlotText, Item.Icon.Get());
+            const FShopInventoryItem& Item =
+                PurchasedItems[SlotIndex];
+
+            const FText SlotName =
+                FText::FromString(
+                    FString::Printf(
+                        TEXT("%s x%d"),
+                        *Item.DisplayName.ToString(),
+                        Item.Quantity
+                    )
+                );
+
+            // 슬롯의 드래그/더블클릭/드롭 데이터 설정
+            SlotInput->Configure(this, SlotIndex, Item.Icon.Get());
+
+            // WBP에서 직접 만든 Image/Text에 데이터만 넣음
+            SlotImage->SetBrushFromTexture(Item.Icon.Get());
+            SlotText->SetText(SlotName);
+
+            SlotImage->SetVisibility(ESlateVisibility::Visible);
+            SlotText->SetVisibility(ESlateVisibility::Visible);
         }
         else
         {
-            Slot->ConfigureEmpty();
-        }
+            // 빈 슬롯
+            SlotInput->ConfigureEmpty();
 
-        InventoryGrid->AddChildToGrid(Slot, SlotIndex / Columns, SlotIndex % Columns);
+            SlotImage->SetBrushFromTexture(nullptr);
+            SlotText->SetText(FText::GetEmpty());
+
+            SlotImage->SetVisibility(ESlateVisibility::Collapsed);
+            SlotText->SetVisibility(ESlateVisibility::Collapsed);
+        }
     }
 }
 

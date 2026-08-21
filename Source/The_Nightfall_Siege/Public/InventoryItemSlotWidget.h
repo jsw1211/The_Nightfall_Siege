@@ -6,41 +6,57 @@
 
 class ABaseCharacter;
 class UBorder;
-class UImage;
-class UTextBlock;
 
-// A runtime slot used inside WBP_Inventory's existing GridPanel.  It owns its
-// drag/drop behavior so the visual Blueprint does not need graph wiring.
+// WBP_Inventory에 미리 배치된 슬롯의 입력/드래그/드롭을 담당하는 위젯.
+// 실제 아이템 이미지와 이름은 WBP에서 직접 배치하고,
+// 이 위젯은 슬롯의 입력 영역 역할만 담당한다.
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API UInventoryItemSlotWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
 public:
-	void Configure(ABaseCharacter* InOwner, int32 InIndex, const FText& InName, UTexture2D* InIcon);
-	// Empty slots keep the inventory panel visible even before the player owns
-	// an item.  They are deliberately inert: no drag, use, or drop target.
+	void Configure(
+		ABaseCharacter* InOwner,
+		int32 InIndex,
+		UTexture2D* InIcon);
+
+	// 비어 있는 슬롯으로 설정
 	void ConfigureEmpty();
+
 	int32 GetItemIndex() const { return ItemIndex; }
 	ABaseCharacter* GetOwnerCharacter() const { return OwnerCharacter; }
 
 protected:
 	virtual bool Initialize() override;
-	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseButtonDoubleClick(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
-	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
+	virtual FReply NativeOnMouseButtonDown(
+		const FGeometry& InGeometry,
+		const FPointerEvent& InMouseEvent) override;
+
+	virtual FReply NativeOnMouseButtonDoubleClick(
+		const FGeometry& InGeometry,
+		const FPointerEvent& InMouseEvent) override;
+
+	virtual void NativeOnDragDetected(
+		const FGeometry& InGeometry,
+		const FPointerEvent& InMouseEvent,
+		UDragDropOperation*& OutOperation) override;
+
+	virtual bool NativeOnDrop(
+		const FGeometry& InGeometry,
+		const FDragDropEvent& InDragDropEvent,
+		UDragDropOperation* InOperation) override;
 
 private:
 	UPROPERTY()
 	TObjectPtr<ABaseCharacter> OwnerCharacter;
 
-	UPROPERTY()
-	TObjectPtr<UImage> ItemImage;
-
-	UPROPERTY()
-	TObjectPtr<UTextBlock> ItemNameText;
-
 	int32 ItemIndex = INDEX_NONE;
+
 	bool bContainsItem = false;
+
+	UPROPERTY()
+	TObjectPtr<UTexture2D> DragIcon;
+
 };
