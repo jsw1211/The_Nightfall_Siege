@@ -1059,6 +1059,7 @@ protected:
 	void DebugBossPattern3();
 	void DebugBossPattern4();
 	void DebugBossCenterMechanic();
+	void DebugSetGold1000();
 	void DebugTeleportToDungeonPortal();
 	void DebugCompleteRaid();
 	void DebugEnableMoveSpeed();

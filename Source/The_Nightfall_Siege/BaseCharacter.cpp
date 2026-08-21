@@ -769,6 +769,7 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         PlayerInputComponent->BindKey(EKeys::Hyphen, IE_Pressed, this, &ABaseCharacter::DebugCompleteRaid);
 	    PlayerInputComponent->BindKey(EKeys::Nine, IE_Pressed, this, &ABaseCharacter::DebugEnableMoveSpeed);
 	    PlayerInputComponent->BindKey(EKeys::Zero, IE_Pressed, this, &ABaseCharacter::DebugResetMoveSpeed);
+        PlayerInputComponent->BindKey(EKeys::Backslash, IE_Pressed, this, &ABaseCharacter::DebugSetGold1000);
     }
 #endif
 
@@ -4794,3 +4795,22 @@ void ABaseCharacter::CheckDarknessDamage()
     TakePlayerDamage(Damage);
 }
 
+void ABaseCharacter::DebugSetGold1000()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    Coin = 1000;
+
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        PS->Coin = Coin;
+        PS->ForceNetUpdate();
+    }
+
+    OnRep_Coin();
+
+    UE_LOG(LogTemp, Warning, TEXT("DEBUG: Gold set to 1000"));
+}
