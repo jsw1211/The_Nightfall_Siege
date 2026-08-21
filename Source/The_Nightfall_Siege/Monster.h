@@ -15,6 +15,8 @@ class ABaseCharacter;
 class ACoin;
 class ADungeonPrism;
 class UMaterialInterface;
+class UNiagaraSystem;
+class UNiagaraComponent;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API AMonster : public ACharacter
@@ -110,6 +112,8 @@ public:
 
 	bool bIsDead;
 
+	bool bBarrierActive = false;
+
 	UPROPERTY()
 	AAltar* OwnerAltar;
 
@@ -152,4 +156,24 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(
 		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	// 무적 상태 베리어 이펙트
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Barrier")
+	TObjectPtr<UNiagaraSystem> BarrierFX;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Barrier")
+	TObjectPtr<UNiagaraComponent> BarrierFXComponent;
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStartBarrierFX();
+
+	void MulticastStartBarrierFX_Implementation();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStopBarrierFX();
+
+	void MulticastStopBarrierFX_Implementation();
+
+	void EnsureBarrierFX();
 };
+

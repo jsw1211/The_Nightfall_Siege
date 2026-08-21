@@ -21,6 +21,10 @@
 #include "BasePlayerState.h"
 #include "TheNightfallSiegeInstance.h"
 #include "Net/UnrealNetwork.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
+
 
 namespace
 {
@@ -88,6 +92,21 @@ AMonster::AMonster()
     {
         HitFlashOverlayMaterial = HitFlashMaterialAsset.Object;
     }
+
+    BarrierFXComponent = CreateDefaultSubobject<UNiagaraComponent>(
+        TEXT("BarrierFXComponent"));
+
+    BarrierFXComponent->SetupAttachment(GetMesh());
+    BarrierFXComponent->SetAutoActivate(false);
+
+    static ConstructorHelpers::FObjectFinder<UNiagaraSystem> BarrierAsset(
+        TEXT("/Game/Effects/7_WereWolf/Barrier/NS_WereWolf_Barrier.NS_WereWolf_Barrier"));
+
+    if (BarrierAsset.Succeeded())
+    {
+        BarrierFX = BarrierAsset.Object;
+        BarrierFXComponent->SetAsset(BarrierFX);
+    }
 }
 
 // Called when the game starts or when spawned
@@ -119,6 +138,17 @@ void AMonster::BeginPlay()
     if (UUserWidget* Widget =
         HPWidget->GetUserWidgetObject())
     {
+    }
+
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    if (HasAuthority() && OwnerAltar && !OwnerAltar->bActivated)
+    {
+        bBarrierActive = true;
+        MulticastStartBarrierFX();
     }
 }
 
@@ -266,6 +296,20 @@ void AMonster::Tick(float DeltaTime)
         }
 
         bIsAttacking = false;
+    }
+
+    if (OwnerAltar)
+    {
+        if (!OwnerAltar->bActivated && !bBarrierActive)
+        {
+            bBarrierActive = true;
+            MulticastStartBarrierFX();
+        }
+        else if (OwnerAltar->bActivated && bBarrierActive)
+        {
+            bBarrierActive = false;
+            MulticastStopBarrierFX();
+        }
     }
 }
 
@@ -602,3 +646,50 @@ void AMonster::GetLifetimeReplicatedProps(
     DOREPLIFETIME(AMonster, MaxHP);
 }   
 
+void AMonster::MulticastStartBarrierFX_Implementation()
+{
+    EnsureBarrierFX();
+}
+
+void AMonster::MulticastStopBarrierFX_Implementation()
+{
+    if (IsValid(BarrierFXComponent))
+    {
+        BarrierFXComponent->DeactivateImmediate();
+        BarrierFXComponent->SetVisibility(false, true);
+    }
+}
+
+void AMonster::EnsureBarrierFX()
+{
+    if (!BarrierFX || !GetMesh())
+    {
+        return;
+    }
+
+    if (IsValid(BarrierFXComponent))
+    {
+        BarrierFXComponent->SetAsset(BarrierFX);
+        BarrierFXComponent->SetVisibility(true, true);
+        BarrierFXComponent->SetHiddenInGame(false, true);
+        BarrierFXComponent->Activate(true);
+        return;
+    }
+
+    BarrierFXComponent =
+        UNiagaraFunctionLibrary::SpawnSystemAttached(
+            BarrierFX,
+            GetMesh(),
+            NAME_None,
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::KeepRelativeOffset,
+            false);
+
+    if (BarrierFXComponent)
+    {
+        BarrierFXComponent->SetVisibility(true, true);
+        BarrierFXComponent->SetHiddenInGame(false, true);
+        BarrierFXComponent->Activate(true);
+    }
+}
