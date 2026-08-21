@@ -122,6 +122,12 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayRHealEffect(FVector Location);
 
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayHPBuffEffect(FVector Location);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayAttackBuffEffect(FVector Location);
+
 	UFUNCTION(Server, Reliable)
 	void ServerAttack();
 
@@ -996,6 +1002,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "VFX")
 	UNiagaraSystem* HealEffect;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Effects")
+	TObjectPtr<UNiagaraSystem> HPBuffEffect;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Effects")
+	TObjectPtr<UNiagaraSystem> AttackBuffEffect;
 
 	UPROPERTY()
 	UNiagaraComponent* WAreaComponent;

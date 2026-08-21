@@ -203,6 +203,22 @@ ABaseCharacter::ABaseCharacter()
         HealEffect = HealEffectAsset.Object;
     }
 
+    static ConstructorHelpers::FObjectFinder<UNiagaraSystem> HPBuffEffectAsset(
+        TEXT("/Game/Effects/Buff/HP/NS_HP_Buff"));
+
+    if (HPBuffEffectAsset.Succeeded())
+    {
+        HPBuffEffect = HPBuffEffectAsset.Object;
+    }
+
+    static ConstructorHelpers::FObjectFinder<UNiagaraSystem> AttackBuffEffectAsset(
+        TEXT("/Game/Effects/Buff/attack/NS_Attack_Buff"));
+
+    if (AttackBuffEffectAsset.Succeeded())
+    {
+        AttackBuffEffect = AttackBuffEffectAsset.Object;
+    }
+
     static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> PaladinPotionAsset(TEXT("/Game/Asset/paladin/Animation/paladin_potion"));
     static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> ArcherPotionAsset(TEXT("/Game/Asset/archer/Animation/archer_potion"));
     static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> WarriorPotionAsset(TEXT("/Game/Asset/Warrior/Animation/warrior_potion"));
@@ -2089,17 +2105,27 @@ void ABaseCharacter::FinishPotionUse()
 			&& PurchasedItems[ItemIndex].ItemType == PendingPurchasedPotionType
 			&& PurchasedItems[ItemIndex].Quantity > 0)
 		{
-			if (PendingPurchasedPotionType == EShopItemType::HPPotion)
-			{
-				const float BonusHP = MaxHP * 0.2f;
-				MaxHP += BonusHP;
-				CurrentHP += BonusHP;
-				OnRep_CurrentHP();
-			}
-			else if (PendingPurchasedPotionType == EShopItemType::AttackPotion)
-			{
-				AttackPower *= 1.2f;
-			}
+            if (PendingPurchasedPotionType == EShopItemType::HPPotion)
+            {
+                const float BonusHP = MaxHP * 0.2f;
+                MaxHP += BonusHP;
+                CurrentHP += BonusHP;
+                OnRep_CurrentHP();
+
+                if (HPBuffEffect)
+                {
+                    MulticastPlayHPBuffEffect(GetActorLocation());
+                }
+            }
+            else if (PendingPurchasedPotionType == EShopItemType::AttackPotion)
+            {
+                AttackPower *= 1.2f;
+
+                if (AttackBuffEffect)
+                {
+                    MulticastPlayAttackBuffEffect(GetActorLocation());
+                }
+            }
 
 			if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
 			{
@@ -3138,6 +3164,44 @@ void ABaseCharacter::MulticastPlayRHealEffect_Implementation(
     UNiagaraFunctionLibrary::SpawnSystemAtLocation(
         GetWorld(),
         HealEffect,
+        Location,
+        FRotator::ZeroRotator,
+        FVector::OneVector,
+        true,
+        true
+    );
+}
+
+void ABaseCharacter::MulticastPlayHPBuffEffect_Implementation(
+    FVector Location)
+{
+    if (!HPBuffEffect)
+    {
+        return;
+    }
+
+    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+        GetWorld(),
+        HPBuffEffect,
+        Location,
+        FRotator::ZeroRotator,
+        FVector::OneVector,
+        true,
+        true
+    );
+}
+
+void ABaseCharacter::MulticastPlayAttackBuffEffect_Implementation(
+    FVector Location)
+{
+    if (!AttackBuffEffect)
+    {
+        return;
+    }
+
+    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+        GetWorld(),
+        AttackBuffEffect,
         Location,
         FRotator::ZeroRotator,
         FVector::OneVector,
