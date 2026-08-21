@@ -965,7 +965,7 @@ protected:
 	void FinishAltarPlacement();
 
 	// 공격력
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float AttackPower = 100.f;
 
 	// 방어율

@@ -56,7 +56,8 @@
 #include "EngineUtils.h"
 #include "The_Nightfall_SiegeGameMode.h"
 #include "VillageManager.h"
-
+#include "GameFramework/GameStateBase.h"
+#include "GameFramework/PlayerState.h"
 
 // Sets default values
 ABaseCharacter::ABaseCharacter()
@@ -778,15 +779,47 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     PlayerInputComponent->BindKey(EKeys::P, IE_Pressed, this, &ABaseCharacter::ToggleShop);
     PlayerInputComponent->BindKey(EKeys::F, IE_Pressed, this, &ABaseCharacter::InteractWithQuestGiver);
 #if !UE_BUILD_SHIPPING
-    if (IsDeveloperHost())
-    {
-	    PlayerInputComponent->BindKey(EKeys::B, IE_Pressed, this, &ABaseCharacter::DebugBossCenterMechanic);
-	    PlayerInputComponent->BindKey(EKeys::Equals, IE_Pressed, this, &ABaseCharacter::DebugTeleportToDungeonPortal);
-        PlayerInputComponent->BindKey(EKeys::Hyphen, IE_Pressed, this, &ABaseCharacter::DebugCompleteRaid);
-	    PlayerInputComponent->BindKey(EKeys::Nine, IE_Pressed, this, &ABaseCharacter::DebugEnableMoveSpeed);
-	    PlayerInputComponent->BindKey(EKeys::Zero, IE_Pressed, this, &ABaseCharacter::DebugResetMoveSpeed);
-        PlayerInputComponent->BindKey(EKeys::Backslash, IE_Pressed, this, &ABaseCharacter::DebugSetGold1000);
-    }
+    PlayerInputComponent->BindKey(
+        EKeys::B,
+        IE_Pressed,
+        this,
+        &ABaseCharacter::DebugBossCenterMechanic
+    );
+
+    PlayerInputComponent->BindKey(
+        EKeys::Equals,
+        IE_Pressed,
+        this,
+        &ABaseCharacter::DebugTeleportToDungeonPortal
+    );
+
+    PlayerInputComponent->BindKey(
+        EKeys::Hyphen,
+        IE_Pressed,
+        this,
+        &ABaseCharacter::DebugCompleteRaid
+    );
+
+    PlayerInputComponent->BindKey(
+        EKeys::Nine,
+        IE_Pressed,
+        this,
+        &ABaseCharacter::DebugEnableMoveSpeed
+    );
+
+    PlayerInputComponent->BindKey(
+        EKeys::Zero,
+        IE_Pressed,
+        this,
+        &ABaseCharacter::DebugResetMoveSpeed
+    );
+
+    PlayerInputComponent->BindKey(
+        EKeys::Backslash,
+        IE_Pressed,
+        this,
+        &ABaseCharacter::DebugSetGold1000
+    );
 #endif
 
     if (bIsDead) return; // 죽으면 입력 등록 안함
@@ -3529,6 +3562,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     DOREPLIFETIME_CONDITION(ABaseCharacter, bCanUseW, COND_OwnerOnly);
     DOREPLIFETIME_CONDITION(ABaseCharacter, bCanUseE, COND_OwnerOnly);
     DOREPLIFETIME_CONDITION(ABaseCharacter, bCanUseR, COND_OwnerOnly);
+    DOREPLIFETIME(ABaseCharacter, AttackPower);
 }
 
 void ABaseCharacter::OnRep_CurrentHP()
@@ -4896,20 +4930,43 @@ void ABaseCharacter::CheckDarknessDamage()
 
 void ABaseCharacter::DebugSetGold1000()
 {
-    if (!HasAuthority())
+    if (!IsDeveloperHost())
     {
         return;
     }
 
-    Coin = 1000;
-
-    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    AGameStateBase* GameState = GetWorld()->GetGameState<AGameStateBase>();
+    if (!GameState)
     {
-        PS->Coin = Coin;
-        PS->ForceNetUpdate();
+        return;
     }
 
-    OnRep_Coin();
+    for (APlayerState* TargetPlayerState : GameState->PlayerArray)
+    {
+        ABasePlayerState* PS = Cast<ABasePlayerState>(TargetPlayerState);
+        if (!PS)
+        {
+            continue;
+        }
 
-    UE_LOG(LogTemp, Warning, TEXT("DEBUG: Gold set to 1000"));
+        // PlayerState의 골드를 먼저 증가
+        PS->Coin += 1000;
+        PS->ForceNetUpdate();
+
+        // 해당 PlayerState의 현재 Pawn(Character)도 같이 갱신
+        if (ABaseCharacter* Player = Cast<ABaseCharacter>(PS->GetPawn()))
+        {
+            Player->Coin = PS->Coin;
+            Player->OnRep_Coin();
+            Player->ForceNetUpdate();
+        }
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("DEBUG GOLD: %s -> %d"),
+            *PS->GetPlayerName(),
+            PS->Coin
+        );
+    }
 }
