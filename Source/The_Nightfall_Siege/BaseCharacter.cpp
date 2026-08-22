@@ -2008,6 +2008,11 @@ void ABaseCharacter::SetNearbyLantern(ALantern* Lantern)
 
 void ABaseCharacter::Interact(const FInputActionValue& Value)
 {
+	HandleWorldInteraction();
+}
+
+void ABaseCharacter::HandleWorldInteraction()
+{
     if (bIsPlacingLantern)
     {
         return;
@@ -2033,7 +2038,17 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 
     if (bDarknessDebuff && bPrismEquipped)
     {
-        ServerRequestGroupPrismCleanse();
+        // A Listen Server already owns its pawn and should enter the
+        // authoritative participation path directly. Remote players need the
+        // Server RPC to reach that same path.
+        if (HasAuthority())
+        {
+            RequestGroupPrismCleanse();
+        }
+        else
+        {
+            ServerRequestGroupPrismCleanse();
+        }
         return;
     }
 
@@ -2055,7 +2070,14 @@ void ABaseCharacter::InteractWithQuestGiver()
     if (NearbyQuestGiver)
     {
         ServerInteractQuestGiver(NearbyQuestGiver);
+        return;
     }
+
+    // F is also the direct keyboard interaction key.  Keep quest dialogue as
+    // its highest-priority use, but let the same key reach the normal world
+    // interaction path when no quest giver is in range (including the dragon
+    // blackout prism cleanse).
+    HandleWorldInteraction();
 }
 
 void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
@@ -4000,6 +4022,11 @@ void ABaseCharacter::ServerUseSlot3_Implementation()
 
 void ABaseCharacter::ServerRequestGroupPrismCleanse_Implementation()
 {
+    RequestGroupPrismCleanse();
+}
+
+void ABaseCharacter::RequestGroupPrismCleanse()
+{
     if (!bDarknessDebuff || !bHasPrism || !bPrismEquipped || IsDead())
     {
         return;
@@ -4575,6 +4602,15 @@ void ABaseCharacter::OnRep_DarknessDebuff()
     UE_LOG(LogTemp, Warning,
         TEXT("Darkness : %d"),
         bDarknessDebuff);
+
+    if (!bDarknessDebuff && DarknessCleanseEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+            GetWorld(),
+            DarknessCleanseEffect,
+            GetActorLocation()
+        );
+    }
 }
 
 void ABaseCharacter::DebugBossPattern1()
