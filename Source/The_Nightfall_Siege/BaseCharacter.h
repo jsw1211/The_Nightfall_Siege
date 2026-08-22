@@ -486,6 +486,12 @@ public:
 
 	void CheckDarknessDamage();
 
+	// Uses the same horizontal circle shown by LanternSafeZoneDecal.  The
+	// collision sphere remains available for overlap-driven effects, but a 3D
+	// sphere must not decide whether a player standing on the ground decal is
+	// protected from darkness damage.
+	bool IsInsideActiveLanternSafeZone(const FVector& WorldLocation) const;
+
 	UPROPERTY()
 	bool bInsideLanternLight = false;
 
@@ -762,7 +768,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SpawnEArrow();
-	void ApplyArcherERainDamage();
+	void ApplyArcherERainDamage(const FVector& RainCenter);
 
 	UFUNCTION(BlueprintCallable)
 	bool IsDead() const;
@@ -901,7 +907,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Archer|E")
 	float ArcherERainDamage = 200.f;
 
-	FVector ArcherERainCenter = FVector::ZeroVector;
 	int32 NextArcherQVolleyId = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
