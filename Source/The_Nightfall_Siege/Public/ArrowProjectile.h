@@ -104,6 +104,17 @@ public:
 
 	bool bImpactHandled = false;
 
+	// Covers the case where a point-blank target already intersects the arrow
+	// on its first frame, before ProjectileMovement performs a sweep.
+	void ResolveInitialOverlaps();
+
+	// Uses the swept sphere contact point. Initial overlaps fall back to the
+	// closest collision point so Archer E never follows a moved actor origin.
+	FVector ResolveOverlapImpactPoint(
+		UPrimitiveComponent* OtherComp,
+		bool bFromSweep,
+		const FHitResult& SweepResult) const;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

@@ -219,7 +219,9 @@ void AAltar::RegisterMonster(AMonster* Monster)
 	}
 }
 
-bool AAltar::IsInsideActiveLightZone(const FVector& WorldLocation) const
+bool AAltar::IsInsideActiveLightZone(
+	const FVector& WorldLocation,
+	float FootprintRadius) const
 {
 	// The green ground decal is visible while the lantern is placed. Use that
 	// exact state for all safe-zone checks, including player darkness damage.
@@ -237,7 +239,11 @@ bool AAltar::IsInsideActiveLightZone(const FVector& WorldLocation) const
 	const FVector2D ToLocation(
 		WorldLocation.X - ZoneCenter.X,
 		WorldLocation.Y - ZoneCenter.Y);
-	const float Range = LightRange->GetScaledSphereRadius();
+	// WorldLocation is the center of a monster capsule. Include its horizontal
+	// footprint so a monster visibly standing on the decal edge is not treated
+	// as outside until its entire body has left the circle.
+	const float Range = LightRange->GetScaledSphereRadius() +
+		FMath::Max(FootprintRadius, 0.f);
 	return ToLocation.SizeSquared() <= FMath::Square(Range);
 }
 

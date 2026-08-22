@@ -907,6 +907,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Archer|E")
 	float ArcherERainDamage = 200.f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Archer|E", meta = (ClampMin = "1.0", Units = "cm"))
+	float ArcherEProjectileRange = 1500.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Archer|E", meta = (ClampMin = "1.0", Units = "cm/s"))
+	float ArcherEProjectileSpeed = 1500.f;
+
 	int32 NextArcherQVolleyId = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")

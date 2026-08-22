@@ -31,19 +31,25 @@ namespace
 {
 	bool IsInsideAnyActiveAltarLightZone(
 		const UWorld* World,
-		const FVector& WorldLocation)
+		const AMonster* Monster)
 	{
-		if (!World)
+		if (!World || !Monster)
 		{
 			return false;
 		}
+
+		const FVector WorldLocation = Monster->GetActorLocation();
+		const UCapsuleComponent* Capsule = Monster->GetCapsuleComponent();
+		const float FootprintRadius = Capsule
+			? Capsule->GetScaledCapsuleRadius()
+			: 0.f;
 
 		// Vulnerability belongs to the illuminated ground area, not to the
 		// monster's spawn/owner altar. A monster from another altar must also lose
 		// invulnerability while standing anywhere above this XY circle.
 		for (TActorIterator<AAltar> It(World); It; ++It)
 		{
-			if (It->IsInsideActiveLightZone(WorldLocation))
+			if (It->IsInsideActiveLightZone(WorldLocation, FootprintRadius))
 			{
 				return true;
 			}
@@ -169,7 +175,7 @@ void AMonster::BeginPlay()
         return;
     }
 
-    if (!IsInsideAnyActiveAltarLightZone(GetWorld(), GetActorLocation()))
+	if (!IsInsideAnyActiveAltarLightZone(GetWorld(), this))
     {
         bBarrierActive = true;
         MulticastStartBarrierFX();
@@ -322,8 +328,8 @@ void AMonster::Tick(float DeltaTime)
         bIsAttacking = false;
     }
 
-    const bool bInsideLanternZone =
-        IsInsideAnyActiveAltarLightZone(GetWorld(), GetActorLocation());
+	const bool bInsideLanternZone =
+		IsInsideAnyActiveAltarLightZone(GetWorld(), this);
 
     if (!bInsideLanternZone && !bBarrierActive)
     {
@@ -454,7 +460,7 @@ void AMonster::TakeMonsterDamage(float Damage)
 
     // A placed lantern creates an infinite-height cylinder over its visible
     // XY ground circle. Altar ownership and Z height do not affect immunity.
-    if (!IsInsideAnyActiveAltarLightZone(GetWorld(), GetActorLocation()))
+	if (!IsInsideAnyActiveAltarLightZone(GetWorld(), this))
     {
         UE_LOG(LogTemp, Warning, TEXT("Monster outside active altar light circle"));
 
