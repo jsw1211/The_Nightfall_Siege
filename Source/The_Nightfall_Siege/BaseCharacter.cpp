@@ -2666,7 +2666,10 @@ void ABaseCharacter::ApplyArcherERainDamage(const FVector& RainCenter)
 {
     if (!HasAuthority()) return;
 
-    const float Damage = ArcherERainDamage * EMultiplier;
+    // Archer E scales from the character's current attack power, including
+    // shop/stat-potion bonuses. At skill level 1 EMultiplier is 1.0, so the
+    // rain deals exactly one attack-power hit.
+    const float Damage = AttackPower * EMultiplier;
 
     for (TActorIterator<AMonster> It(GetWorld()); It; ++It)
     {
