@@ -234,8 +234,9 @@ bool AAltar::IsInsideActiveLightZone(const FVector& WorldLocation) const
 	const FVector ZoneCenter = AltarSafeZoneDecal
 		? AltarSafeZoneDecal->GetComponentLocation()
 		: GetActorLocation();
-	FVector ToLocation = WorldLocation - ZoneCenter;
-	ToLocation.Z = 0.f;
+	const FVector2D ToLocation(
+		WorldLocation.X - ZoneCenter.X,
+		WorldLocation.Y - ZoneCenter.Y);
 	const float Range = LightRange->GetScaledSphereRadius();
 	return ToLocation.SizeSquared() <= FMath::Square(Range);
 }
