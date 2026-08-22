@@ -232,8 +232,11 @@ void ABaseCharacter::BeginPlay()
 	LanternLight->SetAttenuationRadius(
 		LanternLightSphere->GetScaledSphereRadius());
 	const float LanternSafeRadius = LanternLightSphere->GetScaledSphereRadius();
+	const FVector LanternDecalScale = LanternSafeZoneDecal->GetComponentScale();
 	LanternSafeZoneDecal->DecalSize = FVector(
-		200.f, LanternSafeRadius, LanternSafeRadius);
+		200.f,
+		LanternSafeRadius / FMath::Max(FMath::Abs(LanternDecalScale.Y), KINDA_SMALL_NUMBER),
+		LanternSafeRadius / FMath::Max(FMath::Abs(LanternDecalScale.Z), KINDA_SMALL_NUMBER));
 
     // A retry travels to the village and creates a fresh pawn.  Restore every
     // local/server movement and input restriction that death may have set.
@@ -4784,13 +4787,34 @@ void ABaseCharacter::CheckDarknessDamage()
         }
     }
 
-    if (bInsideLanternLight)
+    // Held lanterns use the same ground-plane circle as their visible decals.
+    // This avoids the old 3D sphere result becoming smaller at different
+    // heights or being offset toward the hand socket. It also recomputes the
+    // answer every damage tick, so stale begin/end overlap state cannot hurt a
+    // player who is visibly standing inside any party member's lantern zone.
+    for (TActorIterator<ABaseCharacter> PlayerIt(GetWorld()); PlayerIt; ++PlayerIt)
     {
-        return;
+        if (PlayerIt->IsInsideActiveLanternSafeZone(Location))
+        {
+            return;
+        }
     }
 
     const float Damage = MaxHP * 0.02f;
 
     TakePlayerDamage(Damage);
+}
+
+bool ABaseCharacter::IsInsideActiveLanternSafeZone(const FVector& WorldLocation) const
+{
+    if (!bLanternEquipped || !LanternLightSphere || !LanternSafeZoneDecal)
+    {
+        return false;
+    }
+
+    FVector ToLocation = WorldLocation - LanternSafeZoneDecal->GetComponentLocation();
+    ToLocation.Z = 0.f;
+    const float SafeRadius = LanternLightSphere->GetScaledSphereRadius();
+    return ToLocation.SizeSquared() <= FMath::Square(SafeRadius);
 }
 

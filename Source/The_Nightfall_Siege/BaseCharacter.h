@@ -477,6 +477,12 @@ public:
 
 	void CheckDarknessDamage();
 
+	// Uses the same horizontal circle shown by LanternSafeZoneDecal.  The
+	// collision sphere remains available for overlap-driven effects, but a 3D
+	// sphere must not decide whether a player standing on the ground decal is
+	// protected from darkness damage.
+	bool IsInsideActiveLanternSafeZone(const FVector& WorldLocation) const;
+
 	UPROPERTY()
 	bool bInsideLanternLight = false;
 
