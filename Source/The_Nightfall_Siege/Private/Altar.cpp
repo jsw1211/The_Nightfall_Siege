@@ -123,8 +123,11 @@ void AAltar::BeginPlay()
 	AltarLight->SetLightColor(FLinearColor(0.0f, 1.0f, 0.0f));
 	AltarLight->SetAttenuationRadius(LightRange->GetScaledSphereRadius());
 	const float AltarSafeRadius = LightRange->GetScaledSphereRadius();
+	const FVector AltarDecalScale = AltarSafeZoneDecal->GetComponentScale();
 	AltarSafeZoneDecal->DecalSize = FVector(
-		200.f, AltarSafeRadius, AltarSafeRadius);
+		200.f,
+		AltarSafeRadius / FMath::Max(FMath::Abs(AltarDecalScale.Y), KINDA_SMALL_NUMBER),
+		AltarSafeRadius / FMath::Max(FMath::Abs(AltarDecalScale.Z), KINDA_SMALL_NUMBER));
 	
 	UE_LOG(LogTemp, Warning, TEXT("Altar BeginPlay"));
 
@@ -225,7 +228,13 @@ bool AAltar::IsInsideActiveLightZone(const FVector& WorldLocation) const
 		return false;
 	}
 
-	FVector ToLocation = WorldLocation - GetActorLocation();
+	// Center the gameplay circle on the decal itself. This keeps Blueprint
+	// placement offsets from making the visible floor zone disagree with player
+	// protection or monster vulnerability.
+	const FVector ZoneCenter = AltarSafeZoneDecal
+		? AltarSafeZoneDecal->GetComponentLocation()
+		: GetActorLocation();
+	FVector ToLocation = WorldLocation - ZoneCenter;
 	ToLocation.Z = 0.f;
 	const float Range = LightRange->GetScaledSphereRadius();
 	return ToLocation.SizeSquared() <= FMath::Square(Range);

@@ -13,6 +13,7 @@ class UProjectileMovementComponent;
 class ABaseCharacter;
 class AMonster;
 class ADragonBoss;
+class UNiagaraComponent;
 
 UENUM(BlueprintType)
 enum class EArrowType : uint8
@@ -66,7 +67,7 @@ public:
 	UPROPERTY()
 	int32 QVolleyId = INDEX_NONE;
 
-	void Explode();
+	void Explode(const FVector& ImpactCenter);
 
 	UPROPERTY(EditAnywhere)
 	float QExplosionRadius = 120.f;
@@ -93,6 +94,15 @@ public:
 	TObjectPtr<UNiagaraSystem> RImpactFX;
 
 	void SetupTrail();
+
+	// The trail is a visual shell for this projectile. It must stop on the exact
+	// frame the arrow stops instead of continuing with its own particle motion.
+	void StopTrailAndDestroy();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UNiagaraComponent> TrailComponent;
+
+	bool bImpactHandled = false;
 
 protected:
 	// Called when the game starts or when spawned

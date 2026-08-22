@@ -41,6 +41,9 @@ AArrowProjectile::AArrowProjectile()
 	Collision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 
 	Collision->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+
+	Collision->OnComponentBeginOverlap.AddDynamic(this, &AArrowProjectile::OnArrowOverlap);
+	ProjectileMovement->OnProjectileStop.AddDynamic(this, &AArrowProjectile::OnProjectileStop);
 }
 
 // Called when the game starts or when spawned
@@ -48,10 +51,22 @@ void AArrowProjectile::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	Collision->OnComponentBeginOverlap.AddDynamic(this, &AArrowProjectile::OnArrowOverlap);
+	// Blueprint defaults must never make an arrow or its visual ricochet.
+	ProjectileMovement->bShouldBounce = false;
+	ProjectileMovement->Bounciness = 0.f;
+	ProjectileMovement->bForceSubStepping = true;
 
-	ProjectileMovement->OnProjectileStop.AddDynamic(this,&AArrowProjectile::OnProjectileStop);
+	// Only Archer R may pass through a pawn. Normal/Q/E arrows use a blocking
+	// sweep so the projectile cannot continue or appear to ricochet after the
+	// first monster contact.
+	Collision->SetCollisionResponseToChannel(
+		ECC_Pawn,
+		ArrowType == EArrowType::Pierce ? ECR_Overlap : ECR_Block);
 
+	// The skeletal mesh is visual-only. Blueprint physics/collision overrides
+	// must not let the visible arrow separate from the projectile and bounce.
+	Mesh->SetSimulatePhysics(false);
+	Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 // Called every frame
@@ -67,9 +82,18 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 
 	if (Monster && OwnerCharacter)
 	{
+		// Q/E damage is owned exclusively by the explosion. Applying a direct hit
+		// first would damage a point-blank target twice.
 		if (ArrowType == EArrowType::Explosive)
 		{
-			Explode();
+			// The rain field belongs to the monster that intercepted the arrow,
+			// even when that happens before the 1500-unit maximum destination.
+			Explode(Monster->GetActorLocation());
+			return;
+		}
+		if (ArrowType == EArrowType::QExplosive)
+		{
+			Explode(GetActorLocation());
 			return;
 		}
 
@@ -96,18 +120,12 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 			}
 		}
 
-		if (ArrowType == EArrowType::Explosive ||
-			ArrowType == EArrowType::QExplosive)
-		{
-			Explode();
-			return;
-		}
-		else if (ArrowType == EArrowType::Pierce)
+		if (ArrowType == EArrowType::Pierce)
 		{
 		}
 		else
 		{
-			Destroy();
+			StopTrailAndDestroy();
 			return;
 		}
 	}
@@ -122,9 +140,14 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 		}
 		HitDragons.Add(Dragon);
 
-		if (ArrowType == EArrowType::QExplosive || ArrowType == EArrowType::Explosive)
+		if (ArrowType == EArrowType::Explosive)
 		{
-			Explode();
+			Explode(Dragon->GetActorLocation());
+			return;
+		}
+		if (ArrowType == EArrowType::QExplosive)
+		{
+			Explode(GetActorLocation());
 			return;
 		}
 
@@ -152,25 +175,25 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 
 		UE_LOG(LogTemp, Warning, TEXT("Arrow Hit Dragon"));
 
-		if (ArrowType == EArrowType::Explosive ||
-			ArrowType == EArrowType::QExplosive)
-		{
-			Explode();
-			return;
-		}
-		else if (ArrowType == EArrowType::Pierce)
+		if (ArrowType == EArrowType::Pierce)
 		{
 		}
 		else
 		{
-			Destroy();
+			StopTrailAndDestroy();
 			return;
 		}
 	}
 }
 
-void AArrowProjectile::Explode()
+void AArrowProjectile::Explode(const FVector& ImpactCenter)
 {
+	if (bImpactHandled)
+	{
+		return;
+	}
+	bImpactHandled = true;
+
 	if (ArrowType == EArrowType::QExplosive)
 	{
 		if (QImpactFX)
@@ -178,7 +201,7 @@ void AArrowProjectile::Explode()
 			UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 				GetWorld(),
 				QImpactFX,
-				GetActorLocation());
+				ImpactCenter);
 		}
 	}
 	else
@@ -188,8 +211,20 @@ void AArrowProjectile::Explode()
 			UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 				GetWorld(),
 				EImpactFX,
-				GetActorLocation());
+				ImpactCenter);
 		}
+	}
+
+	// Archer E uses the actual intercepted monster (or ground impact) as the
+	// field center. The 1500-unit point is only its maximum flight destination.
+	if (ArrowType == EArrowType::Explosive)
+	{
+		if (OwnerCharacter)
+		{
+			OwnerCharacter->ApplyArcherERainDamage(ImpactCenter);
+		}
+		StopTrailAndDestroy();
+		return;
 	}
 
 	TArray<FOverlapResult> Overlaps;
@@ -205,8 +240,9 @@ void AArrowProjectile::Explode()
 		FCollisionShape::MakeSphere(Radius);
 
 	TSet<ADragonBoss*> ExplodedDragons;
+	TSet<AMonster*> ExplodedMonsters;
 	bool bHit =
-		GetWorld()->OverlapMultiByChannel(Overlaps, GetActorLocation(), FQuat::Identity, ECC_Pawn, Sphere);
+		GetWorld()->OverlapMultiByChannel(Overlaps, ImpactCenter, FQuat::Identity, ECC_Pawn, Sphere);
 
 	if (bHit)
 	{
@@ -214,8 +250,10 @@ void AArrowProjectile::Explode()
 		{
 			AMonster* Monster = Cast<AMonster>(Result.GetActor());
 
-			if (Monster && OwnerCharacter && ArrowType != EArrowType::Explosive)
+			if (Monster && OwnerCharacter && ArrowType != EArrowType::Explosive &&
+				!ExplodedMonsters.Contains(Monster))
 			{
+				ExplodedMonsters.Add(Monster);
 				float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
 
 				Monster->TakeMonsterDamage(Damage);
@@ -260,7 +298,7 @@ void AArrowProjectile::Explode()
 	{
 		ADragonBoss* Dragon = *It;
 		if (!Dragon || !OwnerCharacter || ExplodedDragons.Contains(Dragon) ||
-			!Dragon->IsWithinDamageRadius(GetActorLocation(), Radius))
+			!Dragon->IsWithinDamageRadius(ImpactCenter, Radius))
 		{
 			continue;
 		}
@@ -275,16 +313,75 @@ void AArrowProjectile::Explode()
 		}
 	}
 
-	Destroy();
+	StopTrailAndDestroy();
 }
 
 void AArrowProjectile::OnProjectileStop(
 	const FHitResult& ImpactResult)
 {
+	if (bImpactHandled)
+	{
+		return;
+	}
+
+	AActor* HitActor = ImpactResult.GetActor();
+
+	if (AMonster* Monster = Cast<AMonster>(HitActor))
+	{
+		if (ArrowType == EArrowType::Explosive)
+		{
+			Explode(Monster->GetActorLocation());
+			return;
+		}
+
+		if (ArrowType == EArrowType::QExplosive)
+		{
+			Explode(Monster->GetActorLocation());
+			return;
+		}
+
+		if (ArrowType == EArrowType::Normal && OwnerCharacter &&
+			!HitMonsters.Contains(Monster))
+		{
+			HitMonsters.Add(Monster);
+			Monster->TakeMonsterDamage(
+				OwnerCharacter->GetAttackPower() * DamageMultiplier);
+		}
+
+		StopTrailAndDestroy();
+		return;
+	}
+
+	if (ADragonBoss* Dragon = Cast<ADragonBoss>(HitActor))
+	{
+		if (ArrowType == EArrowType::Explosive)
+		{
+			Explode(Dragon->GetActorLocation());
+			return;
+		}
+
+		if (ArrowType == EArrowType::QExplosive)
+		{
+			Explode(Dragon->GetActorLocation());
+			return;
+		}
+
+		if (ArrowType == EArrowType::Normal && OwnerCharacter &&
+			!HitDragons.Contains(Dragon))
+		{
+			HitDragons.Add(Dragon);
+			Dragon->TakeBossDamage(
+				OwnerCharacter->GetAttackPower() * DamageMultiplier);
+		}
+
+		StopTrailAndDestroy();
+		return;
+	}
+
 	if (ArrowType == EArrowType::Explosive ||
 		ArrowType == EArrowType::QExplosive)
 	{
-		Explode();
+		Explode(ImpactResult.ImpactPoint);
 		return;
 	}
 
@@ -310,40 +407,62 @@ void AArrowProjectile::OnProjectileStop(
 		}
 	}
 
-	Destroy();
+	StopTrailAndDestroy();
 }
 
 void AArrowProjectile::SetupTrail()
 {
-	if (ArrowType == EArrowType::Pierce)
+	if (TrailComponent)
 	{
-		if (ArcherRTrailFX)
-		{
-			UNiagaraFunctionLibrary::SpawnSystemAttached(
-				ArcherRTrailFX,
-				RootComponent,
-				NAME_None,
-				FVector::ZeroVector,
-				FRotator::ZeroRotator,
-				EAttachLocation::KeepRelativeOffset,
-				true
-			);
-		}
+		return;
 	}
-	else
+
+	UNiagaraSystem* TrailSystem = ArrowType == EArrowType::Pierce
+		? ArcherRTrailFX
+		: ArcherTrailFX;
+
+	if (!TrailSystem)
 	{
-		if (ArcherTrailFX)
-		{
-			UNiagaraFunctionLibrary::SpawnSystemAttached(
-				ArcherTrailFX,
-				RootComponent,
-				NAME_None,
-				FVector::ZeroVector,
-				FRotator::ZeroRotator,
-				EAttachLocation::KeepRelativeOffset,
-				true
-			);
-		}
+		return;
 	}
+
+	TrailComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+		TrailSystem,
+		RootComponent,
+		NAME_None,
+		FVector::ZeroVector,
+		FRotator::ZeroRotator,
+		EAttachLocation::SnapToTarget,
+		false);
+
+	if (TrailComponent)
+	{
+		TrailComponent->SetAbsolute(false, false, false);
+	}
+}
+
+void AArrowProjectile::StopTrailAndDestroy()
+{
+	bImpactHandled = true;
+
+	if (ProjectileMovement)
+	{
+		ProjectileMovement->StopMovementImmediately();
+		ProjectileMovement->Deactivate();
+	}
+
+	if (Collision)
+	{
+		Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	if (TrailComponent)
+	{
+		TrailComponent->DeactivateImmediate();
+		TrailComponent->DestroyComponent();
+		TrailComponent = nullptr;
+	}
+
+	Destroy();
 }
 
