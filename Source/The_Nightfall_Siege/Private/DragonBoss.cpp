@@ -849,6 +849,15 @@ void ADragonBoss::RegisterPrismCleanseParticipant(ABaseCharacter* Player)
 		if (ABaseCharacter* Character = Cast<ABaseCharacter>(Actor))
 		{
 			Character->bDarknessDebuff = false;
+
+			// RepNotifies are not invoked on the authoritative Listen Server.
+			// Run the local presentation callback explicitly for its host pawn;
+			// remote clients still receive the replicated update and run it there.
+			if (Character->IsLocallyControlled())
+			{
+				Character->OnRep_DarknessDebuff();
+			}
+
 			Character->ForceNetUpdate();
 		}
 	}

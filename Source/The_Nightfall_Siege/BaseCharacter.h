@@ -342,6 +342,7 @@ public:
 
 	UFUNCTION(Server, Reliable)
 	void ServerRequestGroupPrismCleanse();
+	void RequestGroupPrismCleanse();
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayPrismMontage(bool bEquip);
@@ -391,6 +392,7 @@ public:
 	void SetNearbyLantern(ALantern* Lantern);
 
 	void Interact(const FInputActionValue& Value);
+	void HandleWorldInteraction();
 
 	UPROPERTY(ReplicatedUsing = OnRep_LanternEquipped, BlueprintReadOnly)
 	bool bLanternEquipped = false;
@@ -778,6 +780,9 @@ public:
 
 	UFUNCTION()
 	void OnRep_DarknessDebuff();
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effect")
+	UNiagaraSystem* DarknessCleanseEffect = nullptr;
 
 	void EndAttackSpeedBuff();
 

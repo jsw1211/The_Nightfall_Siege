@@ -156,6 +156,15 @@ void ADungeonPrism::RemoveDarknessDebuff()
 		if (Player)
 		{
 			Player->bDarknessDebuff = false;
+
+			// The owning client receives this through replication.  A Listen
+			// Server's local pawn does not, so invoke its presentation callback.
+			if (Player->IsLocallyControlled())
+			{
+				Player->OnRep_DarknessDebuff();
+			}
+
+			Player->ForceNetUpdate();
 		}
 	}
 
