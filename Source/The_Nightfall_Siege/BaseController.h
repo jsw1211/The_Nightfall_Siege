@@ -32,8 +32,6 @@ protected:
 
 	virtual void BeginPlay() override;
 
-	virtual void Tick(float DeltaTime) override;
-
 	UPROPERTY(EditDefaultsOnly, Category = UI)
 	TSubclassOf<class UUserWidget> CharacterSelectWidgetClass;
 
@@ -99,6 +97,13 @@ protected:
 	void UpdateTreeTransparency();
 
 	TMap<UHierarchicalInstancedStaticMeshComponent*, TSet<int32>> FadedTrees;
+
+	FTimerHandle TreeTransparencyTimer;
+
+	FVector LastTreeTraceStart = FVector::ZeroVector;
+	FVector LastTreeTraceEnd = FVector::ZeroVector;
+
+	bool bHasLastTreeTracePosition = false;
 
 	UPROPERTY(EditDefaultsOnly, Category = "UI|Death")
 	TSubclassOf<UUserWidget> DeathScreenWidgetClass;

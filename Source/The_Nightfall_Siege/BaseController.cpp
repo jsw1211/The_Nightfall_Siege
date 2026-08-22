@@ -204,28 +204,20 @@ void ABaseController::BeginPlay()
 
     TreeComponents.Empty();
 
-    TArray<UHierarchicalInstancedStaticMeshComponent*> Components;
+    
 
-    for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+    if (IsLocalController())
     {
-        Components.Reset();
-
-        It->GetComponents<UHierarchicalInstancedStaticMeshComponent>(Components);
-
-        for (UHierarchicalInstancedStaticMeshComponent* Comp : Components)
-        {
-            if (!Comp || !Comp->GetStaticMesh())
-                continue;
-
-            const FString MeshName = Comp->GetStaticMesh()->GetName();
-
-            if (MeshName == TEXT("tree_test") ||
-                MeshName == TEXT("realistic_tree"))
-            {
-                TreeComponents.Add(Comp);
-            }
-        }
+        GetWorld()->GetTimerManager().SetTimer(
+            TreeTransparencyTimer,
+            this,
+            &ABaseController::UpdateTreeTransparency,
+            0.05f,
+            true
+        );
     }
+
+
 }
 
 void ABaseController::SelectNextCharacter()
@@ -368,7 +360,7 @@ void ABaseController::ServerMoveToLocation_Implementation(
 
 ABaseController::ABaseController()
 {
-    PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bCanEverTick = false;
 
     static ConstructorHelpers::FClassFinder<UUserWidget> DeathScreenWidgetBP(TEXT("/Game/BP/WBP_DeathScreen"));
     static ConstructorHelpers::FClassFinder<UUserWidget> GameClearWidgetBP(TEXT("/Game/BP/WBP_GameClear"));
@@ -390,87 +382,135 @@ ABaseController::ABaseController()
     }
 }
 
-void ABaseController::Tick(float DeltaTime)
-{
-    Super::Tick(DeltaTime);
 
-    if (IsLocalController())
-    {
-        UpdateTreeTransparency();
-    }
-}
 
 void ABaseController::UpdateTreeTransparency()
 {
-    APawn* MyPawn = GetPawn();
-
-    if (!MyPawn)
+    if (!IsLocalController())
     {
         return;
     }
 
-    FVector Start = PlayerCameraManager->GetCameraLocation();
-    FVector End = MyPawn->GetActorLocation();
+    APawn* MyPawn = GetPawn();
 
-    // 이전 프레임에 투명했던 나무 복원
-    for (auto& Pair : FadedTrees)
+    if (!MyPawn || !PlayerCameraManager)
     {
-        for (int32 Index : Pair.Value)
-        {
-            Pair.Key->SetCustomDataValue(
-                Index,
-                0,
-                0.0f,
-                true);
-        }
+        return;
     }
 
-    FadedTrees.Empty();
+    const FVector Start = PlayerCameraManager->GetCameraLocation();
+    const FVector End = MyPawn->GetActorLocation();
+
+    // 카메라나 캐릭터가 충분히 움직이지 않았다면
+    // 같은 Trace를 다시 할 필요가 없다.
+    constexpr float PositionThreshold = 5.0f;
+
+    if (bHasLastTreeTracePosition &&
+        FVector::DistSquared(Start, LastTreeTraceStart) <=
+        FMath::Square(PositionThreshold) &&
+        FVector::DistSquared(End, LastTreeTraceEnd) <=
+        FMath::Square(PositionThreshold))
+    {
+        return;
+    }
+
+    LastTreeTraceStart = Start;
+    LastTreeTraceEnd = End;
+    bHasLastTreeTracePosition = true;
 
     TArray<FHitResult> Hits;
-
     TArray<AActor*> IgnoreActors;
 
     UKismetSystemLibrary::SphereTraceMulti(
         GetWorld(),
         Start,
         End,
-        350.0f,                         // ← 반지름 (조절 가능)
+        350.0f,
         UEngineTypes::ConvertToTraceType(ECC_GameTraceChannel1),
         false,
         IgnoreActors,
         EDrawDebugTrace::None,
         Hits,
-        true);
+        true
+    );
 
+    TMap<UHierarchicalInstancedStaticMeshComponent*, TSet<int32>> NewFadedTrees;
 
+    // 현재 카메라와 캐릭터 사이에 있는 나무 수집
     for (const FHitResult& Hit : Hits)
     {
-
         UHierarchicalInstancedStaticMeshComponent* HISM =
-            Cast<UHierarchicalInstancedStaticMeshComponent>(Hit.Component.Get());
+            Cast<UHierarchicalInstancedStaticMeshComponent>(
+                Hit.Component.Get());
 
         if (!HISM)
         {
             continue;
         }
 
-        int32 Index = Hit.Item;
+        const int32 Index = Hit.Item;
 
         if (Index == INDEX_NONE)
         {
             continue;
         }
 
-        HISM->SetCustomDataValue(
-            Index,
-            0,
-            1.0f,
-            true);
-
-        FadedTrees.FindOrAdd(HISM).Add(Index);
-
+        NewFadedTrees.FindOrAdd(HISM).Add(Index);
     }
+
+    // 더 이상 가리지 않는 나무만 원래 상태로 복구
+    for (auto& Pair : FadedTrees)
+    {
+        UHierarchicalInstancedStaticMeshComponent* HISM = Pair.Key;
+
+        if (!HISM)
+        {
+            continue;
+        }
+
+        const TSet<int32>* NewIndices = NewFadedTrees.Find(HISM);
+
+        for (const int32 Index : Pair.Value)
+        {
+            if (!NewIndices || !NewIndices->Contains(Index))
+            {
+                HISM->SetCustomDataValue(
+                    Index,
+                    0,
+                    0.0f,
+                    true
+                );
+            }
+        }
+    }
+
+    // 새롭게 가려진 나무만 투명화
+    for (auto& Pair : NewFadedTrees)
+    {
+        UHierarchicalInstancedStaticMeshComponent* HISM = Pair.Key;
+
+        if (!HISM)
+        {
+            continue;
+        }
+
+        const TSet<int32>* OldIndices = FadedTrees.Find(HISM);
+
+        for (const int32 Index : Pair.Value)
+        {
+            if (!OldIndices || !OldIndices->Contains(Index))
+            {
+                HISM->SetCustomDataValue(
+                    Index,
+                    0,
+                    1.0f,
+                    true
+                );
+            }
+        }
+    }
+
+    FadedTrees = MoveTemp(NewFadedTrees);
 }
 
 void ABaseController::ShowDeathScreen(bool bShouldEnableRetry)
