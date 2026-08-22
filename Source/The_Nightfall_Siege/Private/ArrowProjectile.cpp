@@ -6,6 +6,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Monster.h"
 #include "BaseCharacter.h"
+#include "Altar.h"
 #include "EngineUtils.h"
 #include "Engine/OverlapResult.h"
 #include "DragonBoss.h"
@@ -35,6 +36,8 @@ AArrowProjectile::AArrowProjectile()
 	ProjectileMovement->ProjectileGravityScale = 0.f;
 
 	Collision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	Collision->SetCollisionObjectType(ECC_WorldDynamic);
+	Collision->SetGenerateOverlapEvents(true);
 
 	Collision->SetCollisionResponseToAllChannels(ECR_Ignore);
 
@@ -55,18 +58,36 @@ void AArrowProjectile::BeginPlay()
 	ProjectileMovement->bShouldBounce = false;
 	ProjectileMovement->Bounciness = 0.f;
 	ProjectileMovement->bForceSubStepping = true;
+	ProjectileMovement->bRotationFollowsVelocity = true;
 
-	// Only Archer R may pass through a pawn. Normal/Q/E arrows use a blocking
-	// sweep so the projectile cannot continue or appear to ricochet after the
-	// first monster contact.
-	Collision->SetCollisionResponseToChannel(
-		ECC_Pawn,
-		ArrowType == EArrowType::Pierce ? ECR_Overlap : ECR_Block);
+	// Normal/Q/E use the same Pawn overlap path: overlap -> damage/effect ->
+	// immediate destroy. Reapply the complete query response here so a Blueprint
+	// collision preset cannot turn a monster contact back into a blocking hit.
+	Collision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	Collision->SetCollisionObjectType(ECC_WorldDynamic);
+	Collision->SetGenerateOverlapEvents(true);
+	Collision->SetCollisionResponseToAllChannels(ECR_Ignore);
+	Collision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	Collision->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
 
 	// The skeletal mesh is visual-only. Blueprint physics/collision overrides
 	// must not let the visible arrow separate from the projectile and bounce.
 	Mesh->SetSimulatePhysics(false);
 	Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// Keep altar physics and interaction intact for every other actor. Only the
+	// projectile's swept root ignores its owner and altar actors.
+	if (OwnerCharacter)
+	{
+		Collision->IgnoreActorWhenMoving(OwnerCharacter, true);
+	}
+
+	for (TActorIterator<AAltar> It(GetWorld()); It; ++It)
+	{
+		Collision->IgnoreActorWhenMoving(*It, true);
+	}
+
+	ResolveInitialOverlaps();
 }
 
 // Called every frame
@@ -76,24 +97,108 @@ void AArrowProjectile::Tick(float DeltaTime)
 
 }
 
+FVector AArrowProjectile::ResolveOverlapImpactPoint(
+	UPrimitiveComponent* OtherComp,
+	bool bFromSweep,
+	const FHitResult& SweepResult) const
+{
+	// ProjectileMovement supplies the swept sphere contact point here. Unlike
+	// the target actor's origin, it cannot jump when an altar moves a monster
+	// out of its exclusion capsule during the same frame.
+	if (bFromSweep)
+	{
+		return SweepResult.ImpactPoint;
+	}
+
+	const FVector ProjectileLocation = Collision
+		? Collision->GetComponentLocation()
+		: GetActorLocation();
+
+	FVector ClosestPoint = ProjectileLocation;
+	if (OtherComp &&
+		OtherComp->GetClosestPointOnCollision(ProjectileLocation, ClosestPoint) >= 0.f)
+	{
+		return ClosestPoint;
+	}
+
+	// Initial overlaps do not contain sweep data. The projectile center remains
+	// a stable launch-time contact point for this point-blank case.
+	return ProjectileLocation;
+}
+
+void AArrowProjectile::ResolveInitialOverlaps()
+{
+	if (bImpactHandled || !OwnerCharacter || !Collision || !GetWorld())
+	{
+		return;
+	}
+
+	TArray<FOverlapResult> InitialOverlaps;
+	FCollisionObjectQueryParams ObjectQuery;
+	ObjectQuery.AddObjectTypesToQuery(ECC_Pawn);
+
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(ArrowInitialOverlap), false, this);
+	QueryParams.AddIgnoredActor(OwnerCharacter);
+
+	const FCollisionShape Shape = FCollisionShape::MakeSphere(
+		FMath::Max(Collision->GetScaledSphereRadius(), 1.f));
+	GetWorld()->OverlapMultiByObjectType(
+		InitialOverlaps,
+		Collision->GetComponentLocation(),
+		FQuat::Identity,
+		ObjectQuery,
+		Shape,
+		QueryParams);
+
+	for (const FOverlapResult& Result : InitialOverlaps)
+	{
+		AActor* OtherActor = Result.GetActor();
+		if (!OtherActor || OtherActor == OwnerCharacter ||
+			(!OtherActor->IsA<AMonster>() && !OtherActor->IsA<ADragonBoss>()))
+		{
+			continue;
+		}
+
+		FHitResult InitialHit;
+		InitialHit.ImpactPoint = Collision->GetComponentLocation();
+		OnArrowOverlap(
+			Collision,
+			OtherActor,
+			Result.GetComponent(),
+			INDEX_NONE,
+			false,
+			InitialHit);
+
+		if (bImpactHandled)
+		{
+			break;
+		}
+	}
+}
+
 void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	AMonster* Monster = Cast<AMonster>(OtherActor);
 
 	if (Monster && OwnerCharacter)
 	{
+		const FVector ImpactPoint = ResolveOverlapImpactPoint(
+			OtherComp,
+			bFromSweep,
+			SweepResult);
+
 		// Q/E damage is owned exclusively by the explosion. Applying a direct hit
 		// first would damage a point-blank target twice.
 		if (ArrowType == EArrowType::Explosive)
 		{
-			// The rain field belongs to the monster that intercepted the arrow,
-			// even when that happens before the 1500-unit maximum destination.
-			Explode(Monster->GetActorLocation());
+			// The rain field belongs to the exact contact point, even when a
+			// monster intercepts the arrow before its configured destination.
+			Explode(ImpactPoint);
 			return;
 		}
 		if (ArrowType == EArrowType::QExplosive)
 		{
-			Explode(GetActorLocation());
+			Explode(ImpactPoint);
 			return;
 		}
 
@@ -139,15 +244,19 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 			return;
 		}
 		HitDragons.Add(Dragon);
+		const FVector ImpactPoint = ResolveOverlapImpactPoint(
+			OtherComp,
+			bFromSweep,
+			SweepResult);
 
 		if (ArrowType == EArrowType::Explosive)
 		{
-			Explode(Dragon->GetActorLocation());
+			Explode(ImpactPoint);
 			return;
 		}
 		if (ArrowType == EArrowType::QExplosive)
 		{
-			Explode(GetActorLocation());
+			Explode(ImpactPoint);
 			return;
 		}
 
@@ -330,13 +439,13 @@ void AArrowProjectile::OnProjectileStop(
 	{
 		if (ArrowType == EArrowType::Explosive)
 		{
-			Explode(Monster->GetActorLocation());
+			Explode(ImpactResult.ImpactPoint);
 			return;
 		}
 
 		if (ArrowType == EArrowType::QExplosive)
 		{
-			Explode(Monster->GetActorLocation());
+			Explode(ImpactResult.ImpactPoint);
 			return;
 		}
 
@@ -356,13 +465,13 @@ void AArrowProjectile::OnProjectileStop(
 	{
 		if (ArrowType == EArrowType::Explosive)
 		{
-			Explode(Dragon->GetActorLocation());
+			Explode(ImpactResult.ImpactPoint);
 			return;
 		}
 
 		if (ArrowType == EArrowType::QExplosive)
 		{
-			Explode(Dragon->GetActorLocation());
+			Explode(ImpactResult.ImpactPoint);
 			return;
 		}
 

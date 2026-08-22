@@ -74,7 +74,11 @@ public:
 	void RemoveLantern(ABaseCharacter* Player);
 	bool NotifyOwnedMonsterDefeated();
 	// The altar's circular damageable zone, shared with its visible light.
-	bool IsInsideActiveLightZone(const FVector& WorldLocation) const;
+	// FootprintRadius lets a character-sized target count as inside as soon as
+	// its ground footprint touches the visible circle.
+	bool IsInsideActiveLightZone(
+		const FVector& WorldLocation,
+		float FootprintRadius = 0.f) const;
 	bool IsAvailableNavigationTarget() const { return !bCleared && !bLanternPlaced; }
 
 	UFUNCTION()

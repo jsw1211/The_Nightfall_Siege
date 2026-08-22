@@ -2472,6 +2472,10 @@ void ABaseCharacter::SpawnQArrow()
             Arrow->ArrowType = EArrowType::QExplosive;
             Arrow->QVolleyId = VolleyId;
             Arrow->DamageMultiplier = QMultiplier;
+            // Direction is already in world space. ProjectileMovement otherwise
+            // rotates it by the actor transform again during FinishSpawning.
+            Arrow->ProjectileMovement->bInitialVelocityInLocalSpace = false;
+            Arrow->ProjectileMovement->InitialSpeed = 0.f;
             Arrow->ProjectileMovement->MaxSpeed = 1000.f;
             Arrow->ProjectileMovement->Velocity = Direction * 1000.f;
             Arrow->FinishSpawning(SpawnTransform);
@@ -2537,11 +2541,44 @@ void ABaseCharacter::SpawnEArrow()
         return;
     }
 
-    FVector SpawnLocation = Bow->Mesh->GetSocketLocation(TEXT("ArrowSocket"));
+    const FVector SpawnLocation = Bow->Mesh->GetSocketLocation(TEXT("ArrowSocket"));
+    const FVector Forward = GetActorForwardVector().GetSafeNormal2D();
+    const FVector TargetLocation = GetActorLocation() +
+        Forward * ArcherEProjectileRange;
 
-    FRotator SpawnRotation = GetActorForwardVector().Rotation();
+    FVector LaunchVelocity = FVector::ZeroVector;
+    const float LaunchSpeed = FMath::Max(ArcherEProjectileSpeed, 1.f);
+    UGameplayStatics::FSuggestProjectileVelocityParameters ProjectileParams(
+        this,
+        SpawnLocation,
+        TargetLocation,
+        LaunchSpeed);
+    ProjectileParams.TraceOption = ESuggestProjVelocityTraceOption::DoNotTrace;
+    const bool bHasSuggestedVelocity = UGameplayStatics::SuggestProjectileVelocity(
+        ProjectileParams,
+        LaunchVelocity);
 
-    const FTransform SpawnTransform(SpawnRotation, SpawnLocation);
+    if (!bHasSuggestedVelocity)
+    {
+        // A fixed-speed ballistic solution can fail when its requested range is
+        // physically unreachable. Keep E deterministic instead of silently
+        // using ProjectileMovement's 3000-unit straight default.
+        const FVector ToTarget = TargetLocation - SpawnLocation;
+        const float HorizontalDistance = ToTarget.Size2D();
+        const float FlightTime = FMath::Max(HorizontalDistance / LaunchSpeed, 0.1f);
+        LaunchVelocity = FVector(
+            ToTarget.X / FlightTime,
+            ToTarget.Y / FlightTime,
+            (ToTarget.Z - 0.5f * GetWorld()->GetGravityZ() * FMath::Square(FlightTime)) /
+                FlightTime);
+    }
+
+    if (LaunchVelocity.IsNearlyZero())
+    {
+        LaunchVelocity = Forward * LaunchSpeed;
+    }
+
+    const FTransform SpawnTransform(LaunchVelocity.Rotation(), SpawnLocation);
     AArrowProjectile* Arrow = GetWorld()->SpawnActorDeferred<AArrowProjectile>(
         ArrowClass,
         SpawnTransform,
@@ -2555,18 +2592,14 @@ void ABaseCharacter::SpawnEArrow()
         Arrow->ArrowType = EArrowType::Explosive;
         Arrow->DamageMultiplier = EMultiplier;
         Arrow->EExplosionRadius = 450.f;
-
-        FVector TargetLocation = GetActorLocation() + GetActorForwardVector() * 1500.f;
-
-        FVector LaunchVelocity;
-
-        bool bSuccess = UGameplayStatics::SuggestProjectileVelocity(this, LaunchVelocity, SpawnLocation, TargetLocation, 1200.f, false, 0.f, 0.f, ESuggestProjVelocityTraceOption::DoNotTrace);
-
-        if (bSuccess)
-        {
-            Arrow->ProjectileMovement->ProjectileGravityScale = 1.f;
-            Arrow->ProjectileMovement->Velocity = LaunchVelocity;
-        }
+        Arrow->TargetLocation = TargetLocation;
+        Arrow->ProjectileMovement->ProjectileGravityScale = 1.f;
+        // LaunchVelocity is already a world-space ballistic solution. Disable
+        // both the implicit local rotation and InitialSpeed magnitude override.
+        Arrow->ProjectileMovement->bInitialVelocityInLocalSpace = false;
+        Arrow->ProjectileMovement->InitialSpeed = 0.f;
+        Arrow->ProjectileMovement->MaxSpeed = 0.f;
+        Arrow->ProjectileMovement->Velocity = LaunchVelocity;
 
         Arrow->FinishSpawning(SpawnTransform);
         if (IsValid(Arrow))

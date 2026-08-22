@@ -24,10 +24,40 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
+#include "EngineUtils.h"
 
 
 namespace
 {
+	bool IsInsideAnyActiveAltarLightZone(
+		const UWorld* World,
+		const AMonster* Monster)
+	{
+		if (!World || !Monster)
+		{
+			return false;
+		}
+
+		const FVector WorldLocation = Monster->GetActorLocation();
+		const UCapsuleComponent* Capsule = Monster->GetCapsuleComponent();
+		const float FootprintRadius = Capsule
+			? Capsule->GetScaledCapsuleRadius()
+			: 0.f;
+
+		// Vulnerability belongs to the illuminated ground area, not to the
+		// monster's spawn/owner altar. A monster from another altar must also lose
+		// invulnerability while standing anywhere above this XY circle.
+		for (TActorIterator<AAltar> It(World); It; ++It)
+		{
+			if (It->IsInsideActiveLightZone(WorldLocation, FootprintRadius))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
     FVector FindMonsterDropGroundLocation(
         const UWorld* World,
         const AActor* ActorToIgnore,
@@ -145,7 +175,7 @@ void AMonster::BeginPlay()
         return;
     }
 
-    if (HasAuthority() && OwnerAltar && !OwnerAltar->bActivated)
+	if (!IsInsideAnyActiveAltarLightZone(GetWorld(), this))
     {
         bBarrierActive = true;
         MulticastStartBarrierFX();
@@ -298,18 +328,18 @@ void AMonster::Tick(float DeltaTime)
         bIsAttacking = false;
     }
 
-    if (OwnerAltar)
+	const bool bInsideLanternZone =
+		IsInsideAnyActiveAltarLightZone(GetWorld(), this);
+
+    if (!bInsideLanternZone && !bBarrierActive)
     {
-        if (!OwnerAltar->bActivated && !bBarrierActive)
-        {
-            bBarrierActive = true;
-            MulticastStartBarrierFX();
-        }
-        else if (OwnerAltar->bActivated && bBarrierActive)
-        {
-            bBarrierActive = false;
-            MulticastStopBarrierFX();
-        }
+        bBarrierActive = true;
+        MulticastStartBarrierFX();
+    }
+    else if (bInsideLanternZone && bBarrierActive)
+    {
+        bBarrierActive = false;
+        MulticastStopBarrierFX();
     }
 }
 
@@ -428,17 +458,11 @@ void AMonster::TakeMonsterDamage(float Damage)
         return;
     }
 
-    // 제단 비활성 상태면 무적
-    if (!OwnerAltar->bActivated)
+    // A placed lantern creates an infinite-height cylinder over its visible
+    // XY ground circle. Altar ownership and Z height do not affect immunity.
+	if (!IsInsideAnyActiveAltarLightZone(GetWorld(), this))
     {
-        UE_LOG(LogTemp, Warning, TEXT("Monster Invincible"));
-
-        return;
-    }
-
-    if (!OwnerAltar->IsInsideActiveLightZone(GetActorLocation()))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Outside Altar Light Semicircle"));
+        UE_LOG(LogTemp, Warning, TEXT("Monster outside active altar light circle"));
 
         return;
     }
