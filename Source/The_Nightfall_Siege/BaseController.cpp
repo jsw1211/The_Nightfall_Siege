@@ -212,7 +212,7 @@ void ABaseController::BeginPlay()
             TreeTransparencyTimer,
             this,
             &ABaseController::UpdateTreeTransparency,
-            0.05f,
+            0.15f,
             true
         );
     }
@@ -358,9 +358,11 @@ void ABaseController::ServerMoveToLocation_Implementation(
         TargetLocation);
 }
 
+
+
 ABaseController::ABaseController()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
 
     static ConstructorHelpers::FClassFinder<UUserWidget> DeathScreenWidgetBP(TEXT("/Game/BP/WBP_DeathScreen"));
     static ConstructorHelpers::FClassFinder<UUserWidget> GameClearWidgetBP(TEXT("/Game/BP/WBP_GameClear"));
@@ -403,7 +405,7 @@ void ABaseController::UpdateTreeTransparency()
 
     // 카메라나 캐릭터가 충분히 움직이지 않았다면
     // 같은 Trace를 다시 할 필요가 없다.
-    constexpr float PositionThreshold = 5.0f;
+    constexpr float PositionThreshold = 30.0f;
 
     if (bHasLastTreeTracePosition &&
         FVector::DistSquared(Start, LastTreeTraceStart) <=
@@ -435,6 +437,7 @@ void ABaseController::UpdateTreeTransparency()
     );
 
     TMap<UHierarchicalInstancedStaticMeshComponent*, TSet<int32>> NewFadedTrees;
+    TSet<UHierarchicalInstancedStaticMeshComponent*> ComponentsNeedingRenderUpdate;
 
     // 현재 카메라와 캐릭터 사이에 있는 나무 수집
     for (const FHitResult& Hit : Hits)
@@ -478,8 +481,9 @@ void ABaseController::UpdateTreeTransparency()
                     Index,
                     0,
                     0.0f,
-                    true
+                    false
                 );
+                ComponentsNeedingRenderUpdate.Add(HISM);
             }
         }
     }
@@ -504,13 +508,25 @@ void ABaseController::UpdateTreeTransparency()
                     Index,
                     0,
                     1.0f,
-                    true
+                    false
                 );
+                ComponentsNeedingRenderUpdate.Add(HISM);
             }
         }
     }
 
     FadedTrees = MoveTemp(NewFadedTrees);
+
+    // Updating the render state per foliage instance can stall the game
+    // thread. Batch all changed instances into one render-state refresh per
+    // HISM component so click-to-move remains responsive.
+    for (UHierarchicalInstancedStaticMeshComponent* HISM : ComponentsNeedingRenderUpdate)
+    {
+        if (HISM)
+        {
+            HISM->MarkRenderStateDirty();
+        }
+    }
 }
 
 void ABaseController::ShowDeathScreen(bool bShouldEnableRetry)
