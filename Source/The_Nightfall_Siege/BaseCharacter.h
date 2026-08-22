@@ -764,7 +764,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SpawnEArrow();
-	void ApplyArcherERainDamage();
+	void ApplyArcherERainDamage(const FVector& RainCenter);
 
 	UFUNCTION(BlueprintCallable)
 	bool IsDead() const;
@@ -903,7 +903,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Archer|E")
 	float ArcherERainDamage = 200.f;
 
-	FVector ArcherERainCenter = FVector::ZeroVector;
 	int32 NextArcherQVolleyId = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")

@@ -2313,13 +2313,23 @@ void ABaseCharacter::SpawnArrow()
 
     FRotator SpawnRotation = GetActorForwardVector().Rotation();
 
-    AArrowProjectile* Arrow = GetWorld()->SpawnActor<AArrowProjectile>(ArrowClass, SpawnLocation, SpawnRotation);
+    const FTransform SpawnTransform(SpawnRotation, SpawnLocation);
+    AArrowProjectile* Arrow = GetWorld()->SpawnActorDeferred<AArrowProjectile>(
+        ArrowClass,
+        SpawnTransform,
+        this,
+        this,
+        ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 
     if (Arrow)
     {
         Arrow->OwnerCharacter = this;
         Arrow->DamageMultiplier = 1.f;
-        Arrow->SetupTrail();
+        Arrow->FinishSpawning(SpawnTransform);
+        if (IsValid(Arrow))
+        {
+            Arrow->SetupTrail();
+        }
     }
 }
 
@@ -2353,18 +2363,27 @@ void ABaseCharacter::SpawnQArrow()
 
         FRotator Rotation = Direction.Rotation();
 
-        AArrowProjectile* Arrow = GetWorld()->SpawnActor<AArrowProjectile>(ArrowClass, SpawnLocation, Rotation);
+        const FTransform SpawnTransform(Rotation, SpawnLocation);
+        AArrowProjectile* Arrow = GetWorld()->SpawnActorDeferred<AArrowProjectile>(
+            ArrowClass,
+            SpawnTransform,
+            this,
+            this,
+            ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 
         if (Arrow)
         {
             Arrow->OwnerCharacter = this;
             Arrow->ArrowType = EArrowType::QExplosive;
             Arrow->QVolleyId = VolleyId;
-            Arrow->SetupTrail();
-
             Arrow->DamageMultiplier = QMultiplier;
             Arrow->ProjectileMovement->MaxSpeed = 1000.f;
             Arrow->ProjectileMovement->Velocity = Direction * 1000.f;
+            Arrow->FinishSpawning(SpawnTransform);
+            if (IsValid(Arrow))
+            {
+                Arrow->SetupTrail();
+            }
         }
     }
 }
@@ -2387,19 +2406,25 @@ void ABaseCharacter::SpawnRArrow()
 
     FRotator SpawnRotation = GetActorForwardVector().Rotation();
 
-    AArrowProjectile* Arrow = GetWorld()->SpawnActor<AArrowProjectile>(ArrowClass, SpawnLocation, SpawnRotation);
+    const FTransform SpawnTransform(SpawnRotation, SpawnLocation);
+    AArrowProjectile* Arrow = GetWorld()->SpawnActorDeferred<AArrowProjectile>(
+        ArrowClass,
+        SpawnTransform,
+        this,
+        this,
+        ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 
     if (Arrow)
     {
         Arrow->OwnerCharacter = this;
-
         Arrow->ArrowType = EArrowType::Pierce;
-
         Arrow->DamageMultiplier = RMultiplier;
-
-        Arrow->SetupTrail();
-
-        Arrow->SetActorScale3D(FVector(3.f, 3.f, 3.f));
+        Arrow->FinishSpawning(SpawnTransform);
+        if (IsValid(Arrow))
+        {
+            Arrow->SetActorScale3D(FVector(3.f, 3.f, 3.f));
+            Arrow->SetupTrail();
+        }
     }
 }
 
@@ -2421,15 +2446,18 @@ void ABaseCharacter::SpawnEArrow()
 
     FRotator SpawnRotation = GetActorForwardVector().Rotation();
 
-    AArrowProjectile* Arrow = GetWorld()->SpawnActor<AArrowProjectile>(ArrowClass, SpawnLocation, SpawnRotation);
+    const FTransform SpawnTransform(SpawnRotation, SpawnLocation);
+    AArrowProjectile* Arrow = GetWorld()->SpawnActorDeferred<AArrowProjectile>(
+        ArrowClass,
+        SpawnTransform,
+        this,
+        this,
+        ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 
     if (Arrow)
     {
         Arrow->OwnerCharacter = this;
-
         Arrow->ArrowType = EArrowType::Explosive;
-        Arrow->SetupTrail();
-
         Arrow->DamageMultiplier = EMultiplier;
         Arrow->EExplosionRadius = 450.f;
 
@@ -2443,17 +2471,17 @@ void ABaseCharacter::SpawnEArrow()
         {
             Arrow->ProjectileMovement->ProjectileGravityScale = 1.f;
             Arrow->ProjectileMovement->Velocity = LaunchVelocity;
+        }
 
-            if (HasAuthority())
-            {
-                ArcherERainCenter = TargetLocation;
-                ApplyArcherERainDamage();
-            }
+        Arrow->FinishSpawning(SpawnTransform);
+        if (IsValid(Arrow))
+        {
+            Arrow->SetupTrail();
         }
     }
 }
 
-void ABaseCharacter::ApplyArcherERainDamage()
+void ABaseCharacter::ApplyArcherERainDamage(const FVector& RainCenter)
 {
     if (!HasAuthority()) return;
 
@@ -2462,7 +2490,9 @@ void ABaseCharacter::ApplyArcherERainDamage()
     for (TActorIterator<AMonster> It(GetWorld()); It; ++It)
     {
         AMonster* Monster = *It;
-        if (Monster && FVector::DistSquared(Monster->GetActorLocation(), ArcherERainCenter) <= FMath::Square(ERadius))
+        // This is a ground field, so its circular range is measured in XY from
+        // the monster/ground point that actually stopped the E arrow.
+        if (Monster && FVector::DistSquared2D(Monster->GetActorLocation(), RainCenter) <= FMath::Square(ERadius))
         {
             Monster->TakeMonsterDamage(Damage);
         }
@@ -2471,7 +2501,7 @@ void ABaseCharacter::ApplyArcherERainDamage()
     for (TActorIterator<ADragonBoss> It(GetWorld()); It; ++It)
     {
         ADragonBoss* Dragon = *It;
-        if (Dragon && Dragon->IsWithinDamageRadius(ArcherERainCenter, ERadius))
+        if (Dragon && Dragon->IsWithinDamageRadius(RainCenter, ERadius))
         {
             Dragon->TakeBossDamage(Damage);
         }
@@ -2691,6 +2721,13 @@ void ABaseCharacter::UseQ()
 void ABaseCharacter::ExecuteQDamage()
 {
     UE_LOG(LogTemp, Warning, TEXT("ExecuteQDamage"));
+
+    // Archer Q is projectile-driven. The old point-blank sphere dealt a
+    // second hit before the volley reached the same target.
+    if (CharacterType == ECharacterType::Archer)
+    {
+        return;
+    }
 
     FVector Start = GetActorLocation();
 
@@ -3316,15 +3353,21 @@ void ABaseCharacter::ExecuteAttack()
         SetActorRotation(TargetRotation);
     }
 
+    // Archer basic attacks are resolved by AArrowProjectile. Keeping the
+    // melee overlap here caused a close target to take one instant hit and a
+    // second hit from the arrow.
+    if (CharacterType == ECharacterType::Archer)
+    {
+        return;
+    }
+
     FVector Start = GetActorLocation();
 
     TArray<FOverlapResult> Overlaps;
 
     // Warrior and Paladin use the same 120-unit capsule-edge range as a
-    // monster attack. Preserve the Archer's separate overlap range.
-    const float AttackRange = CharacterType == ECharacterType::Archer
-        ? 150.f
-        : 120.f + GetCapsuleComponent()->GetScaledCapsuleRadius();
+    // monster attack.
+    const float AttackRange = 120.f + GetCapsuleComponent()->GetScaledCapsuleRadius();
     FCollisionShape Sphere = FCollisionShape::MakeSphere(AttackRange);
 
     bool bHit =
