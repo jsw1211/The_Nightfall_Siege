@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
 #include "CharacterType.h"
+#include "ShopInventoryTypes.h"
 #include "BasePlayerState.generated.h"
 
 UENUM(BlueprintType)
@@ -53,6 +54,14 @@ public:
 
 	UPROPERTY(Replicated, BlueprintReadWrite)
 	int32 PotionCount = 0;
+
+	// The pawn is recreated on every dungeon/boss travel. Keep the complete
+	// shop inventory and its quick-slot selection on the persistent PlayerState.
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
+	TArray<FShopInventoryItem> PurchasedItems;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
+	int32 Slot4PurchasedItemIndex = INDEX_NONE;
 
 	UPROPERTY(Replicated, BlueprintReadWrite)
 	int32 SkillPoints = 0;

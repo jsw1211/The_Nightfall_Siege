@@ -429,11 +429,17 @@ void ABaseCharacter::BeginPlay()
         if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
         {
             PotionCount = PS->PotionCount;
+			PurchasedItems = PS->PurchasedItems;
+			Slot4PurchasedItemIndex = PurchasedItems.IsValidIndex(PS->Slot4PurchasedItemIndex)
+				? PS->Slot4PurchasedItemIndex
+				: INDEX_NONE;
 			Coin = PS->Coin;
         }
     }
 
     OnRep_PotionCount();
+	OnRep_PurchasedItems();
+	OnRep_Slot4PurchasedItemIndex();
 	OnRep_Coin();
 
     UTheNightfallSiegeInstance* GI =
@@ -1173,6 +1179,7 @@ void ABaseCharacter::ServerAssignPurchasedItemToSlot4_Implementation(int32 ItemI
     }
 
     Slot4PurchasedItemIndex = ItemIndex;
+	SaveInventoryToPlayerState();
     OnRep_Slot4PurchasedItemIndex();
     ForceNetUpdate();
 }
@@ -1194,6 +1201,8 @@ void ABaseCharacter::ServerMovePurchasedItem_Implementation(int32 FromIndex, int
     {
         Slot4PurchasedItemIndex = FromIndex;
     }
+
+	SaveInventoryToPlayerState();
 
     OnRep_PurchasedItems();
     OnRep_Slot4PurchasedItemIndex();
@@ -1274,6 +1283,8 @@ void ABaseCharacter::ServerBuyShopItem_Implementation(EShopItemType ItemType)
         OnRep_PotionCount();
     }
 
+	SaveInventoryToPlayerState();
+
     OnRep_Coin();
     OnRep_PurchasedItems();
     ForceNetUpdate();
@@ -1282,6 +1293,22 @@ void ABaseCharacter::ServerBuyShopItem_Implementation(EShopItemType ItemType)
 void ABaseCharacter::OnRep_PurchasedItems()
 {
     RefreshInventoryWidget();
+}
+
+void ABaseCharacter::SaveInventoryToPlayerState()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+	{
+		PS->PotionCount = PotionCount;
+		PS->PurchasedItems = PurchasedItems;
+		PS->Slot4PurchasedItemIndex = Slot4PurchasedItemIndex;
+		PS->ForceNetUpdate();
+	}
 }
 
 void ABaseCharacter::OnRep_Slot4PurchasedItemIndex()
@@ -2187,11 +2214,34 @@ void ABaseCharacter::FinishPotionUse()
 
 			OnRep_PurchasedItems();
 			OnRep_Slot4PurchasedItemIndex();
+			SaveInventoryToPlayerState();
 		}
 	}
 	else
 	{
 		--PotionCount;
+
+		const int32 HealingItemIndex = PurchasedItems.IndexOfByPredicate(
+			[](const FShopInventoryItem& Item)
+			{
+				return Item.ItemType == EShopItemType::HealPotion;
+			});
+		if (PurchasedItems.IsValidIndex(HealingItemIndex))
+		{
+			--PurchasedItems[HealingItemIndex].Quantity;
+			if (PurchasedItems[HealingItemIndex].Quantity <= 0)
+			{
+				PurchasedItems.RemoveAt(HealingItemIndex);
+				if (Slot4PurchasedItemIndex == HealingItemIndex)
+				{
+					Slot4PurchasedItemIndex = INDEX_NONE;
+				}
+				else if (Slot4PurchasedItemIndex > HealingItemIndex)
+				{
+					--Slot4PurchasedItemIndex;
+				}
+			}
+		}
 
 		if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
 		{
@@ -2201,6 +2251,9 @@ void ABaseCharacter::FinishPotionUse()
 		// 포션 애니메이션이 끝나는 순간 체력 회복
 		HealPlayer(MaxHP * PotionHealPercent);
 		OnRep_PotionCount();
+		OnRep_PurchasedItems();
+		OnRep_Slot4PurchasedItemIndex();
+		SaveInventoryToPlayerState();
 	}
 
 	// The healing Niagara effect belongs only to the healing potion.  Stat
@@ -4348,6 +4401,9 @@ void ABaseCharacter::PrepareForPortalTravel()
 	{
 		PS->bLanternEquipped = false;
 		PS->Coin = Coin;
+		PS->PotionCount = PotionCount;
+		PS->PurchasedItems = PurchasedItems;
+		PS->Slot4PurchasedItemIndex = Slot4PurchasedItemIndex;
 		PS->ForceNetUpdate();
 	}
 
@@ -4430,9 +4486,14 @@ void ABaseCharacter::OnRep_PlayerState()
 {
     Super::OnRep_PlayerState();
 
-    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
-    {
+	if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+	{
 		Coin = PS->Coin;
+		PotionCount = PS->PotionCount;
+		PurchasedItems = PS->PurchasedItems;
+		Slot4PurchasedItemIndex = PurchasedItems.IsValidIndex(PS->Slot4PurchasedItemIndex)
+			? PS->Slot4PurchasedItemIndex
+			: INDEX_NONE;
         bHasLantern = PS->bHasLantern;
         bLanternEquipped = PS->bLanternEquipped;
 
@@ -4448,7 +4509,10 @@ void ABaseCharacter::OnRep_PlayerState()
             TEXT("OnRep_PlayerState Finished"));
 
 		OnRep_Coin();
-    }
+		OnRep_PotionCount();
+		OnRep_PurchasedItems();
+		OnRep_Slot4PurchasedItemIndex();
+	}
 
     if (bHasLantern)
     {

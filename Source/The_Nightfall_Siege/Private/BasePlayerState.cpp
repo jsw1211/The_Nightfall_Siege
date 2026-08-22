@@ -28,6 +28,8 @@ void ABasePlayerState::GetLifetimeReplicatedProps(
 
     DOREPLIFETIME(ABasePlayerState, Coin);
     DOREPLIFETIME(ABasePlayerState, PotionCount);
+	DOREPLIFETIME(ABasePlayerState, PurchasedItems);
+	DOREPLIFETIME(ABasePlayerState, Slot4PurchasedItemIndex);
     DOREPLIFETIME(ABasePlayerState, SkillPoints);
     DOREPLIFETIME(ABasePlayerState, QuestStage);
     DOREPLIFETIME(ABasePlayerState, ClearedDungeonCount);
@@ -231,6 +233,8 @@ void ABasePlayerState::CopyProperties(APlayerState* PlayerState)
 	NewPS->DungeonEntryCoin = DungeonEntryCoin;
 	NewPS->bHasDungeonCoinCheckpoint = bHasDungeonCoinCheckpoint;
     NewPS->PotionCount = PotionCount;
+	NewPS->PurchasedItems = PurchasedItems;
+	NewPS->Slot4PurchasedItemIndex = Slot4PurchasedItemIndex;
     NewPS->SkillPoints = SkillPoints;
     NewPS->QuestStage = QuestStage;
     NewPS->ClearedDungeonCount = ClearedDungeonCount;

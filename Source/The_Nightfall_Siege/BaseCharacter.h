@@ -12,6 +12,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "SkillUpgradeData.h"
 #include "CharacterType.h"
+#include "ShopInventoryTypes.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "NiagaraComponent.h"
@@ -33,14 +34,6 @@ class UQuestDialogueWidget;
 class UAltarProgressWidget;
 class UAnimSequenceBase;
 
-UENUM(BlueprintType)
-enum class EShopItemType : uint8
-{
-	HealPotion UMETA(DisplayName = "Heal Potion"),
-	HPPotion UMETA(DisplayName = "HP Potion"),
-	AttackPotion UMETA(DisplayName = "Attack Potion")
-};
-
 // The held-item pose deliberately has its own lifecycle.  In particular, an
 // equip animation must finish before the looping held idle state takes over.
 // Keeping this separate from bLanternEquipped/bPrismEquipped lets locomotion
@@ -56,26 +49,6 @@ enum class EItemAnimationState : uint8
 	PrismIdle,
 	PrismUnequipping,
 	PotionUsing
-};
-
-// One entry is added for every successful purchase.  Entries are deliberately
-// not stacked: the inventory can therefore display its slots in purchase order.
-USTRUCT(BlueprintType)
-struct FShopInventoryItem
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
-	EShopItemType ItemType = EShopItemType::HealPotion;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
-	FText DisplayName;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
-	TObjectPtr<UTexture2D> Icon = nullptr;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
-	int32 Quantity = 1;
 };
 
 UCLASS()
@@ -736,6 +709,7 @@ public:
 	void OnRep_PurchasedItems();
 
 	void RefreshInventoryWidget();
+	void SaveInventoryToPlayerState();
 	void BindShopButtons();
 	void UpdateShopGold();
 
