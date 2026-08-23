@@ -199,7 +199,9 @@ ABaseCharacter::ABaseCharacter()
     // LanternLightSphere is the authoritative darkness-protection radius.
     LanternLight->SetIntensity(18000.f);
 
-    LanternLight->SetAttenuationRadius(1800.f);
+    LanternLight->SetAttenuationRadius(2200.f);
+
+    LanternLight->SetUseInverseSquaredFalloff(false);
 
     LanternLight->SetLightColor(FLinearColor(0.0f, 1.0f, 0.0f));
 
