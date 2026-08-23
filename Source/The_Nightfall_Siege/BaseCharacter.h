@@ -80,6 +80,8 @@ public:
 
 	void ExecuteE();
 
+	void ExecuteWarriorEDamage();
+
 	UFUNCTION(Server, Reliable)
 	void ServerUseR();
 
@@ -924,6 +926,10 @@ protected:
 	FTimerHandle WCooldownTimer;
 	FTimerHandle ECooldownTimer;
 	FTimerHandle RCooldownTimer;
+
+	// 스킬 데미지 타이밍
+	FTimerHandle QDamageTimer;
+	FTimerHandle EDamageTimer;
 
 	// 쿨타임 리셋 함수
 	void ResetQCooldown();

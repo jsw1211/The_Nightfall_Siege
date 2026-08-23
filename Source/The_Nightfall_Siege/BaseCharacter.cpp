@@ -2849,15 +2849,44 @@ void ABaseCharacter::SetNearbyDungeonPortal(ADungeonPortal* Portal)
 
 void ABaseCharacter::ServerUseQ_Implementation()
 {
-    MulticastPlayQ();
+    if (!bCanUseQ || !CanUseCombatAction())
+    {
+        return;
+    }
 
-    UseQ();
+    bCanUseQ = false;
+
+    QRemainingCooldown = QCooldown;
+
+    GetWorldTimerManager().SetTimer(
+        QCooldownTimer,
+        this,
+        &ABaseCharacter::ResetQCooldown,
+        QCooldown,
+        false
+    );
+
+    // 팔라딘 / 워리어 Q는 0.8초 후 데미지 적용
+    if (CharacterType == ECharacterType::Paladin ||
+        CharacterType == ECharacterType::Warrior)
+    {
+        GetWorldTimerManager().SetTimer(
+            QDamageTimer,
+            this,
+            &ABaseCharacter::ExecuteQDamage,
+            0.8f,
+            false
+        );
+    }
+    else
+    {
+        // 아처는 기존처럼 투사체가 데미지를 처리하므로 여기서 Q 데미지를 적용하지 않음.
+        ExecuteQDamage();
+    }
 
     ClientStartSkillCooldown(ESkillType::Q, QCooldown);
-
     ForceNetUpdate();
-
-    ExecuteQDamage();
+    MulticastPlayQ();
 }
 
 void ABaseCharacter::MulticastPlayQ_Implementation()
@@ -3208,41 +3237,18 @@ void ABaseCharacter::ExecuteE()
         false
     );
 
-	if (CharacterType == ECharacterType::Warrior)
-	{
-		TArray<FOverlapResult> Overlaps;
-		const FCollisionShape DamageSphere = FCollisionShape::MakeSphere(WarriorERadius);
+    if (CharacterType == ECharacterType::Warrior)
+    {
+        GetWorldTimerManager().SetTimer(
+            EDamageTimer,
+            this,
+            &ABaseCharacter::ExecuteWarriorEDamage,
+            0.65f,
+            false
+        );
 
-		GetWorld()->OverlapMultiByChannel(
-			Overlaps,
-			GetActorLocation(),
-			FQuat::Identity,
-			ECC_Pawn,
-			DamageSphere);
-
-		TSet<AActor*> DamagedActors;
-		for (const FOverlapResult& Result : Overlaps)
-		{
-			AActor* HitActor = Result.GetActor();
-			if (!HitActor || DamagedActors.Contains(HitActor))
-			{
-				continue;
-			}
-
-			if (AMonster* Monster = Cast<AMonster>(HitActor))
-			{
-				Monster->TakeMonsterDamage(AttackPower * EMultiplier);
-				DamagedActors.Add(HitActor);
-			}
-			else if (ADragonBoss* Dragon = Cast<ADragonBoss>(HitActor))
-			{
-				Dragon->TakeBossDamage(AttackPower * EMultiplier);
-				DamagedActors.Add(HitActor);
-			}
-		}
-
-		return;
-	}
+        return;
+    }
 
     if (CharacterType == ECharacterType::Paladin)
     {
@@ -3263,6 +3269,48 @@ void ABaseCharacter::ExecuteE()
             &ABaseCharacter::HealOverTimeTick,
             1.f,
             true);
+    }
+}
+
+void ABaseCharacter::ExecuteWarriorEDamage()
+{
+    if (!HasAuthority() || CharacterType != ECharacterType::Warrior)
+    {
+        return;
+    }
+
+    TArray<FOverlapResult> Overlaps;
+    const FCollisionShape DamageSphere =
+        FCollisionShape::MakeSphere(WarriorERadius);
+
+    GetWorld()->OverlapMultiByChannel(
+        Overlaps,
+        GetActorLocation(),
+        FQuat::Identity,
+        ECC_Pawn,
+        DamageSphere);
+
+    TSet<AActor*> DamagedActors;
+
+    for (const FOverlapResult& Result : Overlaps)
+    {
+        AActor* HitActor = Result.GetActor();
+
+        if (!HitActor || DamagedActors.Contains(HitActor))
+        {
+            continue;
+        }
+
+        if (AMonster* Monster = Cast<AMonster>(HitActor))
+        {
+            Monster->TakeMonsterDamage(AttackPower * EMultiplier);
+            DamagedActors.Add(HitActor);
+        }
+        else if (ADragonBoss* Dragon = Cast<ADragonBoss>(HitActor))
+        {
+            Dragon->TakeBossDamage(AttackPower * EMultiplier);
+            DamagedActors.Add(HitActor);
+        }
     }
 }
 
