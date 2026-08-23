@@ -615,6 +615,21 @@ void ADragonBoss::CloseBreathAttack()
 
 	MulticastPlayAttack(EDragonAttackType::CloseBreath);
 
+	// The damage notify happens before this animation is over. Keep the attack
+	// state (and therefore movement/pattern selection) locked until the montage
+	// actually finishes instead of releasing it at a fixed time.
+	if (CloseBreathMontage)
+	{
+		if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+		{
+			FOnMontageEnded EndDelegate;
+			EndDelegate.BindUObject(this, &ADragonBoss::OnCloseBreathMontageEnded);
+			AnimInstance->Montage_SetEndDelegate(EndDelegate, CloseBreathMontage);
+			return;
+		}
+	}
+
+	// Fallback only for an unassigned montage or unavailable anim instance.
 	GetWorldTimerManager().SetTimer(
 		AttackEndHandle,
 		this,
@@ -622,6 +637,16 @@ void ADragonBoss::CloseBreathAttack()
 		3.0f,
 		false
 	);
+}
+
+void ADragonBoss::OnCloseBreathMontageEnded(
+	UAnimMontage* Montage,
+	bool bInterrupted)
+{
+	if (HasAuthority() && Montage == CloseBreathMontage)
+	{
+		OnAttackFinished();
+	}
 }
 
 void ADragonBoss::BreathAttack()

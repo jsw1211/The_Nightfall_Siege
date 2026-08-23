@@ -406,7 +406,7 @@ public:
 
 	// The encounter remains idle until at least one living player enters this range.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Encounter", meta = (ClampMin = "0.0"))
-	float EncounterStartRange = 1000.f;
+	float EncounterStartRange = 2000.f;
 
 	bool bEncounterStarted = false;
 
@@ -450,6 +450,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void BreathFire();
+	void OnCloseBreathMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 	void OnBreathMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 	UFUNCTION(NetMulticast, Reliable)
