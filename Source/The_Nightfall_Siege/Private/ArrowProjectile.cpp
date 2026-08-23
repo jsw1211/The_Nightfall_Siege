@@ -12,6 +12,13 @@
 #include "DragonBoss.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
+#include "TimerManager.h"
+
+namespace
+{
+	// Keep E's impact VFX immediate, but let players see it before damage lands.
+	constexpr float ArcherEImpactDamageDelay = 0.5f;
+}
 
 // Sets default values
 AArrowProjectile::AArrowProjectile()
@@ -330,7 +337,16 @@ void AArrowProjectile::Explode(const FVector& ImpactCenter)
 	{
 		if (OwnerCharacter)
 		{
-			OwnerCharacter->ApplyArcherERainDamage(ImpactCenter);
+			FTimerDelegate DelayedDamageDelegate = FTimerDelegate::CreateUObject(
+				OwnerCharacter,
+				&ABaseCharacter::ApplyArcherERainDamage,
+				ImpactCenter);
+			FTimerHandle DelayedDamageTimerHandle;
+			OwnerCharacter->GetWorldTimerManager().SetTimer(
+				DelayedDamageTimerHandle,
+				DelayedDamageDelegate,
+				ArcherEImpactDamageDelay,
+				false);
 		}
 		StopTrailAndDestroy();
 		return;

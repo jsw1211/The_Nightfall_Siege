@@ -750,7 +750,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SpawnEArrow();
-	void ApplyArcherERainDamage(const FVector& RainCenter);
+	void ApplyArcherERainDamage(FVector RainCenter);
 
 	UFUNCTION(BlueprintCallable)
 	bool IsDead() const;

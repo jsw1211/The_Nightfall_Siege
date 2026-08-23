@@ -2684,7 +2684,7 @@ void ABaseCharacter::SpawnEArrow()
     }
 }
 
-void ABaseCharacter::ApplyArcherERainDamage(const FVector& RainCenter)
+void ABaseCharacter::ApplyArcherERainDamage(FVector RainCenter)
 {
     if (!HasAuthority()) return;
 
