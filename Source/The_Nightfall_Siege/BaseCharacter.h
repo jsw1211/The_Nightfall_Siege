@@ -425,6 +425,7 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Lantern")
 	class UDecalComponent* LanternSafeZoneDecal;
 
+
 	// Local-only guide effect. It is rotated toward the active dungeon portal
 	// while the lantern is equipped in the village.
 	UPROPERTY(VisibleAnywhere, Category = "Lantern")

@@ -133,6 +133,8 @@ ABaseCharacter::ABaseCharacter()
 
     EquippedLanternMesh->SetVisibility(false);
 
+    EquippedLanternMesh->SetCastShadow(false);
+
     EquippedPrismMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EquippedPrismMesh"));
 
     EquippedPrismMesh->SetupAttachment(GetMesh(), TEXT("PrismSocket"));
@@ -145,6 +147,8 @@ ABaseCharacter::ABaseCharacter()
 
 	// This light is enabled while the item is equipped, so it must be dynamic.
 	LanternLight->SetMobility(EComponentMobility::Movable);
+
+    LanternLight->SetCastShadows(true);
 
 	LanternSafeZoneDecal = CreateDefaultSubobject<UDecalComponent>(
 		TEXT("LanternSafeZoneDecal"));
@@ -176,7 +180,7 @@ ABaseCharacter::ABaseCharacter()
     LanternLightSphere->SetupAttachment(
         EquippedLanternMesh);
 
-    LanternLightSphere->SetSphereRadius(1800.f);
+    LanternLightSphere->SetSphereRadius(720.f);
 
     LanternLightSphere->SetCollisionEnabled(
         ECollisionEnabled::QueryOnly);
@@ -197,9 +201,9 @@ ABaseCharacter::ABaseCharacter()
 
     // Keep the visual light exactly aligned with the gameplay safe zone.
     // LanternLightSphere is the authoritative darkness-protection radius.
-    LanternLight->SetIntensity(18000.f);
+    LanternLight->SetIntensity(50.f);
 
-    LanternLight->SetAttenuationRadius(2200.f);
+    LanternLight->SetAttenuationRadius(1680.f);
 
     LanternLight->SetUseInverseSquaredFalloff(false);
 
@@ -258,8 +262,7 @@ void ABaseCharacter::BeginPlay()
 	// Blueprint defaults must not desynchronise the visible lantern radius from
 	// the sphere that grants darkness protection.
 	LanternLight->SetLightColor(FLinearColor(0.0f, 1.0f, 0.0f));
-	LanternLight->SetAttenuationRadius(
-		LanternLightSphere->GetScaledSphereRadius());
+	LanternLight->SetAttenuationRadius(1680.f);
 	const float LanternSafeRadius = LanternLightSphere->GetScaledSphereRadius();
 	const FVector LanternDecalScale = LanternSafeZoneDecal->GetComponentScale();
 	LanternSafeZoneDecal->DecalSize = FVector(
@@ -3977,7 +3980,8 @@ void ABaseCharacter::OnRep_LanternEquipped()
     const FString CurrentMapName = GetWorld() ? GetWorld()->GetMapName() : FString();
     const bool bUsesDarkness = CurrentMapName.Contains(TEXT("Village"))
         || CurrentMapName.Contains(TEXT("Dungeon"));
-    LanternSafeZoneDecal->SetVisibility(bLanternEquipped && bUsesDarkness, true);
+
+    LanternSafeZoneDecal->SetVisibility(false);
 
     // Tick will resolve the portal and activate the local guide effect. Hide
     // immediately on unequip so it never lingers for one update interval.

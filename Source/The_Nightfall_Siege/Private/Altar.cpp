@@ -71,16 +71,22 @@ AAltar::AAltar()
 
 	LanternMesh->SetVisibility(false);
 
+	LanternMesh->SetCastShadow(false);
+
 	AltarLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("AltarLight"));
 
 	AltarLight->SetupAttachment(LanternMesh);
 	AltarLight->SetMobility(EComponentMobility::Movable);
 
-	AltarLight->SetIntensity(18000.f);
+	AltarLight->SetCastShadows(true);
+
+	AltarLight->SetIntensity(100.f);
 
 	// Monsters can only be damaged inside LightRange. Match the visual light
 	// to that same radius so the illuminated area communicates the rule.
 	AltarLight->SetAttenuationRadius(1200.f);
+
+	AltarLight->SetUseInverseSquaredFalloff(false);
 
 	AltarLight->SetLightColor(FLinearColor(0.0f, 1.0f, 0.0f));
 
