@@ -82,6 +82,16 @@ ABaseCharacter::ABaseCharacter()
         QuestWidgetClass = QuestWidgetBP.Class;
     }
 
+    // Keep the authored quest dialogue widget as a hard reference. The
+    // runtime LoadClass fallback below is not discoverable by the cooker, so
+    // without this reference the widget can be absent from packaged builds.
+    static ConstructorHelpers::FClassFinder<UQuestDialogueWidget> QuestDialogueWidgetBP(
+        TEXT("/Game/BP_Character/WBP_QuestDialogue"));
+    if (QuestDialogueWidgetBP.Succeeded())
+    {
+        QuestDialogueWidgetClass = QuestDialogueWidgetBP.Class;
+    }
+
     static ConstructorHelpers::FObjectFinder<UTexture2D> HPPotionTexture(TEXT("/Game/Asset/UI/items/HP_Potion"));
     if (HPPotionTexture.Succeeded())
     {
