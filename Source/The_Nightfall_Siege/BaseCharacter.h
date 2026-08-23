@@ -121,11 +121,11 @@ public:
 	UFUNCTION(BlueprintPure)
 	float GetAttackPower() const { return AttackPower; }
 
-	bool bAltarInteractionLocked = false;
+	bool bInteractionLocked = false;
 
-	FTimerHandle AltarInteractionLockTimer;
+	FTimerHandle InteractionLockTimer;
 
-	void ResetAltarInteractionLock();
+	void ResetInteractionLock();
 
 protected:
 	// Called when the game starts or when spawned

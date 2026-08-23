@@ -2030,6 +2030,22 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 
 void ABaseCharacter::HandleWorldInteraction()
 {
+    // F키 한 번으로 여러 상호작용이 연속 처리되는 것을 방지
+    if (bInteractionLocked)
+    {
+        return;
+    }
+
+    // 이번 F 입력을 상호작용으로 소비
+    bInteractionLocked = true;
+
+    GetWorldTimerManager().SetTimer(
+        InteractionLockTimer,
+        this,
+        &ABaseCharacter::ResetInteractionLock,
+        0.2f,
+        false);
+
     if (bIsPlacingLantern)
     {
         return;
@@ -2055,9 +2071,6 @@ void ABaseCharacter::HandleWorldInteraction()
 
     if (bDarknessDebuff && bPrismEquipped)
     {
-        // A Listen Server already owns its pawn and should enter the
-        // authoritative participation path directly. Remote players need the
-        // Server RPC to reach that same path.
         if (HasAuthority())
         {
             RequestGroupPrismCleanse();
@@ -2066,6 +2079,7 @@ void ABaseCharacter::HandleWorldInteraction()
         {
             ServerRequestGroupPrismCleanse();
         }
+
         return;
     }
 
@@ -3797,19 +3811,10 @@ void ABaseCharacter::SetNearbyAltar(AAltar* Altar)
         Altar ? TEXT("SET") : TEXT("NULL"));
 }
 
-void ABaseCharacter::ResetAltarInteractionLock()
-{
-    bAltarInteractionLocked = false;
-}
+
 
 void ABaseCharacter::ServerInteractAltar_Implementation()
 {
-    // 랜턴 회수 직후 잠깐 동안 같은 제단과 재상호작용 방지
-    if (bAltarInteractionLocked)
-    {
-        return;
-    }
-
     if (!NearbyAltar)
     {
         return;
@@ -3843,16 +3848,6 @@ void ABaseCharacter::ServerInteractAltar_Implementation()
     else
     {
         NearbyAltar->RemoveLantern(this);
-
-        // 회수 직후 일정 시간 동안 제단 재상호작용 방지
-        bAltarInteractionLocked = true;
-
-        GetWorldTimerManager().SetTimer(
-            AltarInteractionLockTimer,
-            this,
-            &ABaseCharacter::ResetAltarInteractionLock,
-            0.2f,
-            false);
     }
 }
 
@@ -5247,3 +5242,7 @@ bool ABaseCharacter::IsInsideActiveLanternSafeZone(const FVector& WorldLocation)
     return ToLocation.SizeSquared() <= FMath::Square(SafeRadius);
 }
 
+void ABaseCharacter::ResetInteractionLock()
+{
+    bInteractionLocked = false;
+}
