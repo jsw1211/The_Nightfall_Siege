@@ -104,7 +104,8 @@ public:
 	void MulticastPlayAttackBuffEffect(FVector Location);
 
 	UFUNCTION(Server, Reliable)
-	void ServerAttack();
+	void ServerAttack(FRotator TargetRotation);
+
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastAttack();

@@ -860,7 +860,9 @@ void ABaseCharacter::Attack(const FInputActionValue& Value)
 
     RotateToMouseCursor();
 
-    ServerAttack();
+    FRotator TargetRotation = GetActorRotation();
+    ServerAttack(TargetRotation);
+
 }
 
 void ABaseCharacter::Q(const FInputActionValue& Value)
@@ -3604,10 +3606,10 @@ void ABaseCharacter::EndPaladinWBuff()
     ForceNetUpdate();
 }
 
-void ABaseCharacter::ServerAttack_Implementation()
+void ABaseCharacter::ServerAttack_Implementation(FRotator TargetRotation) 
 {
+    SetActorRotation(TargetRotation);
     MulticastAttack();
-
     ExecuteAttack();
 }
 
@@ -3637,28 +3639,7 @@ void ABaseCharacter::ExecuteAttack()
         return;
     }
 
-    APlayerController* PC =
-        Cast<APlayerController>(GetController());
-
-    if (PC)
-    {
-        FHitResult Hit;
-
-        PC->GetHitResultUnderCursor(
-            ECC_Visibility,
-            false,
-            Hit);
-
-        FVector LookDirection =
-            Hit.Location - GetActorLocation();
-
-        LookDirection.Z = 0.f;
-
-        FRotator TargetRotation =
-            LookDirection.Rotation();
-
-        SetActorRotation(TargetRotation);
-    }
+    
 
     // Archer basic attacks are resolved by AArrowProjectile. Keeping the
     // melee overlap here caused a close target to take one instant hit and a
