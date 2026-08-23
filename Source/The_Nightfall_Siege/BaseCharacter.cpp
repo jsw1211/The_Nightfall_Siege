@@ -3753,8 +3753,19 @@ void ABaseCharacter::SetNearbyAltar(AAltar* Altar)
         Altar ? TEXT("SET") : TEXT("NULL"));
 }
 
+void ABaseCharacter::ResetAltarInteractionLock()
+{
+    bAltarInteractionLocked = false;
+}
+
 void ABaseCharacter::ServerInteractAltar_Implementation()
 {
+    // 랜턴 회수 직후 잠깐 동안 같은 제단과 재상호작용 방지
+    if (bAltarInteractionLocked)
+    {
+        return;
+    }
+
     if (!NearbyAltar)
     {
         return;
@@ -3771,16 +3782,33 @@ void ABaseCharacter::ServerInteractAltar_Implementation()
         {
             AltarBeingPlaced = NearbyAltar;
             bIsPlacingLantern = true;
+
             GetCharacterMovement()->StopMovementImmediately();
             GetCharacterMovement()->DisableMovement();
+
             ClientShowAltarPlacementProgress(3.f);
+
             GetWorldTimerManager().SetTimer(
-                AltarPlacementTimer, this, &ABaseCharacter::FinishAltarPlacement, 3.f, false);
+                AltarPlacementTimer,
+                this,
+                &ABaseCharacter::FinishAltarPlacement,
+                3.f,
+                false);
         }
     }
     else
     {
         NearbyAltar->RemoveLantern(this);
+
+        // 회수 직후 일정 시간 동안 제단 재상호작용 방지
+        bAltarInteractionLocked = true;
+
+        GetWorldTimerManager().SetTimer(
+            AltarInteractionLockTimer,
+            this,
+            &ABaseCharacter::ResetAltarInteractionLock,
+            0.2f,
+            false);
     }
 }
 
