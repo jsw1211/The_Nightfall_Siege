@@ -135,6 +135,7 @@ protected:
 	void PlayHit();
 
 	void EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketName, AActor*& OutWeapon);
+	void RefreshRightHandWeaponForHeldItem();
 
 public:	
 	// Called every frame

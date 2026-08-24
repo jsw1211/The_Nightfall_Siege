@@ -1738,6 +1738,21 @@ void ABaseCharacter::EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketNa
     }
 }
 
+void ABaseCharacter::RefreshRightHandWeaponForHeldItem()
+{
+    if (!RightHandWeapon)
+    {
+        return;
+    }
+
+    // Lantern and prism states are replicated. Calling this from both OnRep
+    // handlers applies the same visibility to the host, owning client, and
+    // simulated proxies, regardless of which property arrives first.
+    const bool bHideWeapon = bLanternEquipped || bPrismEquipped;
+    RightHandWeapon->SetActorHiddenInGame(bHideWeapon);
+    RightHandWeapon->SetActorEnableCollision(!bHideWeapon);
+}
+
 bool ABaseCharacter::UpgradeSkill(FSkillUpgradeData UpgradeData)
 {
 	// Combat damage and cooldowns are authoritative on the server. Do not only
@@ -4070,17 +4085,10 @@ void ABaseCharacter::OnRep_LanternEquipped()
         ? ECollisionEnabled::QueryOnly
         : ECollisionEnabled::NoCollision);
 
-    if (CharacterType == ECharacterType::Paladin)
-    {
-        if (RightHandWeapon)
-        {
-            RightHandWeapon->SetActorHiddenInGame(
-                bLanternEquipped);
-
-            RightHandWeapon->SetActorEnableCollision(
-                !bLanternEquipped);
-        }
-    }
+    // Any character with a right-hand weapon (including Warrior) must put it
+    // away while holding the lantern. The combined helper also prevents one
+    // held item's OnRep from restoring the weapon while the other is active.
+    RefreshRightHandWeaponForHeldItem();
 
     // bLanternEquipped is the gameplay/mesh state.  Do not activate the held
     // idle layer here: this function is called as soon as replication arrives,
@@ -4218,17 +4226,8 @@ void ABaseCharacter::OnRep_PrismEquipped()
         LanternLight->SetVisibility(false);
     }
 
-    if (CharacterType == ECharacterType::Paladin)
-    {
-        if (RightHandWeapon)
-        {
-            RightHandWeapon->SetActorHiddenInGame(
-                bPrismEquipped);
-
-            RightHandWeapon->SetActorEnableCollision(
-                !bPrismEquipped);
-        }
-    }
+    // Apply to every right-hand-weapon character, not only Paladin.
+    RefreshRightHandWeaponForHeldItem();
 }
 
 void ABaseCharacter::RefreshPrismState()
