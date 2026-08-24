@@ -4648,6 +4648,7 @@ void ABaseCharacter::OnRep_PlayerState()
 
 	if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
 	{
+		RefreshReplicatedStatsFromPlayerState(PS);
 		Coin = PS->Coin;
 		PotionCount = PS->PotionCount;
 		SkillPoints = PS->SkillPoints;
@@ -4788,6 +4789,52 @@ void ABaseCharacter::RestoreAuthoritativeStateFromPlayerState(ABasePlayerState* 
 	OnRep_PurchasedItems();
 	OnRep_Slot4PurchasedItemIndex();
 	ForceNetUpdate();
+}
+
+void ABaseCharacter::RefreshReplicatedStatsFromPlayerState(const ABasePlayerState* PS)
+{
+	if (HasAuthority() || !PS)
+	{
+		return;
+	}
+
+	// PlayerState properties and the new pawn can arrive in either order on a
+	// travelling client.  Rebuild the local replicated cache from the durable
+	// PlayerState so HUD Tick never falls back to the new pawn's class defaults.
+	CharacterType = PS->SelectedCharacter;
+	switch (CharacterType)
+	{
+	case ECharacterType::Paladin:
+		MaxHP = 500.f;
+		AttackPower = 100.f;
+		break;
+	case ECharacterType::Archer:
+		MaxHP = 300.f;
+		AttackPower = 200.f;
+		break;
+	case ECharacterType::Warrior:
+		MaxHP = 400.f;
+		AttackPower = 300.f;
+		break;
+	default:
+		break;
+	}
+
+	if (PS->bHasShopStatBonuses)
+	{
+		if (PS->SavedMaxHP > 0.f)
+		{
+			MaxHP = PS->SavedMaxHP;
+		}
+		if (PS->SavedAttackPower > 0.f)
+		{
+			AttackPower = PS->SavedAttackPower;
+		}
+	}
+
+	BaseAttackPower = AttackPower;
+	OnRep_MaxHP();
+	OnRep_AttackPower();
 }
 
 void ABaseCharacter::OnRep_DarknessDebuff()

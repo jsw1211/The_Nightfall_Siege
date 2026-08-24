@@ -548,6 +548,7 @@ public:
 
 	virtual void PossessedBy(AController* NewController) override;
 	void RestoreAuthoritativeStateFromPlayerState(class ABasePlayerState* PlayerState);
+	void RefreshReplicatedStatsFromPlayerState(const class ABasePlayerState* PlayerState);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSubclassOf<UPlayerHUDWidget> HUDWidgetClass;

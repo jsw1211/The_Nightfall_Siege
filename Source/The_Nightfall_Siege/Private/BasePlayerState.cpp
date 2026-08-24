@@ -2,6 +2,7 @@
 
 
 #include "BasePlayerState.h"
+#include "BaseCharacter.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/GameStateBase.h"
 
@@ -43,6 +44,15 @@ void ABasePlayerState::GetLifetimeReplicatedProps(
 void ABasePlayerState::OnRep_SelectedCharacter()
 {
     UE_LOG(LogTemp, Warning, TEXT("Rep Character Changed"));
+	OnRep_PersistentStats();
+}
+
+void ABasePlayerState::OnRep_PersistentStats()
+{
+	if (ABaseCharacter* Character = Cast<ABaseCharacter>(GetPawn()))
+	{
+		Character->RefreshReplicatedStatsFromPlayerState(this);
+	}
 }
 
 void ABasePlayerState::AcceptMainQuest()

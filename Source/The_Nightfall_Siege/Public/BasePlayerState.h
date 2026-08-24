@@ -99,14 +99,17 @@ public:
     FText GetQuestObjectiveText() const;
 
 	// Permanent shop upgrades survive pawn replacement and seamless map travel.
-	UPROPERTY(Replicated, BlueprintReadWrite)
+	UPROPERTY(ReplicatedUsing = OnRep_PersistentStats, BlueprintReadWrite)
 	bool bHasShopStatBonuses = false;
 
-	UPROPERTY(Replicated, BlueprintReadWrite)
+	UPROPERTY(ReplicatedUsing = OnRep_PersistentStats, BlueprintReadWrite)
 	float SavedMaxHP = 0.f;
 
-	UPROPERTY(Replicated, BlueprintReadWrite)
+	UPROPERTY(ReplicatedUsing = OnRep_PersistentStats, BlueprintReadWrite)
 	float SavedAttackPower = 0.f;
+
+	UFUNCTION()
+	void OnRep_PersistentStats();
 
 	UFUNCTION()
 	void OnRep_SelectedCharacter();
