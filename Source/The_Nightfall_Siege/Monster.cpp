@@ -545,8 +545,12 @@ void AMonster::TakeMonsterDamage(float Damage)
                     {
                         PS->SkillPoints = Player->SkillPoints;
                         PS->NotifyDungeonCleared();
+						PS->ForceNetUpdate();
                         Player->ClientShowQuestMessage(PS->GetQuestObjectiveText().ToString());
                     }
+
+					Player->OnRep_SkillPoints();
+					Player->ForceNetUpdate();
                 }
             }
         }

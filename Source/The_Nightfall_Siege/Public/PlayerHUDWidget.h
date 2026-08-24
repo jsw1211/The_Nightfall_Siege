@@ -98,4 +98,7 @@ public:
 
     UFUNCTION(BlueprintCallable)
     void UpdateCoin(int32 Coin);
+
+    void UpdateHealth(float CurrentHP, float MaxHP);
+    void UpdateAttackPower(float AttackPower);
 };

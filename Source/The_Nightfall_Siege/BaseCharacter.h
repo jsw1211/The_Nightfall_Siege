@@ -253,8 +253,11 @@ public:
 	float WBuffDuration = 5.0f;
 
 	// 현재 보유 스킬 포인트
-	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Skill")
+	UPROPERTY(ReplicatedUsing = OnRep_SkillPoints, EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	int32 SkillPoints = 0;
+
+	UFUNCTION()
+	void OnRep_SkillPoints();
 
 	// 스킬 레벨 저장
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
@@ -544,6 +547,7 @@ public:
 	virtual void OnRep_PlayerState() override;
 
 	virtual void PossessedBy(AController* NewController) override;
+	void RestoreAuthoritativeStateFromPlayerState(class ABasePlayerState* PlayerState);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSubclassOf<UPlayerHUDWidget> HUDWidgetClass;
@@ -570,8 +574,11 @@ public:
     void EnsureQuestDialogueWidget();
 
 	// 체력
-	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	UPROPERTY(ReplicatedUsing = OnRep_MaxHP, EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float MaxHP = 100.f;
+
+	UFUNCTION()
+	void OnRep_MaxHP();
 
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentHP, VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
 	float CurrentHP;
@@ -969,8 +976,11 @@ protected:
 	void FinishAltarPlacement();
 
 	// 공격력
-	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	UPROPERTY(ReplicatedUsing = OnRep_AttackPower, EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float AttackPower = 100.f;
+
+	UFUNCTION()
+	void OnRep_AttackPower();
 
 	// 방어율
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")

@@ -19,6 +19,7 @@ class THE_NIGHTFALL_SIEGE_API USkillTreeWidget : public UUserWidget
 protected:
 
 	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 public:
 
@@ -69,4 +70,11 @@ public:
 	class UImage* Img_R;
 
 	void UpdateSkillIcons();
+
+private:
+	int32 CachedSkillPoints = INDEX_NONE;
+	int32 CachedQLevel = INDEX_NONE;
+	int32 CachedWLevel = INDEX_NONE;
+	int32 CachedELevel = INDEX_NONE;
+	int32 CachedRLevel = INDEX_NONE;
 };

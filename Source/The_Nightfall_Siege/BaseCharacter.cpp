@@ -1471,11 +1471,13 @@ void ABaseCharacter::ToggleSkillTree()
 
     if (!bSkillTreeOpen)
     {
-        SkillTreeWidget =
-            CreateWidget<USkillTreeWidget>(
-                GetWorld(),
-                SkillTreeWidgetClass
-            );
+        APlayerController* PC = Cast<APlayerController>(GetController());
+        if (!PC || !PC->IsLocalController())
+        {
+            return;
+        }
+
+        SkillTreeWidget = CreateWidget<USkillTreeWidget>(PC, SkillTreeWidgetClass);
 
         if (SkillTreeWidget)
         {
@@ -2235,7 +2237,15 @@ void ABaseCharacter::FinishPotionUse()
             }
             else if (PendingPurchasedPotionType == EShopItemType::AttackPotion)
             {
-                AttackPower *= 1.2f;
+				// AttackPower can temporarily contain Warrior R's multiplier.  The
+				// potion is permanent, so grow the unbuffed value and then rebuild
+				// the currently visible value instead of persisting a temporary buff.
+				BaseAttackPower *= 1.2f;
+				const bool bWarriorRActive = CharacterType == ECharacterType::Warrior
+					&& GetWorldTimerManager().IsTimerActive(WarriorRBuffHandle);
+				AttackPower = BaseAttackPower * (bWarriorRActive
+					? 1.0f + WarriorRDamageBonus
+					: 1.0f);
 
                 if (AttackBuffEffect)
                 {
@@ -2247,7 +2257,8 @@ void ABaseCharacter::FinishPotionUse()
 			{
 				PS->bHasShopStatBonuses = true;
 				PS->SavedMaxHP = MaxHP;
-				PS->SavedAttackPower = AttackPower;
+				PS->SavedAttackPower = BaseAttackPower;
+				PS->ForceNetUpdate();
 			}
 
 			--PurchasedItems[ItemIndex].Quantity;
@@ -3612,6 +3623,7 @@ void ABaseCharacter::ApplyPaladinRHeal()
 void ABaseCharacter::EndWarriorRBuff()
 {
 	AttackPower = BaseAttackPower;
+	ForceNetUpdate();
 }
 
 void ABaseCharacter::EndPaladinWBuff()
@@ -3785,6 +3797,35 @@ void ABaseCharacter::OnRep_CurrentHP()
     UE_LOG(LogTemp, Warning,
         TEXT("Current HP : %f"),
         CurrentHP);
+
+	if (HUDWidget)
+	{
+		HUDWidget->UpdateHealth(CurrentHP, MaxHP);
+	}
+}
+
+void ABaseCharacter::OnRep_MaxHP()
+{
+	if (HUDWidget)
+	{
+		HUDWidget->UpdateHealth(CurrentHP, MaxHP);
+	}
+}
+
+void ABaseCharacter::OnRep_AttackPower()
+{
+	if (HUDWidget)
+	{
+		HUDWidget->UpdateAttackPower(AttackPower);
+	}
+}
+
+void ABaseCharacter::OnRep_SkillPoints()
+{
+	if (SkillTreeWidget)
+	{
+		SkillTreeWidget->UpdateSkillPointText();
+	}
 }
 
 void ABaseCharacter::HealPlayer(float Amount)
@@ -4584,10 +4625,32 @@ void ABaseCharacter::OnRep_PlayerState()
 {
     Super::OnRep_PlayerState();
 
+	// A remote pawn can receive its PlayerState after BeginPlay.  Create the
+	// local gameplay UI here as a second lifecycle-safe entry point so clients
+	// never depend on the host's spawn/possession timing.
+	const bool bIsLobbyMap = GetWorld() && GetWorld()->GetMapName().Contains(TEXT("Lvl_Lobby"));
+	if (!bIsLobbyMap)
+	{
+		if (APlayerController* PC = Cast<APlayerController>(GetController());
+			PC && PC->IsLocalController())
+		{
+			if (!HUDWidget && HUDWidgetClass)
+			{
+				HUDWidget = CreateWidget<UPlayerHUDWidget>(PC, HUDWidgetClass);
+				if (HUDWidget)
+				{
+					HUDWidget->AddToViewport();
+				}
+			}
+			EnsureQuestWidget();
+		}
+	}
+
 	if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
 	{
 		Coin = PS->Coin;
 		PotionCount = PS->PotionCount;
+		SkillPoints = PS->SkillPoints;
 		PurchasedItems = PS->PurchasedItems;
 		Slot4PurchasedItemIndex = PurchasedItems.IsValidIndex(PS->Slot4PurchasedItemIndex)
 			? PS->Slot4PurchasedItemIndex
@@ -4608,6 +4671,7 @@ void ABaseCharacter::OnRep_PlayerState()
 
 		OnRep_Coin();
 		OnRep_PotionCount();
+		OnRep_SkillPoints();
 		OnRep_PurchasedItems();
 		OnRep_Slot4PurchasedItemIndex();
 	}
@@ -4637,7 +4701,7 @@ void ABaseCharacter::PossessedBy(AController* NewController)
 
     if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
     {
-		Coin = PS->Coin;
+		RestoreAuthoritativeStateFromPlayerState(PS);
         bHasLantern = PS->bHasLantern;
         bLanternEquipped = PS->bLanternEquipped;
 
@@ -4663,6 +4727,67 @@ void ABaseCharacter::PossessedBy(AController* NewController)
             Actor->Destroy();
         }
     }
+}
+
+void ABaseCharacter::RestoreAuthoritativeStateFromPlayerState(ABasePlayerState* PS)
+{
+	if (!HasAuthority() || !PS)
+	{
+		return;
+	}
+
+	// BeginPlay can run before GameMode possesses a freshly spawned pawn.  That
+	// ordering is common for remote players after seamless dungeon travel, so
+	// BeginPlay's one-shot PlayerState restore is not sufficient for clients.
+	CharacterType = PS->SelectedCharacter;
+	switch (CharacterType)
+	{
+	case ECharacterType::Paladin:
+		MaxHP = 500.f;
+		AttackPower = 100.f;
+		break;
+	case ECharacterType::Archer:
+		MaxHP = 300.f;
+		AttackPower = 200.f;
+		break;
+	case ECharacterType::Warrior:
+		MaxHP = 400.f;
+		AttackPower = 300.f;
+		break;
+	default:
+		break;
+	}
+
+	if (PS->bHasShopStatBonuses)
+	{
+		// Guard old/incomplete saves so one missing value cannot zero a stat.
+		if (PS->SavedMaxHP > 0.f)
+		{
+			MaxHP = PS->SavedMaxHP;
+		}
+		if (PS->SavedAttackPower > 0.f)
+		{
+			AttackPower = PS->SavedAttackPower;
+		}
+	}
+
+	CurrentHP = MaxHP;
+	BaseAttackPower = AttackPower;
+	Coin = PS->Coin;
+	PotionCount = PS->PotionCount;
+	SkillPoints = PS->SkillPoints;
+	PurchasedItems = PS->PurchasedItems;
+	Slot4PurchasedItemIndex = PurchasedItems.IsValidIndex(PS->Slot4PurchasedItemIndex)
+		? PS->Slot4PurchasedItemIndex
+		: INDEX_NONE;
+
+	OnRep_CurrentHP();
+	OnRep_Coin();
+	OnRep_PotionCount();
+	OnRep_SkillPoints();
+	OnRep_PurchasedItems();
+	OnRep_Slot4PurchasedItemIndex();
+	ForceNetUpdate();
 }
 
 void ABaseCharacter::OnRep_DarknessDebuff()

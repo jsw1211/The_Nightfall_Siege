@@ -91,18 +91,6 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
 
-    if (!HPBar)
-    {
-        UE_LOG(LogTemp, Error, TEXT("HPBar NULL"));
-        return;
-    }
-
-    if (!HPText)
-    {
-        UE_LOG(LogTemp, Error, TEXT("HPText NULL"));
-        return;
-    }
-
     ABaseCharacter* Player = Cast<ABaseCharacter>(GetOwningPlayerPawn());
 
     if (!Player)
@@ -111,14 +99,7 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
         return;
     }
 
-    if (Text_ATK)
-    {
-        Text_ATK->SetText(
-            FText::FromString(
-                FString::Printf(TEXT("%.0f"), Player->GetAttackPower())
-            )
-        );
-    }
+    UpdateAttackPower(Player->GetAttackPower());
 
     // Apply the authored UMG overlay directly.  Its PNG has a transparent
     // centre and a black falloff at the edges, so UI and the pawn stay clear
@@ -143,9 +124,7 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
 			: ESlateVisibility::Hidden);
 	}
 
-    HPBar->SetPercent(Player->CurrentHP / Player->MaxHP);
-
-    HPText->SetText(FText::FromString(FString::Printf(TEXT("%.0f / %.0f"), Player->CurrentHP, Player->MaxHP)));
+    UpdateHealth(Player->CurrentHP, Player->MaxHP);
 
     if (Portrait && Player->PortraitTexture)
     {
@@ -231,7 +210,7 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
         Item2->SetBrushFromTexture(Player->Slot2Icon);
     }
 
-    if (Item3 && Player->Slot3Icon)
+    if (Item3)
     {
         Item3->SetBrushFromTexture(Player->Slot3Icon);
     }
@@ -254,5 +233,27 @@ void UPlayerHUDWidget::UpdateCoin(int32 Coin)
     }
 
     CoinText->SetText(FText::AsNumber(Coin));
+}
+
+void UPlayerHUDWidget::UpdateHealth(float CurrentHP, float MaxHP)
+{
+    if (HPBar)
+    {
+        HPBar->SetPercent(MaxHP > 0.f ? CurrentHP / MaxHP : 0.f);
+    }
+    if (HPText)
+    {
+        HPText->SetText(FText::FromString(
+            FString::Printf(TEXT("%.0f / %.0f"), CurrentHP, MaxHP)));
+    }
+}
+
+void UPlayerHUDWidget::UpdateAttackPower(float AttackPower)
+{
+    if (Text_ATK)
+    {
+        Text_ATK->SetText(FText::FromString(
+            FString::Printf(TEXT("%.0f"), AttackPower)));
+    }
 }
 

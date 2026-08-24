@@ -46,12 +46,39 @@ void USkillTreeWidget::NativeConstruct()
 	}
 }
 
+void USkillTreeWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	ABaseCharacter* Player = Cast<ABaseCharacter>(GetOwningPlayerPawn());
+	if (!Player)
+	{
+		return;
+	}
+
+	const int32 QLevel = Player->SkillLevels.FindRef(ESkillType::Q);
+	const int32 WLevel = Player->SkillLevels.FindRef(ESkillType::W);
+	const int32 ELevel = Player->SkillLevels.FindRef(ESkillType::E);
+	const int32 RLevel = Player->SkillLevels.FindRef(ESkillType::R);
+	if (CachedSkillPoints != Player->SkillPoints)
+	{
+		CachedSkillPoints = Player->SkillPoints;
+		UpdateSkillPointText();
+	}
+	if (CachedQLevel != QLevel || CachedWLevel != WLevel
+		|| CachedELevel != ELevel || CachedRLevel != RLevel)
+	{
+		CachedQLevel = QLevel;
+		CachedWLevel = WLevel;
+		CachedELevel = ELevel;
+		CachedRLevel = RLevel;
+		UpdateSkillLevelText();
+	}
+}
+
 void USkillTreeWidget::OnClick_Q_Damage()
 {
-	ABaseCharacter* Player =
-		Cast<ABaseCharacter>(
-			UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)
-		);
+	ABaseCharacter* Player = Cast<ABaseCharacter>(GetOwningPlayerPawn());
 
 	if (!Player)
 		return;
@@ -72,10 +99,7 @@ void USkillTreeWidget::OnClick_Q_Damage()
 
 void USkillTreeWidget::OnClick_W_Damage()
 {
-	ABaseCharacter* Player =
-		Cast<ABaseCharacter>(
-			UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)
-		);
+	ABaseCharacter* Player = Cast<ABaseCharacter>(GetOwningPlayerPawn());
 
 	if (!Player)
 		return;
@@ -96,10 +120,7 @@ void USkillTreeWidget::OnClick_W_Damage()
 
 void USkillTreeWidget::OnClick_E_Damage()
 {
-	ABaseCharacter* Player =
-		Cast<ABaseCharacter>(
-			UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)
-		);
+	ABaseCharacter* Player = Cast<ABaseCharacter>(GetOwningPlayerPawn());
 
 	if (!Player)
 		return;
@@ -120,10 +141,7 @@ void USkillTreeWidget::OnClick_E_Damage()
 
 void USkillTreeWidget::OnClick_R_Damage()
 {
-	ABaseCharacter* Player =
-		Cast<ABaseCharacter>(
-			UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)
-		);
+	ABaseCharacter* Player = Cast<ABaseCharacter>(GetOwningPlayerPawn());
 
 	if (!Player)
 		return;
@@ -144,10 +162,7 @@ void USkillTreeWidget::OnClick_R_Damage()
 
 void USkillTreeWidget::UpdateSkillPointText()
 {
-	ABaseCharacter* Player =
-		Cast<ABaseCharacter>(
-			UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)
-		);
+	ABaseCharacter* Player = Cast<ABaseCharacter>(GetOwningPlayerPawn());
 
 	if (!Player)
 		return;
@@ -167,10 +182,7 @@ void USkillTreeWidget::UpdateSkillPointText()
 
 void USkillTreeWidget::UpdateSkillLevelText()
 {
-	ABaseCharacter* Player =
-		Cast<ABaseCharacter>(
-			UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)
-		);
+	ABaseCharacter* Player = Cast<ABaseCharacter>(GetOwningPlayerPawn());
 
 	if (!Player)
 		return;
@@ -274,10 +286,7 @@ void USkillTreeWidget::UpdateSkillLevelText()
 
 void USkillTreeWidget::UpdateSkillIcons()
 {
-	ABaseCharacter* Player =
-		Cast<ABaseCharacter>(
-			UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)
-		);
+	ABaseCharacter* Player = Cast<ABaseCharacter>(GetOwningPlayerPawn());
 
 	if (!Player)
 		return;
