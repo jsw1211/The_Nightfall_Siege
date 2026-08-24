@@ -202,8 +202,22 @@ void APortal::Interact(ABaseCharacter* Player)
         }
     }
 
-    // The next-map pawn must always start with the lantern put away.
-    Player->PrepareForPortalTravel();
+    // ServerTravel moves the whole party, not just the player who activated
+    // the portal. Clear every pawn's held-item transition state and persist
+    // its inventory before the old world is torn down.
+    if (HasAuthority())
+    {
+        TArray<AActor*> Players;
+        UGameplayStatics::GetAllActorsOfClass(
+            GetWorld(), ABaseCharacter::StaticClass(), Players);
+        for (AActor* Actor : Players)
+        {
+            if (ABaseCharacter* PartyMember = Cast<ABaseCharacter>(Actor))
+            {
+                PartyMember->PrepareForPortalTravel();
+            }
+        }
+    }
 
     switch (PortalType)
     {

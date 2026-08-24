@@ -4306,7 +4306,6 @@ void ABaseCharacter::ServerInteractDungeonPortal_Implementation()
         PS->NotifyDungeonEntered();
     }
 
-	PrepareForPortalTravel();
 	NearbyDungeonPortal->ServerEnterDungeon();
 }
 
@@ -4557,9 +4556,15 @@ void ABaseCharacter::PrepareForPortalTravel()
 	bLanternEquipped = false;
 	bLanternPoseActive = false;
 	bIsEquippingLantern = false;
+	bPrismEquipped = false;
+	bPrismPoseActive = false;
+	bIsEquippingPrism = false;
+	CancelPotionUse();
+	SetItemAnimationState(EItemAnimationState::None);
 	if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
 	{
 		PS->bLanternEquipped = false;
+		PS->bPrismEquipped = false;
 		PS->Coin = Coin;
 		PS->PotionCount = PotionCount;
 		PS->PurchasedItems = PurchasedItems;
@@ -4568,6 +4573,7 @@ void ABaseCharacter::PrepareForPortalTravel()
 	}
 
 	OnRep_LanternEquipped();
+	OnRep_PrismEquipped();
 	ForceNetUpdate();
 }
 

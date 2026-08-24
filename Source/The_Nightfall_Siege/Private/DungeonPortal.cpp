@@ -126,6 +126,9 @@ void ADungeonPortal::ServerEnterDungeon_Implementation()
 	{
 		if (ABaseCharacter* Player = Cast<ABaseCharacter>(Actor))
 		{
+			// The portal RPC is sent by one player, but ServerTravel carries
+			// the entire party. Prepare every pawn before saving its state.
+			Player->PrepareForPortalTravel();
 			if (ABasePlayerState* PlayerState = Player->GetPlayerState<ABasePlayerState>())
 			{
 				PlayerState->Coin = Player->Coin;

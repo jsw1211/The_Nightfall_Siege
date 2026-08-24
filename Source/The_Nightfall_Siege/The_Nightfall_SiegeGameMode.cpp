@@ -265,6 +265,20 @@ void AThe_Nightfall_SiegeGameMode::RequestPartyRetry(ABaseController* Requesting
         GI->BeginRetry(bWasBossEncounter);
     }
 
+	// Retry also travels the whole party. Clear held-item and potion transition
+	// state for every pawn so stale flags cannot be restored in the village.
+	if (GameState)
+	{
+		for (APlayerState* PlayerState : GameState->PlayerArray)
+		{
+			AController* Controller = PlayerState ? Cast<AController>(PlayerState->GetOwner()) : nullptr;
+			if (ABaseCharacter* Character = Controller ? Cast<ABaseCharacter>(Controller->GetPawn()) : nullptr)
+			{
+				Character->PrepareForPortalTravel();
+			}
+		}
+	}
+
     bPartyRetryAvailable = false;
     GetWorld()->ServerTravel(TEXT("/Game/Map/Village+Forest/Village_Forest?listen"));
 }
