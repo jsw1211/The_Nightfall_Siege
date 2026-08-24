@@ -112,7 +112,11 @@ public:
 
 	bool bIsDead;
 
+	UPROPERTY(ReplicatedUsing = OnRep_BarrierActive)
 	bool bBarrierActive = false;
+
+	UFUNCTION()
+	void OnRep_BarrierActive();
 
 	UPROPERTY()
 	AAltar* OwnerAltar;
@@ -163,16 +167,6 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Barrier")
 	TObjectPtr<UNiagaraComponent> BarrierFXComponent;
-
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastStartBarrierFX();
-
-	void MulticastStartBarrierFX_Implementation();
-
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastStopBarrierFX();
-
-	void MulticastStopBarrierFX_Implementation();
 
 	void EnsureBarrierFX();
 };

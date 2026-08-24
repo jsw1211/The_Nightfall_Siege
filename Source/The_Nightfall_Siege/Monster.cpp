@@ -170,15 +170,18 @@ void AMonster::BeginPlay()
     {
     }
 
-    if (!HasAuthority())
+    if (HasAuthority())
     {
-        return;
+        if (!IsInsideAnyActiveAltarLightZone(GetWorld(), this))
+        {
+            bBarrierActive = true;
+        }
     }
 
-	if (!IsInsideAnyActiveAltarLightZone(GetWorld(), this))
+    // 서버와 클라이언트 모두 자기 베리어를 생성
+    if (bBarrierActive)
     {
-        bBarrierActive = true;
-        MulticastStartBarrierFX();
+        EnsureBarrierFX();
     }
 }
 
@@ -328,18 +331,18 @@ void AMonster::Tick(float DeltaTime)
         bIsAttacking = false;
     }
 
-	const bool bInsideLanternZone =
-		IsInsideAnyActiveAltarLightZone(GetWorld(), this);
+    const bool bInsideLanternZone =
+        IsInsideAnyActiveAltarLightZone(GetWorld(), this);
 
     if (!bInsideLanternZone && !bBarrierActive)
     {
         bBarrierActive = true;
-        MulticastStartBarrierFX();
+        OnRep_BarrierActive();
     }
     else if (bInsideLanternZone && bBarrierActive)
     {
         bBarrierActive = false;
-        MulticastStopBarrierFX();
+        OnRep_BarrierActive();
     }
 }
 
@@ -668,21 +671,26 @@ void AMonster::GetLifetimeReplicatedProps(
 
     DOREPLIFETIME(AMonster, CurrentHP);
     DOREPLIFETIME(AMonster, MaxHP);
-}   
-
-void AMonster::MulticastStartBarrierFX_Implementation()
-{
-    EnsureBarrierFX();
+    DOREPLIFETIME(AMonster, bBarrierActive);
 }
 
-void AMonster::MulticastStopBarrierFX_Implementation()
+
+void AMonster::OnRep_BarrierActive()
 {
-    if (IsValid(BarrierFXComponent))
+    if (bBarrierActive)
     {
-        BarrierFXComponent->DeactivateImmediate();
-        BarrierFXComponent->SetVisibility(false, true);
+        EnsureBarrierFX();
+    }
+    else
+    {
+        if (IsValid(BarrierFXComponent))
+        {
+            BarrierFXComponent->DeactivateImmediate();
+            BarrierFXComponent->SetVisibility(false, true);
+        }
     }
 }
+
 
 void AMonster::EnsureBarrierFX()
 {

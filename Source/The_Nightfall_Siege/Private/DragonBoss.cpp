@@ -145,28 +145,31 @@ void ADragonBoss::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Blueprint collision defaults can override native constructor responses.
-	// Apply this on every network role because movement collision is local.
 	GetCapsuleComponent()->SetCollisionResponseToChannel(
 		ECC_GameTraceChannel2,
 		ECR_Block);
 
-	if (!HasAuthority())
+	// 서버에서만 게임 상태 초기화
+	if (HasAuthority())
 	{
-		return;
+		ArenaCenter = FVector(0.f, 0.f, 0.f);
+
+		bShielded = true;
+		bCanTakeDamage = false;
+
+		CurrentState = EDragonState::Idle;
+
+		UpdatePlayerList();
+		bFirstBreathDone = false;
+
+		ForceNetUpdate();
 	}
 
-	ArenaCenter = FVector(0.f, 0.f, 0.f);
-
-	bShielded = true;
-	bCanTakeDamage = false;
-	MulticastStartBarrierFX();
-
-	CurrentState = EDragonState::Idle;
-
-	UpdatePlayerList();
-	bFirstBreathDone = false;
-
+	// 서버/클라이언트 모두 자기 로컬 베리어 생성
+	if (bShielded)
+	{
+		EnsureBarrierFX();
+	}
 }
 
 // Called every frame
@@ -1161,7 +1164,7 @@ void ADragonBoss::OnBreathReflected()
 
 		bShielded = false;
 		bCanTakeDamage = true;
-		MulticastStopBarrierFX();
+		OnRep_Shielded();
 
 		bStunned = true;
 
@@ -2336,19 +2339,6 @@ void ADragonBoss::MulticastStartPhaseTwoTransition_Implementation()
 		false);
 }
 
-void ADragonBoss::MulticastStartBarrierFX_Implementation()
-{
-	EnsureBarrierFX();
-}
-
-void ADragonBoss::MulticastStopBarrierFX_Implementation()
-{
-	if (IsValid(BarrierFXComponent))
-	{
-		BarrierFXComponent->DeactivateImmediate();
-		BarrierFXComponent->SetVisibility(false, true);
-	}
-}
 
 bool ADragonBoss::TakeArcherQVolleyDamage(ABaseCharacter* Attacker, int32 VolleyId, float Damage)
 {
@@ -2384,6 +2374,22 @@ void ADragonBoss::EnsurePhaseTwoFX()
 		FRotator::ZeroRotator,
 		EAttachLocation::KeepRelativeOffset,
 		false);
+}
+
+void ADragonBoss::OnRep_Shielded()
+{
+	if (bShielded)
+	{
+		EnsureBarrierFX();
+	}
+	else
+	{
+		if (IsValid(BarrierFXComponent))
+		{
+			BarrierFXComponent->DeactivateImmediate();
+			BarrierFXComponent->SetVisibility(false, true);
+		}
+	}
 }
 
 void ADragonBoss::EnsureBarrierFX()
@@ -2559,6 +2565,7 @@ void ADragonBoss::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ADragonBoss, bIsFlying);
 	DOREPLIFETIME(ADragonBoss, bIsPhaseTwo);
 	DOREPLIFETIME(ADragonBoss, bPhaseTwoMaterialApplied);
+	DOREPLIFETIME(ADragonBoss, bShielded);
 }
 
 void ADragonBoss::OnRep_CurrentHP()

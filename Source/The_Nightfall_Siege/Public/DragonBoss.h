@@ -229,8 +229,11 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsAttacking = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
+	UPROPERTY(ReplicatedUsing = OnRep_Shielded, EditAnywhere, BlueprintReadWrite, Category = "Boss")
 	bool bShielded = true;
+
+	UFUNCTION()
+	void OnRep_Shielded();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
 	bool bCanTakeDamage = false;
@@ -480,12 +483,6 @@ public:
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastStartPhaseTwoTransition();
-
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastStartBarrierFX();
-
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastStopBarrierFX();
 
 	void CheckPhaseTwo();
 	void FinishPhaseTwoTransition();
