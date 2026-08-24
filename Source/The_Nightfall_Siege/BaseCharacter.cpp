@@ -667,7 +667,10 @@ void ABaseCharacter::Tick(float DeltaTime)
 
 void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)
 {
-    if (!LanternDirectionEffectComponent)
+    // Niagara component activation is not replicated automatically. Let the
+    // server choose one shared target and multicast the visual state instead
+    // of relying on each client's local Tick to activate the component.
+    if (!HasAuthority() || !LanternDirectionEffectComponent)
     {
         return;
     }
@@ -677,15 +680,20 @@ void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)
 
     // Guide one target only: the village portal, or the nearest unfinished
     // altar in a dungeon.
-    const bool bCanGuide = IsLocallyControlled()
-        && bLanternEquipped
+    // Every machine updates the cosmetic guide for replicated characters.
+    // Restricting this to IsLocallyControlled() made the listen-server host's
+    // guide invisible on remote clients.
+    const bool bCanGuide = bLanternEquipped
 		&& bLanternGuideReady
         && (bIsVillage || bIsDungeon);
 
     if (!bCanGuide)
     {
-        LanternDirectionEffectComponent->Deactivate();
-        LanternDirectionEffectComponent->SetVisibility(false);
+        if (LanternDirectionEffectComponent->IsActive()
+            || LanternDirectionEffectComponent->IsVisible())
+        {
+            MulticastSetLanternDirectionEffect(false, FRotator::ZeroRotator);
+        }
         LanternDirectionUpdateElapsed = 0.f;
         return;
     }
@@ -750,8 +758,11 @@ void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)
 
     if (!GuideTarget)
     {
-        LanternDirectionEffectComponent->Deactivate();
-        LanternDirectionEffectComponent->SetVisibility(false);
+        if (LanternDirectionEffectComponent->IsActive()
+            || LanternDirectionEffectComponent->IsVisible())
+        {
+            MulticastSetLanternDirectionEffect(false, FRotator::ZeroRotator);
+        }
         return;
     }
 
@@ -765,9 +776,29 @@ void ABaseCharacter::UpdateLanternDirectionEffect(float DeltaTime)
         return;
     }
 
-    LanternDirectionEffectComponent->SetWorldRotation(
+    MulticastSetLanternDirectionEffect(
+        true,
         Direction.Rotation() + LanternDirectionRotationOffset);
-    LanternDirectionEffectComponent->SetVisibility(true);
+}
+
+void ABaseCharacter::MulticastSetLanternDirectionEffect_Implementation(
+    bool bVisible,
+    FRotator WorldRotation)
+{
+    if (!LanternDirectionEffectComponent)
+    {
+        return;
+    }
+
+    if (!bVisible)
+    {
+        LanternDirectionEffectComponent->Deactivate();
+        LanternDirectionEffectComponent->SetVisibility(false);
+        return;
+    }
+
+    LanternDirectionEffectComponent->SetWorldRotation(WorldRotation);
+    LanternDirectionEffectComponent->SetVisibility(true, true);
     if (!LanternDirectionEffectComponent->IsActive())
     {
         LanternDirectionEffectComponent->Activate(true);
@@ -1570,11 +1601,15 @@ void ABaseCharacter::SetItemAnimationState(EItemAnimationState NewState)
 
 void ABaseCharacter::OnRep_ItemAnimationState()
 {
-    if (ItemAnimationState == EItemAnimationState::LanternIdle
-        && IsLocallyControlled()
-        && bLanternEquipped)
+    // ItemAnimationState is replicated, so it is also the animation-complete
+    // signal for simulated proxies. Re-evaluating the complete condition here
+    // and in OnRep_LanternEquipped makes this independent of property arrival
+    // order on clients.
+    bLanternGuideReady = bLanternEquipped
+        && ItemAnimationState == EItemAnimationState::LanternIdle;
+
+    if (bLanternGuideReady)
     {
-        bLanternGuideReady = true;
         LanternDirectionUpdateElapsed = 0.15f;
     }
 }
@@ -2481,7 +2516,7 @@ void ABaseCharacter::OnLanternEquipped()
 
 void ABaseCharacter::ResumeLanternGuidanceAfterAltar()
 {
-    if (IsLocallyControlled() && bLanternEquipped)
+    if (bLanternEquipped)
     {
         bLanternGuideReady = true;
         LanternDirectionUpdateElapsed = 0.15f;
@@ -4003,9 +4038,10 @@ void ABaseCharacter::OnRep_LanternEquipped()
         TEXT("OnRep_LanternEquipped %d"),
         bLanternEquipped);
 
-    // The guide effect waits for the equip animation, rather than the
-    // replicated equipment state which changes just before the animation.
-    bLanternGuideReady = false;
+    // The guide effect waits for the replicated idle animation state. Check
+    // both values here as their OnRep callbacks can arrive in either order.
+    bLanternGuideReady = bLanternEquipped
+        && ItemAnimationState == EItemAnimationState::LanternIdle;
 
     EquippedLanternMesh->SetVisibility(bLanternEquipped);
 

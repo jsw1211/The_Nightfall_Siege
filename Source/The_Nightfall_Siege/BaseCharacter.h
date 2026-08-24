@@ -434,8 +434,8 @@ public:
 	class UDecalComponent* LanternSafeZoneDecal;
 
 
-	// Local-only guide effect. It is rotated toward the active dungeon portal
-	// while the lantern is equipped in the village.
+	// Cosmetic guide effect shown for the replicated lantern holder on every
+	// machine. It points to a portal in the village or an altar in a dungeon.
 	UPROPERTY(VisibleAnywhere, Category = "Lantern")
 	UNiagaraComponent* LanternDirectionEffectComponent;
 
@@ -449,11 +449,16 @@ public:
 
 	float LanternDirectionUpdateElapsed = 0.f;
 
-	// Local visual gate: the direction trail must not appear until the lantern
-	// equip montage has completed.
+	// Cosmetic gate: the direction trail must not appear until the replicated
+	// equip animation has completed.
 	bool bLanternGuideReady = false;
 
 	void UpdateLanternDirectionEffect(float DeltaTime);
+
+	// The server selects the authoritative portal/altar target, then explicitly
+	// applies the cosmetic Niagara state on every connected machine.
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastSetLanternDirectionEffect(bool bVisible, FRotator WorldRotation);
 
 	UPROPERTY(VisibleAnywhere)
 	USphereComponent* LanternLightSphere;
