@@ -263,6 +263,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
 	TMap<ESkillType, int32> SkillLevels;
 
+	UFUNCTION()
+	void OnRep_SkillLevels();
+
 	// 스킬 업그레이드
 	UFUNCTION(BlueprintCallable)
 	bool UpgradeSkill(FSkillUpgradeData UpgradeData);
@@ -278,6 +281,7 @@ public:
 	void ApplySkillUpgrade(FSkillUpgradeData UpgradeData);
 
 	void RestoreSkillUpgrades();
+	void ResetSkillUpgradeEffects();
 
 	void ToggleSkillTree();
 
@@ -549,6 +553,7 @@ public:
 	virtual void PossessedBy(AController* NewController) override;
 	void RestoreAuthoritativeStateFromPlayerState(class ABasePlayerState* PlayerState);
 	void RefreshReplicatedStatsFromPlayerState(const class ABasePlayerState* PlayerState);
+	void RefreshReplicatedSkillStateFromPlayerState(const class ABasePlayerState* PlayerState);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSubclassOf<UPlayerHUDWidget> HUDWidgetClass;

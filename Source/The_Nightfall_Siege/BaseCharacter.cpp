@@ -457,14 +457,19 @@ void ABaseCharacter::BeginPlay()
 	OnRep_Slot4PurchasedItemIndex();
 	OnRep_Coin();
 
-    UTheNightfallSiegeInstance* GI =
-        Cast<UTheNightfallSiegeInstance>(GetGameInstance());
-
-    if (GI)
-    {
-        SkillPoints = GI->SkillPoints;
-        SkillLevels = GI->SkillLevels;
-    }
+	if (ABasePlayerState* SkillPS = GetPlayerState<ABasePlayerState>())
+	{
+		SkillPoints = SkillPS->SkillPoints;
+		SkillPS->CopySkillLevelsTo(SkillLevels);
+	}
+	else if (UTheNightfallSiegeInstance* GI =
+		Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+	{
+		// Temporary pre-possession fallback only. PlayerState becomes the
+		// authoritative per-player store as soon as the pawn is possessed.
+		SkillPoints = GI->SkillPoints;
+		SkillLevels = GI->SkillLevels;
+	}
 
 	// Every skill always starts at level 1, including sessions where no saved
 	// GameInstance entry exists yet.
@@ -1742,14 +1747,22 @@ bool ABaseCharacter::UpgradeSkill(FSkillUpgradeData UpgradeData)
 
     if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
     {
+		PS->SkillPoints = SkillPoints;
+		PS->SetSkillLevelsFrom(SkillLevels);
         PS->NotifySkillPointSpent();
+		PS->ForceNetUpdate();
     }
 
     if (UTheNightfallSiegeInstance* GI =
         Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
     {
-        GI->SkillPoints = SkillPoints;
-        GI->SkillLevels = SkillLevels;
+		// GameInstance is process-wide on a listen server. Only mirror the
+		// locally controlled host here; remote clients persist in PlayerState.
+		if (IsLocallyControlled())
+		{
+			GI->SkillPoints = SkillPoints;
+			GI->SkillLevels = SkillLevels;
+		}
     }
 
 
@@ -3779,7 +3792,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ABaseCharacter, bIsPlacingLantern);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, PurchasedItems, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, Slot4PurchasedItemIndex, COND_OwnerOnly);
-	DOREPLIFETIME_CONDITION(ABaseCharacter, SkillPoints, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ABaseCharacter, SkillPoints, COND_OwnerOnly);
     DOREPLIFETIME(ABaseCharacter, bDarknessDebuff);
     DOREPLIFETIME_CONDITION(ABaseCharacter, QRemainingCooldown, COND_OwnerOnly);
     DOREPLIFETIME_CONDITION(ABaseCharacter, WRemainingCooldown, COND_OwnerOnly);
@@ -3825,6 +3838,14 @@ void ABaseCharacter::OnRep_SkillPoints()
 	if (SkillTreeWidget)
 	{
 		SkillTreeWidget->UpdateSkillPointText();
+	}
+}
+
+void ABaseCharacter::OnRep_SkillLevels()
+{
+	if (SkillTreeWidget)
+	{
+		SkillTreeWidget->UpdateSkillLevelText();
 	}
 }
 
@@ -4649,6 +4670,7 @@ void ABaseCharacter::OnRep_PlayerState()
 	if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
 	{
 		RefreshReplicatedStatsFromPlayerState(PS);
+		RefreshReplicatedSkillStateFromPlayerState(PS);
 		Coin = PS->Coin;
 		PotionCount = PS->PotionCount;
 		SkillPoints = PS->SkillPoints;
@@ -4730,6 +4752,45 @@ void ABaseCharacter::PossessedBy(AController* NewController)
     }
 }
 
+void ABaseCharacter::ResetSkillUpgradeEffects()
+{
+	// Rebuilding a pawn after travel must be absolute. In particular, level-4
+	// Q subtracts cooldown, so applying it twice without a reset corrupts it.
+	QCooldown = 5.f;
+	WCooldown = 20.f;
+	ECooldown = 10.f;
+	RCooldown = 20.f;
+	QMultiplier = 1.f;
+	WMultiplier = 1.f;
+	EMultiplier = 1.2f;
+	RMultiplier = 3.f;
+	HealAmount = 0.1f;
+	RHealAmount = 0.2f;
+	PaladinWDefenseRate = 0.f;
+	BuffAttackSpeed = 1.5f;
+	WarriorWCooldownReduction = 0.f;
+	WarriorRDamageBonus = 0.f;
+	bRBonusDamage = false;
+	ERadius = 700.f;
+
+	switch (CharacterType)
+	{
+	case ECharacterType::Paladin:
+		QMultiplier = 1.f;
+		break;
+	case ECharacterType::Archer:
+		QMultiplier = 1.5f;
+		EMultiplier = 1.f;
+		break;
+	case ECharacterType::Warrior:
+		QMultiplier = 1.f;
+		EMultiplier = 1.f;
+		break;
+	default:
+		break;
+	}
+}
+
 void ABaseCharacter::RestoreAuthoritativeStateFromPlayerState(ABasePlayerState* PS)
 {
 	if (!HasAuthority() || !PS)
@@ -4777,6 +4838,15 @@ void ABaseCharacter::RestoreAuthoritativeStateFromPlayerState(ABasePlayerState* 
 	Coin = PS->Coin;
 	PotionCount = PS->PotionCount;
 	SkillPoints = PS->SkillPoints;
+	PS->CopySkillLevelsTo(SkillLevels);
+	SkillLevels.FindOrAdd(ESkillType::Q) = FMath::Clamp(SkillLevels.FindRef(ESkillType::Q), 1, 4);
+	SkillLevels.FindOrAdd(ESkillType::W) = FMath::Clamp(SkillLevels.FindRef(ESkillType::W), 1, 4);
+	SkillLevels.FindOrAdd(ESkillType::E) = FMath::Clamp(SkillLevels.FindRef(ESkillType::E), 1, 4);
+	SkillLevels.FindOrAdd(ESkillType::R) = FMath::Clamp(SkillLevels.FindRef(ESkillType::R), 1, 4);
+	PS->SetSkillLevelsFrom(SkillLevels);
+	PS->ForceNetUpdate();
+	ResetSkillUpgradeEffects();
+	RestoreSkillUpgrades();
 	PurchasedItems = PS->PurchasedItems;
 	Slot4PurchasedItemIndex = PurchasedItems.IsValidIndex(PS->Slot4PurchasedItemIndex)
 		? PS->Slot4PurchasedItemIndex
@@ -4786,6 +4856,7 @@ void ABaseCharacter::RestoreAuthoritativeStateFromPlayerState(ABasePlayerState* 
 	OnRep_Coin();
 	OnRep_PotionCount();
 	OnRep_SkillPoints();
+	OnRep_SkillLevels();
 	OnRep_PurchasedItems();
 	OnRep_Slot4PurchasedItemIndex();
 	ForceNetUpdate();
@@ -4835,6 +4906,23 @@ void ABaseCharacter::RefreshReplicatedStatsFromPlayerState(const ABasePlayerStat
 	BaseAttackPower = AttackPower;
 	OnRep_MaxHP();
 	OnRep_AttackPower();
+}
+
+void ABaseCharacter::RefreshReplicatedSkillStateFromPlayerState(const ABasePlayerState* PS)
+{
+	if (HasAuthority() || !PS)
+	{
+		return;
+	}
+
+	SkillPoints = FMath::Max(0, PS->SkillPoints);
+	PS->CopySkillLevelsTo(SkillLevels);
+	SkillLevels.FindOrAdd(ESkillType::Q) = FMath::Clamp(SkillLevels.FindRef(ESkillType::Q), 1, 4);
+	SkillLevels.FindOrAdd(ESkillType::W) = FMath::Clamp(SkillLevels.FindRef(ESkillType::W), 1, 4);
+	SkillLevels.FindOrAdd(ESkillType::E) = FMath::Clamp(SkillLevels.FindRef(ESkillType::E), 1, 4);
+	SkillLevels.FindOrAdd(ESkillType::R) = FMath::Clamp(SkillLevels.FindRef(ESkillType::R), 1, 4);
+	OnRep_SkillPoints();
+	OnRep_SkillLevels();
 }
 
 void ABaseCharacter::OnRep_DarknessDebuff()
@@ -4932,19 +5020,19 @@ void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
 
         // Match the normal dungeon-clear reward, but award it here rather
         // than depending on the final monster callback during a bulk clear.
-        GI->SkillPoints += 2;
         TArray<AActor*> Players;
         UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
         for (AActor* Actor : Players)
         {
             if (ABaseCharacter* Player = Cast<ABaseCharacter>(Actor))
             {
-                Player->SkillPoints = GI->SkillPoints;
                 if (ABasePlayerState* PartyPlayerState = Player->GetPlayerState<ABasePlayerState>())
                 {
-                    PartyPlayerState->SkillPoints = Player->SkillPoints;
+					PartyPlayerState->SkillPoints = FMath::Max(0, PartyPlayerState->SkillPoints) + 2;
+					Player->SkillPoints = PartyPlayerState->SkillPoints;
                     PartyPlayerState->ForceNetUpdate();
                 }
+				Player->OnRep_SkillPoints();
                 Player->ForceNetUpdate();
             }
         }
@@ -4996,8 +5084,6 @@ void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
         It->Destroy();
     }
 
-    GI->SkillPoints += 8;
-
     TArray<AActor*> Players;
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Players);
     for (AActor* Actor : Players)
@@ -5005,7 +5091,6 @@ void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
         ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
         if (!Player) continue;
 
-        Player->SkillPoints = GI->SkillPoints;
         Player->Coin += 50;
         Player->bHasPrism = true;
         Player->bPrismEquipped = false;
@@ -5016,6 +5101,8 @@ void ABaseCharacter::ServerDebugCompleteRaid_Implementation()
 
         if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
         {
+			PS->SkillPoints = FMath::Max(0, PS->SkillPoints) + 8;
+			Player->SkillPoints = PS->SkillPoints;
             PS->bHasPrism = true;
             PS->bPrismEquipped = false;
             PS->ClearedDungeonCount = 3;

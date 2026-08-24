@@ -19,7 +19,6 @@
 #include "Coin.h"
 #include "DungeonPrism.h"
 #include "BasePlayerState.h"
-#include "TheNightfallSiegeInstance.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
@@ -514,15 +513,10 @@ void AMonster::TakeMonsterDamage(float Damage)
                 SpawnPrism();
             }
 
-            UTheNightfallSiegeInstance* GI =
-                Cast<UTheNightfallSiegeInstance>(GetGameInstance());
-
             // Debug dungeon clears grant this reward explicitly after every
             // monster is processed, so it cannot be missed or awarded twice.
-            if (GI && (!DungeonManager || !DungeonManager->IsDebugClearInProgress()))
+            if (!DungeonManager || !DungeonManager->IsDebugClearInProgress())
             {
-                GI->SkillPoints += 2;
-
                 TArray<AActor*> Players;
 
                 UGameplayStatics::GetAllActorsOfClass(
@@ -539,11 +533,12 @@ void AMonster::TakeMonsterDamage(float Damage)
                         continue;
                     }
 
-                    Player->SkillPoints = GI->SkillPoints;
-
                     if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
                     {
-                        PS->SkillPoints = Player->SkillPoints;
+						// PlayerState is the per-player durable balance. Preserve any
+						// unspent points and add exactly two for this clear.
+						PS->SkillPoints = FMath::Max(0, PS->SkillPoints) + 2;
+						Player->SkillPoints = PS->SkillPoints;
                         PS->NotifyDungeonCleared();
 						PS->ForceNetUpdate();
                         Player->ClientShowQuestMessage(PS->GetQuestObjectiveText().ToString());

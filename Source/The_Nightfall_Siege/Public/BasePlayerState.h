@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerState.h"
 #include "CharacterType.h"
 #include "ShopInventoryTypes.h"
+#include "SkillUpgradeData.h"
 #include "BasePlayerState.generated.h"
 
 UENUM(BlueprintType)
@@ -63,8 +64,26 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
 	int32 Slot4PurchasedItemIndex = INDEX_NONE;
 
-	UPROPERTY(Replicated, BlueprintReadWrite)
+	UPROPERTY(ReplicatedUsing = OnRep_SkillProgress, BlueprintReadWrite)
 	int32 SkillPoints = 0;
+
+	UPROPERTY(ReplicatedUsing = OnRep_SkillProgress, BlueprintReadOnly, Category = "Skill")
+	int32 QSkillLevel = 1;
+
+	UPROPERTY(ReplicatedUsing = OnRep_SkillProgress, BlueprintReadOnly, Category = "Skill")
+	int32 WSkillLevel = 1;
+
+	UPROPERTY(ReplicatedUsing = OnRep_SkillProgress, BlueprintReadOnly, Category = "Skill")
+	int32 ESkillLevel = 1;
+
+	UPROPERTY(ReplicatedUsing = OnRep_SkillProgress, BlueprintReadOnly, Category = "Skill")
+	int32 RSkillLevel = 1;
+
+	void CopySkillLevelsTo(TMap<ESkillType, int32>& OutSkillLevels) const;
+	void SetSkillLevelsFrom(const TMap<ESkillType, int32>& InSkillLevels);
+
+	UFUNCTION()
+	void OnRep_SkillProgress();
 
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Quest")
     EQuestStage QuestStage = EQuestStage::NotAccepted;

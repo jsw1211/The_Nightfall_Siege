@@ -32,6 +32,10 @@ void ABasePlayerState::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ABasePlayerState, PurchasedItems);
 	DOREPLIFETIME(ABasePlayerState, Slot4PurchasedItemIndex);
     DOREPLIFETIME(ABasePlayerState, SkillPoints);
+	DOREPLIFETIME(ABasePlayerState, QSkillLevel);
+	DOREPLIFETIME(ABasePlayerState, WSkillLevel);
+	DOREPLIFETIME(ABasePlayerState, ESkillLevel);
+	DOREPLIFETIME(ABasePlayerState, RSkillLevel);
     DOREPLIFETIME(ABasePlayerState, QuestStage);
     DOREPLIFETIME(ABasePlayerState, ClearedDungeonCount);
     DOREPLIFETIME(ABasePlayerState, DungeonMonsterKillCount);
@@ -53,6 +57,30 @@ void ABasePlayerState::OnRep_PersistentStats()
 	{
 		Character->RefreshReplicatedStatsFromPlayerState(this);
 	}
+}
+
+void ABasePlayerState::OnRep_SkillProgress()
+{
+	if (ABaseCharacter* Character = Cast<ABaseCharacter>(GetPawn()))
+	{
+		Character->RefreshReplicatedSkillStateFromPlayerState(this);
+	}
+}
+
+void ABasePlayerState::CopySkillLevelsTo(TMap<ESkillType, int32>& OutSkillLevels) const
+{
+	OutSkillLevels.FindOrAdd(ESkillType::Q) = FMath::Clamp(QSkillLevel, 1, 4);
+	OutSkillLevels.FindOrAdd(ESkillType::W) = FMath::Clamp(WSkillLevel, 1, 4);
+	OutSkillLevels.FindOrAdd(ESkillType::E) = FMath::Clamp(ESkillLevel, 1, 4);
+	OutSkillLevels.FindOrAdd(ESkillType::R) = FMath::Clamp(RSkillLevel, 1, 4);
+}
+
+void ABasePlayerState::SetSkillLevelsFrom(const TMap<ESkillType, int32>& InSkillLevels)
+{
+	QSkillLevel = FMath::Clamp(InSkillLevels.FindRef(ESkillType::Q), 1, 4);
+	WSkillLevel = FMath::Clamp(InSkillLevels.FindRef(ESkillType::W), 1, 4);
+	ESkillLevel = FMath::Clamp(InSkillLevels.FindRef(ESkillType::E), 1, 4);
+	RSkillLevel = FMath::Clamp(InSkillLevels.FindRef(ESkillType::R), 1, 4);
 }
 
 void ABasePlayerState::AcceptMainQuest()
@@ -246,6 +274,10 @@ void ABasePlayerState::CopyProperties(APlayerState* PlayerState)
 	NewPS->PurchasedItems = PurchasedItems;
 	NewPS->Slot4PurchasedItemIndex = Slot4PurchasedItemIndex;
     NewPS->SkillPoints = SkillPoints;
+	NewPS->QSkillLevel = QSkillLevel;
+	NewPS->WSkillLevel = WSkillLevel;
+	NewPS->ESkillLevel = ESkillLevel;
+	NewPS->RSkillLevel = RSkillLevel;
     NewPS->QuestStage = QuestStage;
     NewPS->ClearedDungeonCount = ClearedDungeonCount;
     NewPS->DungeonMonsterKillCount = DungeonMonsterKillCount;
