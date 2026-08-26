@@ -671,6 +671,8 @@ void AMonster::GetLifetimeReplicatedProps(
     DOREPLIFETIME(AMonster, CurrentHP);
     DOREPLIFETIME(AMonster, MaxHP);
     DOREPLIFETIME(AMonster, bBarrierActive);
+    DOREPLIFETIME(AMonster, bIsAttacking);
+    DOREPLIFETIME(AMonster, bIsChasing);
 }
 
 

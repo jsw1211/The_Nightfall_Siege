@@ -39,7 +39,7 @@ public:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	// 공격 상태
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite)
 	bool bIsAttacking;
 
 	// 공격 가능 여부
@@ -143,7 +143,7 @@ public:
 
 	bool CanSeePlayer(ABaseCharacter* Player);
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(Replicated, BlueprintReadOnly)
 	bool bIsChasing = false;
 
 	UPROPERTY(EditAnywhere, Category = "Drop")
