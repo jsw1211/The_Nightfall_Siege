@@ -190,6 +190,18 @@ void ADragonBoss::Tick(float DeltaTime)
 		SetActorLocation(ClampedCurrentLocation);
 	}
 
+	// The close-breath montage moves MouthSocket after the telegraph is spawned.
+	// Follow that animated position so the warning stays centred on the later
+	// damage and Niagara location instead of remaining at the pre-montage pose.
+	if (IsValid(CurrentCloseBreathZone))
+	{
+		CurrentCloseBreathZone->SetActorLocation(GetCloseBreathCenter());
+	}
+	else
+	{
+		CurrentCloseBreathZone = nullptr;
+	}
+
 	if (!bEncounterStarted)
 	{
 		UpdatePlayerList();
@@ -1825,6 +1837,7 @@ void ADragonBoss::StartAttackTelegraph(
 
 			Zone->LifeTime = CloseBreathWarningTime;
 			Zone->SetLifeSpan(CloseBreathWarningTime);
+			CurrentCloseBreathZone = Zone;
 		}
 
 		break;
@@ -2126,6 +2139,13 @@ void ADragonBoss::CloseBreathFire()
 	float Damage = AttackPower * 2.0f * GetCurrentDamageMultiplier();
 
 	const FVector BreathCenter = GetCloseBreathCenter();
+	if (IsValid(CurrentCloseBreathZone))
+	{
+		// Use the exact notify-frame centre immediately before spawning the FX and
+		// applying damage. Tick has already kept the warning close to this point.
+		CurrentCloseBreathZone->SetActorLocation(BreathCenter);
+	}
+	CurrentCloseBreathZone = nullptr;
 
 	MulticastSpawnCloseBreathFX(BreathCenter);
 

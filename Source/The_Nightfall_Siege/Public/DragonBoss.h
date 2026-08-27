@@ -352,6 +352,11 @@ public:
 	UPROPERTY()
 	ADangerZone* CurrentBreathZone = nullptr;
 
+	// Close-breath damage/FX use the animated MouthSocket at the notify frame.
+	// Keep its warning zone on that same live position until the notify fires.
+	UPROPERTY()
+	ADangerZone* CurrentCloseBreathZone = nullptr;
+
 	bool bFirstBreathDone = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
