@@ -60,7 +60,7 @@ protected:
 
 	public:
 	UFUNCTION(Server, Reliable)
-	void ServerMoveToLocation(FVector TargetLocation, FRotator TargetRotation);
+	void ServerStartMoveToLocation(FVector TargetLocation, FRotator TargetRotation);
 
 	UFUNCTION(Client, Reliable)
 	void ClientShowYouDied();

@@ -105,9 +105,24 @@ void ABaseController::MoveToMouse()
                 FRotator::ZeroRotator);
         }
 
-        ServerMoveToLocation(
-            Hit.Location,
-            TargetRotation);
+        // Start path following on the owning machine. CharacterMovement then
+        // sends its predicted moves to the server through Unreal's normal
+        // movement RPCs. Running SimpleMove only in ServerMoveToLocation made
+        // a remote player's autonomous proxy wait for replicated corrections,
+        // which made the camera and pawn look as if they were updating at a
+        // much lower frame rate than the listen-server host.
+        UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, Hit.Location);
+
+        // A remote client's path-following request is local state and is not
+        // created automatically on the authoritative controller. Start the
+        // same path on the server so it validates movement toward the same
+        // destination instead of continuously correcting the client back to
+        // its starting point. The listen-server host already has authority,
+        // so it must not start the path twice.
+        if (!HasAuthority())
+        {
+            ServerStartMoveToLocation(Hit.Location, TargetRotation);
+        }
     }
 }
 
@@ -331,34 +346,21 @@ void ABaseController::SelectCharacter(ECharacterType NewCharacter)
     ServerSelectCharacter(NewCharacter);
 }
 
-void ABaseController::ServerMoveToLocation_Implementation(
+void ABaseController::ServerStartMoveToLocation_Implementation(
     FVector TargetLocation,
     FRotator TargetRotation)
 {
-    APawn* MyPawn = GetPawn();
-
-    if (!MyPawn)
-    {
-        return;
-    }
-
-    ABaseCharacter* MyCharacter =
-        Cast<ABaseCharacter>(MyPawn);
-
-    if (!MyCharacter || MyCharacter->bIsDead)
+    ABaseCharacter* MyCharacter = Cast<ABaseCharacter>(GetPawn());
+    if (!MyCharacter || MyCharacter->bIsDead ||
+        MyCharacter->bIsUsingSkill || MyCharacter->bIsAttacking)
     {
         StopMovement();
         return;
     }
 
-    MyPawn->SetActorRotation(TargetRotation);
-
-    UAIBlueprintHelperLibrary::SimpleMoveToLocation(
-        this,
-        TargetLocation);
+    MyCharacter->SetActorRotation(TargetRotation);
+    UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, TargetLocation);
 }
-
-
 
 ABaseController::ABaseController()
 {
