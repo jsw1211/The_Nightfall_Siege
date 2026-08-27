@@ -205,11 +205,15 @@ void ADragonBoss::Tick(float DeltaTime)
 
 			bEncounterStarted = true;
 			TargetPlayer = Player;
-			bFirstBreathDone = true;
 			UE_LOG(LogTemp, Warning,
 				TEXT("Dragon encounter started by %s at %.0f units"),
 				*Player->GetName(),
 				FMath::Sqrt(FVector::DistSquared(GetActorLocation(), Player->GetActorLocation())));
+
+			// Always open the encounter with the central ranged Breath.  The
+			// center-mechanic branch runs before the bFirstBreathDone gate below,
+			// and OnAttackFinished releases that gate after the Breath montage ends.
+			CenterMechanicPattern();
 			return;
 		}
 
