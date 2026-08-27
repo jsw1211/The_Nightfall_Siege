@@ -568,6 +568,7 @@ void ABaseCharacter::Die()
 
     bIsDead = true;
     CurrentHP = 0.f;
+	SaveHealthToPlayerState();
 
     ForceNetUpdate();
 
@@ -1562,7 +1563,8 @@ void ABaseCharacter::TakePlayerDamage(float Damage)
     }
 
     // 남은 데미지만 체력 감소
-    CurrentHP -= FinalDamage;
+    CurrentHP = FMath::Max(0.f, CurrentHP - FinalDamage);
+	SaveHealthToPlayerState();
 
     ForceNetUpdate();
 
@@ -2296,6 +2298,7 @@ void ABaseCharacter::FinishPotionUse()
                 const float BonusHP = MaxHP * 0.2f;
                 MaxHP += BonusHP;
                 CurrentHP += BonusHP;
+				SaveHealthToPlayerState();
                 OnRep_CurrentHP();
 
                 if (HPBuffEffect)
@@ -3915,8 +3918,23 @@ void ABaseCharacter::HealPlayer(float Amount)
         CurrentHP + Amount,
         0.f,
         MaxHP);
+	SaveHealthToPlayerState();
 
     ForceNetUpdate();
+}
+
+void ABaseCharacter::SaveHealthToPlayerState()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+	{
+		PS->SavedCurrentHP = FMath::Clamp(CurrentHP, 0.f, MaxHP);
+		PS->ForceNetUpdate();
+	}
 }
 
 void ABaseCharacter::SetNearbyAltar(AAltar* Altar)
@@ -4609,6 +4627,7 @@ void ABaseCharacter::PrepareForPortalTravel()
 		PS->PotionCount = PotionCount;
 		PS->PurchasedItems = PurchasedItems;
 		PS->Slot4PurchasedItemIndex = Slot4PurchasedItemIndex;
+		PS->SavedCurrentHP = FMath::Clamp(CurrentHP, 0.f, MaxHP);
 		PS->ForceNetUpdate();
 	}
 
@@ -4879,7 +4898,10 @@ void ABaseCharacter::RestoreAuthoritativeStateFromPlayerState(ABasePlayerState* 
 		}
 	}
 
-	CurrentHP = MaxHP;
+	CurrentHP = PS->SavedCurrentHP >= 0.f
+		? FMath::Clamp(PS->SavedCurrentHP, 0.f, MaxHP)
+		: MaxHP;
+	PS->SavedCurrentHP = CurrentHP;
 	BaseAttackPower = AttackPower;
 	Coin = PS->Coin;
 	PotionCount = PS->PotionCount;
@@ -4918,6 +4940,14 @@ void ABaseCharacter::RefreshReplicatedStatsFromPlayerState(const ABasePlayerStat
 	// PlayerState properties and the new pawn can arrive in either order on a
 	// travelling client.  Rebuild the local replicated cache from the durable
 	// PlayerState so HUD Tick never falls back to the new pawn's class defaults.
+	// A freshly created pawn is full at its class-default MaxHP. Preserve that
+	// full-health state when the persistent upgraded MaxHP arrives afterwards;
+	// otherwise the HUD can remain at (class default) / (upgraded maximum).
+	// Do not refill a damaged pawn when persistent stats are refreshed in-place.
+	const float PreviousMaxHP = MaxHP;
+	const bool bWasAtFullHealth = PreviousMaxHP > 0.f
+		&& FMath::IsNearlyEqual(CurrentHP, PreviousMaxHP);
+
 	CharacterType = PS->SelectedCharacter;
 	switch (CharacterType)
 	{
@@ -4950,6 +4980,16 @@ void ABaseCharacter::RefreshReplicatedStatsFromPlayerState(const ABasePlayerStat
 	}
 
 	BaseAttackPower = AttackPower;
+	if (PS->SavedCurrentHP >= 0.f)
+	{
+		CurrentHP = FMath::Clamp(PS->SavedCurrentHP, 0.f, MaxHP);
+		OnRep_CurrentHP();
+	}
+	else if (bWasAtFullHealth && !FMath::IsNearlyEqual(MaxHP, PreviousMaxHP))
+	{
+		CurrentHP = MaxHP;
+		OnRep_CurrentHP();
+	}
 	OnRep_MaxHP();
 	OnRep_AttackPower();
 }

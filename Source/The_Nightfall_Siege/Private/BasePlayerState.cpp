@@ -42,6 +42,7 @@ void ABasePlayerState::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABasePlayerState, DungeonMonsterTotalCount);
     DOREPLIFETIME(ABasePlayerState, bHasShopStatBonuses);
     DOREPLIFETIME(ABasePlayerState, SavedMaxHP);
+    DOREPLIFETIME(ABasePlayerState, SavedCurrentHP);
     DOREPLIFETIME(ABasePlayerState, SavedAttackPower);
 }
 
@@ -284,6 +285,7 @@ void ABasePlayerState::CopyProperties(APlayerState* PlayerState)
     NewPS->DungeonMonsterTotalCount = DungeonMonsterTotalCount;
     NewPS->bHasShopStatBonuses = bHasShopStatBonuses;
     NewPS->SavedMaxHP = SavedMaxHP;
+    NewPS->SavedCurrentHP = SavedCurrentHP;
     NewPS->SavedAttackPower = SavedAttackPower;
 
     UE_LOG(LogTemp, Warning,

@@ -599,6 +599,7 @@ public:
 	void OnRep_CurrentHP();
 
 	void HealPlayer(float Amount);
+	void SaveHealthToPlayerState();
 
 	FTimerHandle HealOverTimeHandle;
 	FTimerHandle PaladinRHealTimer;

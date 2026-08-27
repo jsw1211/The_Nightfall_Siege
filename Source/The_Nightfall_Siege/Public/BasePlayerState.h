@@ -124,6 +124,11 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_PersistentStats, BlueprintReadWrite)
 	float SavedMaxHP = 0.f;
 
+	// Negative means that gameplay has not started yet. Once initialized, the
+	// exact current health follows the player across seamless map travel.
+	UPROPERTY(ReplicatedUsing = OnRep_PersistentStats, BlueprintReadWrite)
+	float SavedCurrentHP = -1.f;
+
 	UPROPERTY(ReplicatedUsing = OnRep_PersistentStats, BlueprintReadWrite)
 	float SavedAttackPower = 0.f;
 

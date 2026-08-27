@@ -275,6 +275,13 @@ void AThe_Nightfall_SiegeGameMode::RequestPartyRetry(ABaseController* Requesting
 			if (ABaseCharacter* Character = Controller ? Cast<ABaseCharacter>(Controller->GetPawn()) : nullptr)
 			{
 				Character->PrepareForPortalTravel();
+				// A party wipe starts a new attempt. Ordinary portal travel keeps
+				// current health, but retry must revive dead players.
+				if (ABasePlayerState* BasePlayerState = Cast<ABasePlayerState>(PlayerState))
+				{
+					BasePlayerState->SavedCurrentHP = Character->MaxHP;
+					BasePlayerState->ForceNetUpdate();
+				}
 			}
 		}
 	}
