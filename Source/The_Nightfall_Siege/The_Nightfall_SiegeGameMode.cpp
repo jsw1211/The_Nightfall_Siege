@@ -11,10 +11,20 @@
 #include "Lantern.h"
 #include "BaseCharacter.h"
 #include "BaseController.h"
-AThe_Nightfall_SiegeGameMode::AThe_Nightfall_SiegeGameMode() = default;
+AThe_Nightfall_SiegeGameMode::AThe_Nightfall_SiegeGameMode()
+{
+	// Every gameplay map uses ServerTravel. Keep each player's PlayerState
+	// (including exact current health) alive for both the listen host and
+	// remote clients instead of rebuilding the host from class defaults.
+	bUseSeamlessTravel = true;
+}
 
 void AThe_Nightfall_SiegeGameMode::BeginPlay()
 {
+	// Enforce this at runtime as well because the Blueprint-derived GameMode
+	// can contain an older serialized value from before seamless travel was
+	// enabled in C++.
+	bUseSeamlessTravel = true;
     Super::BeginPlay();
 
     // TopDown 맵에서만 실행
@@ -280,6 +290,12 @@ void AThe_Nightfall_SiegeGameMode::RequestPartyRetry(ABaseController* Requesting
 				if (ABasePlayerState* BasePlayerState = Cast<ABasePlayerState>(PlayerState))
 				{
 					BasePlayerState->SavedCurrentHP = Character->MaxHP;
+					if (UTheNightfallSiegeInstance* GI = GetGameInstance<UTheNightfallSiegeInstance>())
+					{
+						// Retry is the one travel path that intentionally revives
+						// everyone instead of carrying their (zero) current HP.
+						GI->SaveTravelHealth(BasePlayerState->GetPlayerId(), Character->MaxHP);
+					}
 					BasePlayerState->ForceNetUpdate();
 				}
 			}

@@ -384,7 +384,22 @@ void ABaseCharacter::BeginPlay()
         AttackPower = PS->SavedAttackPower;
     }
 
-    CurrentHP = MaxHP;
+	const FString MapName = GetWorld()->GetMapName();
+	const bool bIsLobbyMap = MapName.Contains(TEXT("Lvl_Lobby"));
+	if (const ABasePlayerState* PS = GetPlayerState<ABasePlayerState>();
+		!bIsLobbyMap && PS && PS->SavedCurrentHP >= 0.f)
+	{
+		// A travel pawn must never enter play at full health first. PossessedBy
+		// performs the final authoritative restore, but using PlayerState here
+		// also removes the host's full-health initialization window.
+		CurrentHP = FMath::Clamp(PS->SavedCurrentHP, 0.f, MaxHP);
+	}
+	else
+	{
+		// Character selection / the first gameplay spawn starts at the
+		// character's own maximum health.
+		CurrentHP = MaxHP;
+	}
 
 	BaseAttackPower = AttackPower;
 	
@@ -407,9 +422,6 @@ void ABaseCharacter::BeginPlay()
 
     EquipWeapon(RightHandWeaponClass, RightHandSocketName, RightHandWeapon);
     EquipWeapon(LeftHandWeaponClass, LeftHandSocketName, LeftHandWeapon);
-
-    FString MapName = GetWorld()->GetMapName();
-    const bool bIsLobbyMap = MapName.Contains(TEXT("Lvl_Lobby"));
 
     // The lobby is exclusively for character selection and ready status.
     // Gameplay HUD and quest progress begin only after travelling to the game.
@@ -4656,6 +4668,14 @@ void ABaseCharacter::PrepareForPortalTravel()
 		PS->PurchasedItems = PurchasedItems;
 		PS->Slot4PurchasedItemIndex = Slot4PurchasedItemIndex;
 		PS->SavedCurrentHP = FMath::Clamp(CurrentHP, 0.f, MaxHP);
+		if (UTheNightfallSiegeInstance* GI = GetGameInstance<UTheNightfallSiegeInstance>())
+		{
+			GI->SaveTravelHealth(PS->GetPlayerId(), PS->SavedCurrentHP);
+		}
+		UE_LOG(LogTemp, Log,
+			TEXT("[TravelHealth] Capture PlayerId=%d Pawn=%s Map=%s HP=%.1f/%.1f"),
+			PS->GetPlayerId(), *GetNameSafe(this), *GetWorld()->GetMapName(),
+			PS->SavedCurrentHP, MaxHP);
 		PS->ForceNetUpdate();
 	}
 
@@ -4928,13 +4948,33 @@ void ABaseCharacter::RestoreAuthoritativeStateFromPlayerState(ABasePlayerState* 
 
 	const bool bIsLobbyMap = GetWorld()
 		&& GetWorld()->GetMapName().Contains(TEXT("Lvl_Lobby"));
-	CurrentHP = !bIsLobbyMap && PS->SavedCurrentHP >= 0.f
-		? FMath::Clamp(PS->SavedCurrentHP, 0.f, MaxHP)
-		: MaxHP;
+	float TravelCurrentHP = 0.f;
+	UTheNightfallSiegeInstance* GI = GetGameInstance<UTheNightfallSiegeInstance>();
+	const bool bHasTravelHealth = !bIsLobbyMap
+		&& GI
+		&& GI->ConsumeTravelHealth(PS->GetPlayerId(), TravelCurrentHP);
+	const float PlayerStateCurrentHP = PS->SavedCurrentHP;
+	if (bHasTravelHealth)
+	{
+		CurrentHP = FMath::Clamp(TravelCurrentHP, 0.f, MaxHP);
+	}
+	else if (!bIsLobbyMap && PlayerStateCurrentHP >= 0.f)
+	{
+		CurrentHP = FMath::Clamp(PlayerStateCurrentHP, 0.f, MaxHP);
+	}
+	else
+	{
+		CurrentHP = MaxHP;
+	}
 	if (!bIsLobbyMap)
 	{
 		PS->SavedCurrentHP = CurrentHP;
 	}
+	UE_LOG(LogTemp, Log,
+		TEXT("[TravelHealth] Restore PlayerId=%d Pawn=%s Map=%s Snapshot=%s SnapshotHP=%.1f PlayerStateHP=%.1f Result=%.1f/%.1f"),
+		PS->GetPlayerId(), *GetNameSafe(this), *GetWorld()->GetMapName(),
+		bHasTravelHealth ? TEXT("true") : TEXT("false"), TravelCurrentHP,
+		PlayerStateCurrentHP, CurrentHP, MaxHP);
 	BaseAttackPower = AttackPower;
 	Coin = PS->Coin;
 	PotionCount = PS->PotionCount;

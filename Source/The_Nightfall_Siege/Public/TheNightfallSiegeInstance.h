@@ -44,6 +44,15 @@ public:
 
 	void StartRaid();
 
+	/**
+	 * Keeps the server-authoritative health captured immediately before
+	 * ServerTravel. This is independent of PlayerState replacement/copy order.
+	 */
+	void SaveTravelHealth(int32 PlayerId, float CurrentHP);
+
+	/** Returns and removes the pending health for the newly spawned pawn. */
+	bool ConsumeTravelHealth(int32 PlayerId, float& OutCurrentHP);
+
 	FName SelectNextDungeon();
 
 	bool SelectNextDungeonPortalLocation(FVector& OutLocation);
@@ -96,6 +105,8 @@ public:
 	bool bWorldLanternDestroyed = false;
 
 private:
+	TMap<int32, float> PendingTravelHealthByPlayerId;
+
 	void HandlePostLoadMap(UWorld* LoadedWorld);
 	void BindMainMenuJoinButton();
 	void HandleNetworkFailure(UWorld* World, class UNetDriver* NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString);

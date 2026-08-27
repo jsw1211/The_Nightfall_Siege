@@ -125,6 +125,7 @@ void UTheNightfallSiegeInstance::HandleNetworkFailure(UWorld*, UNetDriver*, ENet
 
 void UTheNightfallSiegeInstance::StartRaid()
 {
+    PendingTravelHealthByPlayerId.Empty();
     RemainingDungeons.Empty();
 
     // Each raid gets a random dungeon order.  A retry keeps CurrentDungeon,
@@ -148,6 +149,23 @@ void UTheNightfallSiegeInstance::StartRaid()
     bBossPortalSpawned = false;
     bRetryingCurrentDungeon = false;
     bRetryingBoss = false;
+}
+
+void UTheNightfallSiegeInstance::SaveTravelHealth(int32 PlayerId, float CurrentHP)
+{
+    PendingTravelHealthByPlayerId.FindOrAdd(PlayerId) = FMath::Max(0.f, CurrentHP);
+}
+
+bool UTheNightfallSiegeInstance::ConsumeTravelHealth(int32 PlayerId, float& OutCurrentHP)
+{
+    if (const float* SavedHealth = PendingTravelHealthByPlayerId.Find(PlayerId))
+    {
+        OutCurrentHP = *SavedHealth;
+        PendingTravelHealthByPlayerId.Remove(PlayerId);
+        return true;
+    }
+
+    return false;
 }
 
 void UTheNightfallSiegeInstance::BeginRetry(bool bWasBossEncounter)
