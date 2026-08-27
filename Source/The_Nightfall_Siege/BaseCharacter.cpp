@@ -840,13 +840,17 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
     if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent))
     {
-        EnhancedInput->BindAction(IA_Attack, ETriggerEvent::Started, this, &ABaseCharacter::Attack);
-        EnhancedInput->BindAction(IA_Q, ETriggerEvent::Started, this, &ABaseCharacter::Q);
-        EnhancedInput->BindAction(IA_W, ETriggerEvent::Started, this, &ABaseCharacter::W);
-        EnhancedInput->BindAction(IA_E, ETriggerEvent::Started, this, &ABaseCharacter::E);
-        EnhancedInput->BindAction(IA_R, ETriggerEvent::Started, this, &ABaseCharacter::R);
         if (!IsFrontendMap(GetWorld()))
         {
+            // Lobby buttons use the same left mouse button as the basic attack.
+            // Do not register combat actions on frontend maps so clicking
+            // character/ready/start cannot also play an attack montage or its
+            // animation-notify sounds.
+            EnhancedInput->BindAction(IA_Attack, ETriggerEvent::Started, this, &ABaseCharacter::Attack);
+            EnhancedInput->BindAction(IA_Q, ETriggerEvent::Started, this, &ABaseCharacter::Q);
+            EnhancedInput->BindAction(IA_W, ETriggerEvent::Started, this, &ABaseCharacter::W);
+            EnhancedInput->BindAction(IA_E, ETriggerEvent::Started, this, &ABaseCharacter::E);
+            EnhancedInput->BindAction(IA_R, ETriggerEvent::Started, this, &ABaseCharacter::R);
             EnhancedInput->BindAction(IA_Inventory, ETriggerEvent::Started, this, &ABaseCharacter::ToggleInventory);
             EnhancedInput->BindAction(IA_SkillTree, ETriggerEvent::Started, this, &ABaseCharacter::ToggleSkillTree);
         }
@@ -3009,6 +3013,7 @@ void ABaseCharacter::RotateToMouseCursor()
 bool ABaseCharacter::CanUseCombatAction() const
 {
     return
+        !IsFrontendMap(GetWorld()) &&
         !bLanternEquipped &&
         !bPrismEquipped &&
         !bIsEquippingLantern &&
@@ -3817,6 +3822,14 @@ void ABaseCharacter::EndPaladinWBuff()
 
 void ABaseCharacter::ServerAttack_Implementation(FRotator TargetRotation) 
 {
+    // Treat the client request as untrusted. Besides preventing direct or
+    // delayed RPCs in the lobby, this keeps the server authoritative for all
+    // of the same combat-state restrictions checked by the owning client.
+    if (!CanUseCombatAction())
+    {
+        return;
+    }
+
     SetActorRotation(TargetRotation);
     MulticastAttack();
     ExecuteAttack();
