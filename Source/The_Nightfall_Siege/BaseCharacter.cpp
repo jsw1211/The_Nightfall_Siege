@@ -59,6 +59,21 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
 
+namespace
+{
+bool IsFrontendMap(const UWorld* World)
+{
+    if (!World)
+    {
+        return true;
+    }
+
+    const FString MapName = World->GetMapName();
+    return MapName.Contains(TEXT("Lvl_Lobby"))
+        || MapName.Contains(TEXT("Lvl_MainMenu"));
+}
+}
+
 // Sets default values
 ABaseCharacter::ABaseCharacter()
 {
@@ -818,8 +833,11 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         EnhancedInput->BindAction(IA_W, ETriggerEvent::Started, this, &ABaseCharacter::W);
         EnhancedInput->BindAction(IA_E, ETriggerEvent::Started, this, &ABaseCharacter::E);
         EnhancedInput->BindAction(IA_R, ETriggerEvent::Started, this, &ABaseCharacter::R);
-        EnhancedInput->BindAction(IA_Inventory, ETriggerEvent::Started, this, &ABaseCharacter::ToggleInventory);
-        EnhancedInput->BindAction(IA_SkillTree, ETriggerEvent::Started, this, &ABaseCharacter::ToggleSkillTree);
+        if (!IsFrontendMap(GetWorld()))
+        {
+            EnhancedInput->BindAction(IA_Inventory, ETriggerEvent::Started, this, &ABaseCharacter::ToggleInventory);
+            EnhancedInput->BindAction(IA_SkillTree, ETriggerEvent::Started, this, &ABaseCharacter::ToggleSkillTree);
+        }
         EnhancedInput->BindAction(IA_Interact, ETriggerEvent::Started, this, &ABaseCharacter::Interact);
         EnhancedInput->BindAction(IA_Slot1, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot1);
         EnhancedInput->BindAction(IA_Slot2, ETriggerEvent::Started, this, &ABaseCharacter::UseSlot2);
@@ -1004,6 +1022,11 @@ void ABaseCharacter::ResetRCooldown()
 
 void ABaseCharacter::ToggleInventory()
 {
+    if (IsFrontendMap(GetWorld()))
+    {
+        return;
+    }
+
     UE_LOG(LogTemp, Warning, TEXT("Inventory Toggle"));
 
     if (!InventoryWidgetClass) return;
@@ -1508,6 +1531,11 @@ void ABaseCharacter::UpdateShopGold()
 
 void ABaseCharacter::ToggleSkillTree()
 {
+    if (IsFrontendMap(GetWorld()))
+    {
+        return;
+    }
+
     if (!SkillTreeWidgetClass)
         return;
 
