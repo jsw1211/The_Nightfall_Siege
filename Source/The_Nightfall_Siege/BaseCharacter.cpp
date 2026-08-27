@@ -918,7 +918,7 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
 void ABaseCharacter::Attack(const FInputActionValue& Value)
 {
-    if (bInventoryOpen) return;
+    if (bInventoryOpen || bShopOpen) return;
     ServerCancelPotionUse();
     if (!CanUseCombatAction())
     {
@@ -934,7 +934,7 @@ void ABaseCharacter::Attack(const FInputActionValue& Value)
 
 void ABaseCharacter::Q(const FInputActionValue& Value)
 {
-    if (bInventoryOpen) return;
+    if (bInventoryOpen || bShopOpen) return;
     ServerCancelPotionUse();
     if (!bCanUseQ)
         return;
@@ -949,7 +949,7 @@ void ABaseCharacter::Q(const FInputActionValue& Value)
 
 void ABaseCharacter::W(const FInputActionValue& Value)
 {
-    if (bInventoryOpen) return;
+    if (bInventoryOpen || bShopOpen) return;
     ServerCancelPotionUse();
     if (!bCanUseW)
     {
@@ -968,7 +968,7 @@ void ABaseCharacter::W(const FInputActionValue& Value)
 
 void ABaseCharacter::E(const FInputActionValue& Value)
 {
-    if (bInventoryOpen) return;
+    if (bInventoryOpen || bShopOpen) return;
     ServerCancelPotionUse();
     if (!bCanUseE)
     {
@@ -987,7 +987,7 @@ void ABaseCharacter::E(const FInputActionValue& Value)
 
 void ABaseCharacter::R(const FInputActionValue& Value)
 {
-    if (bInventoryOpen) return;
+    if (bInventoryOpen || bShopOpen) return;
     ServerCancelPotionUse();
     if (!bCanUseR)
     {
@@ -1034,7 +1034,7 @@ void ABaseCharacter::ResetRCooldown()
 
 void ABaseCharacter::ToggleInventory()
 {
-    if (IsFrontendMap(GetWorld()))
+    if (IsFrontendMap(GetWorld()) || bShopOpen)
     {
         return;
     }
@@ -1122,6 +1122,17 @@ void ABaseCharacter::ToggleShop()
             return;
         }
 
+        // The shop must be the only interactive overlay while it owns player
+        // input. Close any local gameplay panels that may already be open.
+        if (bInventoryOpen)
+        {
+            ToggleInventory();
+        }
+        if (bSkillTreeOpen)
+        {
+            ToggleSkillTree();
+        }
+
         if (!ShopWidget)
         {
             TSubclassOf<UUserWidget> WidgetClass = ShopWidgetClass;
@@ -1155,11 +1166,14 @@ void ABaseCharacter::ToggleShop()
         PC->SetIgnoreMoveInput(true);
         PC->SetIgnoreLookInput(true);
         UCharacterMovementComponent* Movement = GetCharacterMovement();
+        ConsumeMovementInputVector();
         Movement->StopMovementImmediately();
         // Enhanced Input may bypass controller-level ignore flags, so disable
-        // the movement component as the authoritative movement lock as well.
+        // the local movement component immediately. The server RPC below also
+        // locks the authoritative movement mode for remote clients.
         Movement->DisableMovement();
         bShopOpen = true;
+        ServerSetShopMovementLocked(true);
         return;
     }
 
@@ -1177,6 +1191,54 @@ void ABaseCharacter::ToggleShop()
     PC->SetIgnoreLookInput(false);
     GetCharacterMovement()->SetMovementMode(MOVE_Walking);
     bShopOpen = false;
+    ServerSetShopMovementLocked(false);
+}
+
+void ABaseCharacter::ServerSetShopMovementLocked_Implementation(bool bLocked)
+{
+    UCharacterMovementComponent* Movement = GetCharacterMovement();
+    if (!Movement)
+    {
+        return;
+    }
+
+    if (bLocked)
+    {
+        // Do not let a client freeze itself remotely unless it is actually in
+        // range of a shopkeeper. Resolve from the server world because the
+        // client's overlap pointer is not guaranteed to match server timing.
+        bool bIsNearShopkeeper = NearbyQuestGiver
+            && NearbyQuestGiver->bIsShopkeeper
+            && NearbyQuestGiver->CanInteractWith(this);
+
+        if (!bIsNearShopkeeper)
+        {
+            for (TActorIterator<AQuestGiver> It(GetWorld()); It; ++It)
+            {
+                if (It->bIsShopkeeper && It->CanInteractWith(this))
+                {
+                    bIsNearShopkeeper = true;
+                    break;
+                }
+            }
+        }
+
+        if (!bIsNearShopkeeper)
+        {
+            return;
+        }
+
+        ConsumeMovementInputVector();
+        Movement->StopMovementImmediately();
+        Movement->DisableMovement();
+        ForceNetUpdate();
+        return;
+    }
+
+    ConsumeMovementInputVector();
+    Movement->StopMovementImmediately();
+    Movement->SetMovementMode(MOVE_Walking);
+    ForceNetUpdate();
 }
 
 void ABaseCharacter::RequestBuyPotion()
@@ -1543,7 +1605,7 @@ void ABaseCharacter::UpdateShopGold()
 
 void ABaseCharacter::ToggleSkillTree()
 {
-    if (IsFrontendMap(GetWorld()))
+    if (IsFrontendMap(GetWorld()) || bShopOpen)
     {
         return;
     }
@@ -2142,6 +2204,11 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 
 void ABaseCharacter::HandleWorldInteraction()
 {
+    if (bShopOpen)
+    {
+        return;
+    }
+
     // F키 한 번으로 여러 상호작용이 연속 처리되는 것을 방지
     if (bInteractionLocked)
     {
@@ -2210,6 +2277,11 @@ void ABaseCharacter::HandleWorldInteraction()
 
 void ABaseCharacter::InteractWithQuestGiver()
 {
+    if (bShopOpen)
+    {
+        return;
+    }
+
     if (NearbyQuestGiver)
     {
         ServerInteractQuestGiver(NearbyQuestGiver);
@@ -2225,7 +2297,7 @@ void ABaseCharacter::InteractWithQuestGiver()
 
 void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
 {
-    if (bInventoryOpen) return;
+    if (bInventoryOpen || bShopOpen) return;
     ServerCancelPotionUse();
     UE_LOG(LogTemp, Warning,
         TEXT("UseSlot1 HasLantern=%d Equipped=%d"),
@@ -2249,7 +2321,7 @@ void ABaseCharacter::UseSlot1(const FInputActionValue& Value)
 
 void ABaseCharacter::UseSlot2(const FInputActionValue& Value)
 {
-    if (bInventoryOpen) return;
+    if (bInventoryOpen || bShopOpen) return;
     ServerUsePotion();
 }
 
@@ -2490,7 +2562,7 @@ void ABaseCharacter::MulticastCancelPotionUse_Implementation()
 
 void ABaseCharacter::UseSlot3(const FInputActionValue& Value)
 {
-    if (bInventoryOpen) return;
+    if (bInventoryOpen || bShopOpen) return;
     ServerCancelPotionUse();
     if (bLanternEquipped || bIsEquippingLantern)
     {
@@ -2507,7 +2579,7 @@ void ABaseCharacter::UseSlot3(const FInputActionValue& Value)
 
 void ABaseCharacter::UseSlot4(const FInputActionValue& Value)
 {
-    if (bInventoryOpen) return;
+    if (bInventoryOpen || bShopOpen) return;
     ServerUseSlot4();
 }
 
@@ -5128,46 +5200,55 @@ void ABaseCharacter::OnRep_DarknessDebuff()
 
 void ABaseCharacter::DebugBossPattern1()
 {
+    if (bShopOpen) return;
     if (IsDeveloperHost()) ServerDebugBossPattern(0);
 }
 
 void ABaseCharacter::DebugBossPattern2()
 {
+    if (bShopOpen) return;
     if (IsDeveloperHost()) ServerDebugBossPattern(1);
 }
 
 void ABaseCharacter::DebugBossPattern3()
 {
+    if (bShopOpen) return;
     if (IsDeveloperHost()) ServerDebugBossPattern(2);
 }
 
 void ABaseCharacter::DebugBossPattern4()
 {
+    if (bShopOpen) return;
     if (IsDeveloperHost()) ServerDebugBossPattern(3);
 }
 
 void ABaseCharacter::DebugBossCenterMechanic()
 {
+    if (bShopOpen) return;
     if (IsDeveloperHost()) ServerDebugBossPattern(4);
 }
 
 void ABaseCharacter::DebugTeleportToDungeonPortal()
 {
+    if (bShopOpen) return;
     if (IsDeveloperHost()) ServerDebugTeleportToDungeonPortal();
 }
 
 void ABaseCharacter::DebugCompleteRaid()
 {
+    if (bShopOpen) return;
     if (IsDeveloperHost()) ServerDebugCompleteRaid();
 }
 
 void ABaseCharacter::DebugEnableMoveSpeed()
 {
+    if (bShopOpen) return;
     if (IsDeveloperHost()) ServerSetDebugMoveSpeed(true);
 }
 
 void ABaseCharacter::DebugResetMoveSpeed()
 {
+    if (bShopOpen) return;
     if (IsDeveloperHost()) ServerSetDebugMoveSpeed(false);
 }
 
@@ -5632,6 +5713,11 @@ void ABaseCharacter::CheckDarknessDamage()
 
 void ABaseCharacter::DebugSetGold1000()
 {
+    if (bShopOpen)
+    {
+        return;
+    }
+
     if (!IsDeveloperHost())
     {
         return;

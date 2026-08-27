@@ -203,6 +203,9 @@ public:
 	void ServerBuyShopItem(EShopItemType ItemType);
 
 	UFUNCTION(Server, Reliable)
+	void ServerSetShopMovementLocked(bool bLocked);
+
+	UFUNCTION(Server, Reliable)
 	void ServerMovePurchasedItem(int32 FromIndex, int32 ToIndex);
 
 	UFUNCTION(Server, Reliable)
