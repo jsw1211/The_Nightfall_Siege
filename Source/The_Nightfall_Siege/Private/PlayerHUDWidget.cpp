@@ -14,9 +14,9 @@
 #include "InventoryItemSlotWidget.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Blueprint/WidgetTree.h"
-#include "Kismet/GameplayStatics.h"
+#include "DarknessPrismWidget.h"
 #include "BasePlayerState.h"
-#include "GameFramework/PlayerState.h"
+#include "GameFramework/GameStateBase.h"
 
 UPlayerHUDWidget::UPlayerHUDWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -35,66 +35,6 @@ UPlayerHUDWidget::UPlayerHUDWidget(const FObjectInitializer& ObjectInitializer)
 void UPlayerHUDWidget::NativeConstruct()
 {
     Super::NativeConstruct();
-
-    // WBP_PlayerHUD can override this by adding a TextBlock named
-    // DarknessPrismGuideText.  Keep a native fallback so existing copies of
-    // the WBP show the mechanic immediately as well.
-    if (!WidgetTree)
-    {
-        return;
-    }
-
-    UCanvasPanel* RootCanvas = Cast<UCanvasPanel>(GetRootWidget());
-    if (!RootCanvas)
-    {
-        return;
-    }
-
-    DarknessPrismGuideText = WidgetTree->ConstructWidget<UTextBlock>(
-        UTextBlock::StaticClass(), TEXT("DarknessPrismGuideText"));
-
-    DarknessPrismStatusText = WidgetTree->ConstructWidget<UTextBlock>(
-        UTextBlock::StaticClass(),
-        TEXT("DarknessPrismStatusText"));
-
-    DarknessPrismStatusText->SetJustification(ETextJustify::Center);
-
-    FSlateFontInfo StatusFont = DarknessPrismStatusText->GetFont();
-    StatusFont.Size = 24;
-    DarknessPrismStatusText->SetFont(StatusFont);
-
-    DarknessPrismStatusText->SetVisibility(ESlateVisibility::Hidden);
-
-    if (UCanvasPanelSlot* StatusSlot =
-        RootCanvas->AddChildToCanvas(DarknessPrismStatusText))
-    {
-        StatusSlot->SetAnchors(FAnchors(0.5f, 0.5f));
-        StatusSlot->SetAlignment(FVector2D(0.5f, 0.5f));
-
-        // 기존 안내문보다 아래
-        StatusSlot->SetPosition(FVector2D(0.f, 0.f));
-
-        StatusSlot->SetSize(FVector2D(900.f, 180.f));
-    }
-
-    DarknessPrismGuideText->SetText(FText::FromString(
-        TEXT("프리즘을 들고 파티원과 모인 뒤 [F] 키를 누르세요")));
-    DarknessPrismGuideText->SetJustification(ETextJustify::Center);
-    DarknessPrismGuideText->SetColorAndOpacity(FSlateColor(
-        FLinearColor(0.72f, 0.92f, 1.0f, 1.0f)));
-
-    FSlateFontInfo GuideFont = DarknessPrismGuideText->GetFont();
-    GuideFont.Size = 30;
-    DarknessPrismGuideText->SetFont(GuideFont);
-    DarknessPrismGuideText->SetVisibility(ESlateVisibility::Hidden);
-
-    if (UCanvasPanelSlot* GuideSlot = RootCanvas->AddChildToCanvas(DarknessPrismGuideText))
-    {
-        GuideSlot->SetAnchors(FAnchors(0.5f, 0.5f));
-        GuideSlot->SetAlignment(FVector2D(0.5f, 0.5f));
-        GuideSlot->SetPosition(FVector2D(0.f, -110.f));
-        GuideSlot->SetSize(FVector2D(900.f, 80.f));
-    }
 }
 
 bool UPlayerHUDWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
@@ -145,63 +85,18 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
             : ESlateVisibility::Hidden);
     }
 
-	if (DarknessPrismGuideText)
-	{
-		DarknessPrismGuideText->SetVisibility(Player->bDarknessDebuff
-			? ESlateVisibility::HitTestInvisible
-			: ESlateVisibility::Hidden);
-	}
-
-    if (DarknessPrismStatusText)
+    if (DarknessPrismWidget)
     {
-        if (Player->bDarknessDebuff)
+        const bool bDebuffActive = Player->bDarknessDebuff;
+
+        DarknessPrismWidget->SetVisibility(
+            bDebuffActive
+            ? ESlateVisibility::HitTestInvisible
+            : ESlateVisibility::Hidden);
+
+        if (bDebuffActive)
         {
-            TArray<AActor*> PlayerActors;
-
-            UGameplayStatics::GetAllActorsOfClass(
-                GetWorld(),
-                ABaseCharacter::StaticClass(),
-                PlayerActors);
-
-            FString StatusText;
-
-            for (AActor* Actor : PlayerActors)
-            {
-                ABaseCharacter* Character = Cast<ABaseCharacter>(Actor);
-
-                if (!Character ||
-                    Character->IsDead() ||
-                    !Character->bHasPrism)
-                {
-                    continue;
-                }
-
-                ABasePlayerState* PS =
-                    Character->GetPlayerState<ABasePlayerState>();
-
-                if (!PS)
-                {
-                    continue;
-                }
-
-                StatusText += FString::Printf(
-                    TEXT("%s : %s\n"),
-                    *PS->GetPlayerName(),
-                    PS->bPrismCleansePressed
-                    ? TEXT("Success")
-                    : TEXT("Fail"));
-            }
-
-            DarknessPrismStatusText->SetText(
-                FText::FromString(StatusText));
-
-            DarknessPrismStatusText->SetVisibility(
-                ESlateVisibility::HitTestInvisible);
-        }
-        else
-        {
-            DarknessPrismStatusText->SetVisibility(
-                ESlateVisibility::Hidden);
+            DarknessPrismWidget->UpdatePrismStatus();
         }
     }
 

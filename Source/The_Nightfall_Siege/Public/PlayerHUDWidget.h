@@ -16,6 +16,7 @@ class UImage;
 class UTexture2D;
 class UDragDropOperation;
 class FDragDropEvent;
+class UDarknessPrismWidget;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API UPlayerHUDWidget : public UUserWidget
@@ -43,13 +44,8 @@ public:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     UImage* DarknessOverlay;
 
-	// Center-screen guidance shown to every locally controlled player while
-	// their replicated darkness debuff is active.
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* DarknessPrismGuideText;
-
-    UPROPERTY()
-    UTextBlock* DarknessPrismStatusText;
+    UPROPERTY(meta = (BindWidgetOptional))
+    UDarknessPrismWidget* DarknessPrismWidget;
 
     // A native hard reference makes the vignette part of the cook dependency
     // graph.  Loading it only from NativeTick left packaged builds free to
