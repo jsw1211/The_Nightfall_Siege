@@ -295,6 +295,11 @@ void ABaseCharacter::BeginPlay()
 
     UpdateNameWidget();
 
+    GetWorldTimerManager().SetTimerForNextTick(
+        this,
+        &ABaseCharacter::UpdateNameWidget
+    );
+
 	// Blueprint defaults must not desynchronise the visible lantern radius from
 	// the sphere that grants darkness protection.
 	LanternLight->SetLightColor(FLinearColor(0.0f, 1.0f, 0.0f));
