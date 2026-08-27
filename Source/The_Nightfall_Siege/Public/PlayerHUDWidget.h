@@ -48,6 +48,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UTextBlock* DarknessPrismGuideText;
 
+    UPROPERTY()
+    UTextBlock* DarknessPrismStatusText;
+
     // A native hard reference makes the vignette part of the cook dependency
     // graph.  Loading it only from NativeTick left packaged builds free to
     // omit the texture even though it was available in the editor.

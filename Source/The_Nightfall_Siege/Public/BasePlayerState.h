@@ -12,16 +12,16 @@
 UENUM(BlueprintType)
 enum class EQuestStage : uint8
 {
-    NotAccepted, FindDungeonPortal, ClearDungeon, CollectPrism, ReturnToVillage,
-    SpendSkillPoint,
-    FindBossPortal, DefeatBoss, Completed
+	NotAccepted, FindDungeonPortal, ClearDungeon, CollectPrism, ReturnToVillage,
+	SpendSkillPoint,
+	FindBossPortal, DefeatBoss, Completed
 };
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABasePlayerState : public APlayerState
 {
 	GENERATED_BODY()
-	
+
 public:
 
 	ABasePlayerState();
@@ -40,6 +40,12 @@ public:
 
 	UPROPERTY(Replicated, BlueprintReadWrite)
 	bool bPrismEquipped = false;
+
+	UPROPERTY(Replicated, BlueprintReadOnly)
+	bool bPrismCleansePressed = false;
+
+	UFUNCTION(BlueprintCallable)
+	void SetPrismCleansePressed(bool bPressed);
 
 	UPROPERTY(Replicated, BlueprintReadWrite)
 	int32 Coin = 0;
@@ -85,37 +91,37 @@ public:
 	UFUNCTION()
 	void OnRep_SkillProgress();
 
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Quest")
-    EQuestStage QuestStage = EQuestStage::NotAccepted;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Quest")
+	EQuestStage QuestStage = EQuestStage::NotAccepted;
 
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Quest")
-    int32 ClearedDungeonCount = 0;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Quest")
+	int32 ClearedDungeonCount = 0;
 
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Quest")
-    int32 DungeonMonsterKillCount = 0;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Quest")
+	int32 DungeonMonsterKillCount = 0;
 
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Quest")
-    int32 DungeonMonsterTotalCount = 0;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Quest")
+	int32 DungeonMonsterTotalCount = 0;
 
-    UFUNCTION(BlueprintCallable, Category = "Quest")
-    void AcceptMainQuest();
-    void NotifyDungeonEntered();
-    void NotifyDungeonCleared();
-    void SetDungeonMonsterTotal(int32 TotalCount);
-    void NotifyDungeonMonsterKilled();
-    void NotifySkillPointSpent();
-    void NotifyPrismCollected();
-    void NotifyReturnedToVillage();
-    void NotifyBossPortalEntered();
-    void NotifyBossDefeated();
+	UFUNCTION(BlueprintCallable, Category = "Quest")
+	void AcceptMainQuest();
+	void NotifyDungeonEntered();
+	void NotifyDungeonCleared();
+	void SetDungeonMonsterTotal(int32 TotalCount);
+	void NotifyDungeonMonsterKilled();
+	void NotifySkillPointSpent();
+	void NotifyPrismCollected();
+	void NotifyReturnedToVillage();
+	void NotifyBossPortalEntered();
+	void NotifyBossDefeated();
 
-    // Quest objectives are shared by the whole listen-server party.  Call
-    // this on the server after directly assigning a quest field.
-    void SyncQuestProgressToParty();
-    void CopyQuestProgressFrom(const ABasePlayerState& Source);
+	// Quest objectives are shared by the whole listen-server party.  Call
+	// this on the server after directly assigning a quest field.
+	void SyncQuestProgressToParty();
+	void CopyQuestProgressFrom(const ABasePlayerState& Source);
 
-    UFUNCTION(BlueprintPure, Category = "Quest")
-    FText GetQuestObjectiveText() const;
+	UFUNCTION(BlueprintPure, Category = "Quest")
+	FText GetQuestObjectiveText() const;
 
 	// Permanent shop upgrades survive pawn replacement and seamless map travel.
 	UPROPERTY(ReplicatedUsing = OnRep_PersistentStats, BlueprintReadWrite)

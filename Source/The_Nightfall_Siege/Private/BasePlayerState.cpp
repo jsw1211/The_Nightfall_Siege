@@ -21,6 +21,8 @@ void ABasePlayerState::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABasePlayerState, SelectedCharacter);
     DOREPLIFETIME(ABasePlayerState, bReady);
 
+    DOREPLIFETIME(ABasePlayerState, bPrismCleansePressed);
+
     DOREPLIFETIME(ABasePlayerState, bHasLantern);
     DOREPLIFETIME(ABasePlayerState, bLanternEquipped);
 
@@ -298,3 +300,7 @@ void ABasePlayerState::CopyProperties(APlayerState* PlayerState)
 
 }
 
+void ABasePlayerState::SetPrismCleansePressed(bool bPressed)
+{
+    bPrismCleansePressed = bPressed;
+}

@@ -37,27 +37,27 @@ ADragonBoss::ADragonBoss()
 
 	auto ConfigureHitbox = [this](TObjectPtr<UCapsuleComponent>& Hitbox, const TCHAR* Name,
 		const FName BoneName, float Radius, float HalfHeight)
-	{
-		Hitbox = CreateDefaultSubobject<UCapsuleComponent>(Name);
-		Hitbox->SetupAttachment(GetMesh(), BoneName);
-		// Capsule dimensions below are calculated from world-space bone positions.
-		// Do not inherit the mesh scale as well, otherwise a scaled dragon makes
-		// the hitbox grow twice (once in the bone distance, once as a child).
-		Hitbox->SetAbsolute(false, false, true);
-		Hitbox->SetCapsuleSize(Radius, HalfHeight);
-		// Capsule components extend along local Z.  Rotate them onto the dragon's
-		// length axis; individual placement can still be refined in BP_DragonBoss.
-		Hitbox->SetRelativeRotation(FRotator(0.f, 90.f, 0.f));
-		Hitbox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		Hitbox->SetCollisionObjectType(ECC_Pawn);
-		Hitbox->SetCollisionResponseToAllChannels(ECR_Ignore);
-		Hitbox->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
-		// Area attacks query the Pawn channel, while arrows/weapons use
-		// WorldDynamic.  Both must see the segmented hitboxes.
-		Hitbox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-		Hitbox->SetGenerateOverlapEvents(true);
-		Hitbox->SetCanEverAffectNavigation(false);
-	};
+		{
+			Hitbox = CreateDefaultSubobject<UCapsuleComponent>(Name);
+			Hitbox->SetupAttachment(GetMesh(), BoneName);
+			// Capsule dimensions below are calculated from world-space bone positions.
+			// Do not inherit the mesh scale as well, otherwise a scaled dragon makes
+			// the hitbox grow twice (once in the bone distance, once as a child).
+			Hitbox->SetAbsolute(false, false, true);
+			Hitbox->SetCapsuleSize(Radius, HalfHeight);
+			// Capsule components extend along local Z.  Rotate them onto the dragon's
+			// length axis; individual placement can still be refined in BP_DragonBoss.
+			Hitbox->SetRelativeRotation(FRotator(0.f, 90.f, 0.f));
+			Hitbox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			Hitbox->SetCollisionObjectType(ECC_Pawn);
+			Hitbox->SetCollisionResponseToAllChannels(ECR_Ignore);
+			Hitbox->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
+			// Area attacks query the Pawn channel, while arrows/weapons use
+			// WorldDynamic.  Both must see the segmented hitboxes.
+			Hitbox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+			Hitbox->SetGenerateOverlapEvents(true);
+			Hitbox->SetCanEverAffectNavigation(false);
+		};
 
 	ConfigureHitbox(HeadHitbox, TEXT("HeadHitbox"), TEXT("Head2"), 65.f, 200.f);
 
@@ -395,71 +395,71 @@ void ADragonBoss::UpdateDamageHitboxes()
 	// during attack, flight, and death animations.
 	auto FitCapsuleToBones = [DragonMesh](UCapsuleComponent* Hitbox,
 		const FName StartBone, const FName EndBone, float RadiusRatio)
-	{
-		if (!Hitbox ||
-			DragonMesh->GetBoneIndex(StartBone) == INDEX_NONE ||
-			DragonMesh->GetBoneIndex(EndBone) == INDEX_NONE)
 		{
-			return;
-		}
+			if (!Hitbox ||
+				DragonMesh->GetBoneIndex(StartBone) == INDEX_NONE ||
+				DragonMesh->GetBoneIndex(EndBone) == INDEX_NONE)
+			{
+				return;
+			}
 
-		const FVector Start = DragonMesh->GetBoneLocation(StartBone);
-		const FVector End = DragonMesh->GetBoneLocation(EndBone);
-		const FVector Segment = End - Start;
-		const float SegmentLength = Segment.Size();
-		if (SegmentLength <= KINDA_SMALL_NUMBER)
-		{
-			return;
-		}
+			const FVector Start = DragonMesh->GetBoneLocation(StartBone);
+			const FVector End = DragonMesh->GetBoneLocation(EndBone);
+			const FVector Segment = End - Start;
+			const float SegmentLength = Segment.Size();
+			if (SegmentLength <= KINDA_SMALL_NUMBER)
+			{
+				return;
+			}
 
-		// Derive every dimension from the live world-space bones.  Deliberately
-		// avoid absolute size clamps so changing the dragon's Actor/Mesh scale
-		// scales its hitboxes by exactly the same factor.
-		const float Radius = FMath::Max(SegmentLength * RadiusRatio, 1.f);
-		const float HalfHeight = (SegmentLength * 0.5f) + Radius;
-		const FQuat Rotation = FQuat::FindBetweenNormals(
-			FVector::UpVector, Segment / SegmentLength);
+			// Derive every dimension from the live world-space bones.  Deliberately
+			// avoid absolute size clamps so changing the dragon's Actor/Mesh scale
+			// scales its hitboxes by exactly the same factor.
+			const float Radius = FMath::Max(SegmentLength * RadiusRatio, 1.f);
+			const float HalfHeight = (SegmentLength * 0.5f) + Radius;
+			const FQuat Rotation = FQuat::FindBetweenNormals(
+				FVector::UpVector, Segment / SegmentLength);
 
-		Hitbox->SetCapsuleSize(Radius, HalfHeight, false);
-		Hitbox->SetWorldLocationAndRotation(
-			(Start + End) * 0.5f, Rotation, false, nullptr,
-			ETeleportType::TeleportPhysics);
-	};
+			Hitbox->SetCapsuleSize(Radius, HalfHeight, false);
+			Hitbox->SetWorldLocationAndRotation(
+				(Start + End) * 0.5f, Rotation, false, nullptr,
+				ETeleportType::TeleportPhysics);
+		};
 
 	// The body is a box so its horizontal and vertical thickness can be
 	// independently widened beyond the capsule-shaped head and tail hitboxes.
 	auto FitBodyBoxToBones = [DragonMesh](UBoxComponent* Hitbox,
 		const FName StartBone, const FName EndBone, float RadiusRatio)
-	{
-		if (!Hitbox ||
-			DragonMesh->GetBoneIndex(StartBone) == INDEX_NONE ||
-			DragonMesh->GetBoneIndex(EndBone) == INDEX_NONE)
 		{
-			return;
-		}
+			if (!Hitbox ||
+				DragonMesh->GetBoneIndex(StartBone) == INDEX_NONE ||
+				DragonMesh->GetBoneIndex(EndBone) == INDEX_NONE)
+			{
+				return;
+			}
 
-		const FVector Start = DragonMesh->GetBoneLocation(StartBone);
-		const FVector End = DragonMesh->GetBoneLocation(EndBone);
-		const FVector Segment = End - Start;
-		const float SegmentLength = Segment.Size();
-		if (SegmentLength <= KINDA_SMALL_NUMBER)
-		{
-			return;
-		}
+			const FVector Start = DragonMesh->GetBoneLocation(StartBone);
+			const FVector End = DragonMesh->GetBoneLocation(EndBone);
+			const FVector Segment = End - Start;
+			const float SegmentLength = Segment.Size();
+			if (SegmentLength <= KINDA_SMALL_NUMBER)
+			{
+				return;
+			}
 
-		const float Radius = FMath::Max(SegmentLength * RadiusRatio, 1.f);
-		const FQuat Rotation = FQuat::FindBetweenNormals(
-			FVector::ForwardVector, Segment / SegmentLength);
+			const float Radius = FMath::Max(SegmentLength * RadiusRatio, 1.f);
+			const FQuat Rotation = FQuat::FindBetweenNormals(
+				FVector::ForwardVector, Segment / SegmentLength);
 
-		// SetBoxExtent uses half-extents: Y is horizontal width, Z is height.
-		Hitbox->SetBoxExtent(FVector(
-			SegmentLength * 0.5f,
-			Radius * 1.5f,
-			Radius * 2.0f), false);
-		Hitbox->SetWorldLocationAndRotation(
-			(Start + End) * 0.5f, Rotation, false, nullptr,
-			ETeleportType::TeleportPhysics);
-	};
+			// SetBoxExtent uses half-extents: Y is horizontal width, Z is height.
+			Hitbox->SetBoxExtent(FVector(
+				SegmentLength * 0.5f,
+				Radius * 1.5f,
+				Radius * 2.0f), false);
+			Hitbox->SetWorldLocationAndRotation(
+				(Start + End) * 0.5f, Rotation, false, nullptr,
+				ETeleportType::TeleportPhysics);
+		};
 
 	// The ratios create a narrow head, broad body, and tapered tail silhouette.
 	FitCapsuleToBones(HeadHitbox, TEXT("Neck1"), TEXT("Head3"), 0.40f);
@@ -807,6 +807,12 @@ void ADragonBoss::DebuffAttack()
 		{
 			Player->bDarknessDebuff = true;
 
+			if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
+			{
+				PS->SetPrismCleansePressed(false);
+				PS->ForceNetUpdate();
+			}
+
 			UE_LOG(LogTemp, Warning,
 				TEXT("%s Darkness Debuff"),
 				*Player->GetName());
@@ -859,6 +865,12 @@ void ADragonBoss::RegisterPrismCleanseParticipant(ABaseCharacter* Player)
 
 	PrismCleanseParticipants.Add(Player);
 
+	if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
+	{
+		PS->SetPrismCleansePressed(true);
+		PS->ForceNetUpdate();
+	}
+
 	TArray<AActor*> PlayerActors;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), PlayerActors);
 	int32 RequiredParticipants = 0;
@@ -884,7 +896,24 @@ void ADragonBoss::RegisterPrismCleanseParticipant(ABaseCharacter* Player)
 	if (!ArePrismHoldersGathered(PlayerActors))
 	{
 		PrismCleanseParticipants.Empty();
-		UE_LOG(LogTemp, Warning, TEXT("Prism cleanse failed: holders must gather within %.0f units"), PrismCleanseGatherRadius);
+
+		for (AActor* Actor : PlayerActors)
+		{
+			if (ABaseCharacter* Character = Cast<ABaseCharacter>(Actor))
+			{
+				if (ABasePlayerState* PS =
+					Character->GetPlayerState<ABasePlayerState>())
+				{
+					PS->SetPrismCleansePressed(false);
+					PS->ForceNetUpdate();
+				}
+			}
+		}
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("Prism cleanse failed: holders must gather within %.0f units"),
+			PrismCleanseGatherRadius);
+
 		return;
 	}
 
@@ -894,12 +923,11 @@ void ADragonBoss::RegisterPrismCleanseParticipant(ABaseCharacter* Player)
 		{
 			Character->bDarknessDebuff = false;
 
-			// RepNotifies are not invoked on the authoritative Listen Server.
-			// Run the local presentation callback explicitly for its host pawn;
-			// remote clients still receive the replicated update and run it there.
-			if (Character->IsLocallyControlled())
+			if (ABasePlayerState* PS =
+				Character->GetPlayerState<ABasePlayerState>())
 			{
-				Character->OnRep_DarknessDebuff();
+				PS->SetPrismCleansePressed(false);
+				PS->ForceNetUpdate();
 			}
 
 			Character->ForceNetUpdate();
@@ -1845,20 +1873,20 @@ void ADragonBoss::StartAttackTelegraph(
 
 	case EDragonAttackType::Breath:
 	{
-	// Build the rectangle directly from the dragon to its chosen target.
-	// Its centre is the midpoint and its long local axis is the target line.
-	FVector LineStart = GetActorLocation();
-	FVector LineEnd = TargetPlayer->GetActorLocation();
-	LineEnd.Z = LineStart.Z;
-	FVector LineDirection = LineEnd - LineStart;
-	const float TargetDistance = LineDirection.Size2D();
-	const float TelegraphLength = FMath::Clamp(
-		TargetDistance + 500.f, 1000.f, BreathTelegraphRange);
-	LineDirection = LineDirection.GetSafeNormal2D();
-	FVector SpawnLocation = LineStart + LineDirection * (TelegraphLength * 0.5f);
+		// Build the rectangle directly from the dragon to its chosen target.
+		// Its centre is the midpoint and its long local axis is the target line.
+		FVector LineStart = GetActorLocation();
+		FVector LineEnd = TargetPlayer->GetActorLocation();
+		LineEnd.Z = LineStart.Z;
+		FVector LineDirection = LineEnd - LineStart;
+		const float TargetDistance = LineDirection.Size2D();
+		const float TelegraphLength = FMath::Clamp(
+			TargetDistance + 500.f, 1000.f, BreathTelegraphRange);
+		LineDirection = LineDirection.GetSafeNormal2D();
+		FVector SpawnLocation = LineStart + LineDirection * (TelegraphLength * 0.5f);
 
-	FRotator Rot = LineDirection.Rotation();
-	Rot.Pitch = -90.f;
+		FRotator Rot = LineDirection.Rotation();
+		Rot.Pitch = -90.f;
 
 		ADangerZone* Zone =
 			GetWorld()->SpawnActor<ADangerZone>(

@@ -1045,6 +1045,11 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	UAnimMontage* HitMontage;
+
+	UPROPERTY(Replicated)
+	bool bPrismCleansePressed = false;
+
+	void SetPrismCleansePressed(bool bPressed);
 	
 	//VFX
 	UPROPERTY(EditAnywhere, Category = "VFX")

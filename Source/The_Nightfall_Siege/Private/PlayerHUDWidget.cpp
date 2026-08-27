@@ -14,6 +14,9 @@
 #include "InventoryItemSlotWidget.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Blueprint/WidgetTree.h"
+#include "Kismet/GameplayStatics.h"
+#include "BasePlayerState.h"
+#include "GameFramework/PlayerState.h"
 
 UPlayerHUDWidget::UPlayerHUDWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -36,7 +39,7 @@ void UPlayerHUDWidget::NativeConstruct()
     // WBP_PlayerHUD can override this by adding a TextBlock named
     // DarknessPrismGuideText.  Keep a native fallback so existing copies of
     // the WBP show the mechanic immediately as well.
-    if (DarknessPrismGuideText || !WidgetTree)
+    if (!WidgetTree)
     {
         return;
     }
@@ -49,6 +52,31 @@ void UPlayerHUDWidget::NativeConstruct()
 
     DarknessPrismGuideText = WidgetTree->ConstructWidget<UTextBlock>(
         UTextBlock::StaticClass(), TEXT("DarknessPrismGuideText"));
+
+    DarknessPrismStatusText = WidgetTree->ConstructWidget<UTextBlock>(
+        UTextBlock::StaticClass(),
+        TEXT("DarknessPrismStatusText"));
+
+    DarknessPrismStatusText->SetJustification(ETextJustify::Center);
+
+    FSlateFontInfo StatusFont = DarknessPrismStatusText->GetFont();
+    StatusFont.Size = 24;
+    DarknessPrismStatusText->SetFont(StatusFont);
+
+    DarknessPrismStatusText->SetVisibility(ESlateVisibility::Hidden);
+
+    if (UCanvasPanelSlot* StatusSlot =
+        RootCanvas->AddChildToCanvas(DarknessPrismStatusText))
+    {
+        StatusSlot->SetAnchors(FAnchors(0.5f, 0.5f));
+        StatusSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+
+        // 기존 안내문보다 아래
+        StatusSlot->SetPosition(FVector2D(0.f, 0.f));
+
+        StatusSlot->SetSize(FVector2D(900.f, 180.f));
+    }
+
     DarknessPrismGuideText->SetText(FText::FromString(
         TEXT("프리즘을 들고 파티원과 모인 뒤 [F] 키를 누르세요")));
     DarknessPrismGuideText->SetJustification(ETextJustify::Center);
@@ -123,6 +151,59 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
 			? ESlateVisibility::HitTestInvisible
 			: ESlateVisibility::Hidden);
 	}
+
+    if (DarknessPrismStatusText)
+    {
+        if (Player->bDarknessDebuff)
+        {
+            TArray<AActor*> PlayerActors;
+
+            UGameplayStatics::GetAllActorsOfClass(
+                GetWorld(),
+                ABaseCharacter::StaticClass(),
+                PlayerActors);
+
+            FString StatusText;
+
+            for (AActor* Actor : PlayerActors)
+            {
+                ABaseCharacter* Character = Cast<ABaseCharacter>(Actor);
+
+                if (!Character ||
+                    Character->IsDead() ||
+                    !Character->bHasPrism)
+                {
+                    continue;
+                }
+
+                ABasePlayerState* PS =
+                    Character->GetPlayerState<ABasePlayerState>();
+
+                if (!PS)
+                {
+                    continue;
+                }
+
+                StatusText += FString::Printf(
+                    TEXT("%s : %s\n"),
+                    *PS->GetPlayerName(),
+                    PS->bPrismCleansePressed
+                    ? TEXT("Success")
+                    : TEXT("Fail"));
+            }
+
+            DarknessPrismStatusText->SetText(
+                FText::FromString(StatusText));
+
+            DarknessPrismStatusText->SetVisibility(
+                ESlateVisibility::HitTestInvisible);
+        }
+        else
+        {
+            DarknessPrismStatusText->SetVisibility(
+                ESlateVisibility::Hidden);
+        }
+    }
 
     UpdateHealth(Player->CurrentHP, Player->MaxHP);
 
