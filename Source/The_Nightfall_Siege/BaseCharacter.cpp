@@ -4511,35 +4511,44 @@ void ABaseCharacter::ServerInteractQuestGiver_Implementation(AQuestGiver* QuestG
     }
 }
 
-void ABaseCharacter::ServerSubmitQuestDecision_Implementation(AQuestGiver* QuestGiver, bool bAccepted)
+void ABaseCharacter::ServerAdvanceQuestDialogue_Implementation(AQuestGiver* QuestGiver, int32 DialogueSessionId)
 {
-    if (!QuestGiver || !QuestGiver->CanInteractWith(this))
+    if (!QuestGiver)
     {
-        QuestGiver = nullptr;
-        for (TActorIterator<AQuestGiver> It(GetWorld()); It; ++It)
-        {
-            if (It->CanInteractWith(this))
-            {
-                QuestGiver = *It;
-                break;
-            }
-        }
+        UE_LOG(LogTemp, Warning, TEXT("Quest dialogue advance rejected: invalid giver for %s"),
+            *GetNameSafe(this));
+        return;
     }
 
+    QuestGiver->AdvanceDialogue(this, DialogueSessionId);
+}
+
+void ABaseCharacter::ServerSubmitQuestDecision_Implementation(
+    AQuestGiver* QuestGiver, int32 DialogueSessionId, bool bAccepted)
+{
+    // Unlike the initial interaction, a dialogue response must match the exact
+    // replicated NPC and session that opened the local widget. Falling back to
+    // another nearby NPC could apply a stale response to the wrong dialogue.
     if (QuestGiver)
     {
-        UE_LOG(LogTemp, Log, TEXT("Quest decision received: Player=%s, Accepted=%d"),
-            *GetNameSafe(this), bAccepted);
-        QuestGiver->ResolveQuestDecision(this, bAccepted);
+        UE_LOG(LogTemp, Log, TEXT("Quest decision received: Player=%s, Session=%d, Accepted=%d"),
+            *GetNameSafe(this), DialogueSessionId, bAccepted);
+        QuestGiver->ResolveQuestDecision(this, DialogueSessionId, bAccepted);
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("Quest decision rejected: no quest giver in range for %s"),
+        UE_LOG(LogTemp, Warning, TEXT("Quest decision rejected: invalid giver for %s"),
             *GetNameSafe(this));
     }
 }
 
-void ABaseCharacter::ClientOpenQuestDialogue_Implementation(AQuestGiver* QuestGiver, const TArray<FText>& DialogueLines, const FText& SpeakerName, bool bRequiresQuestDecision)
+void ABaseCharacter::ClientOpenQuestDialogue_Implementation(
+    AQuestGiver* QuestGiver,
+    const TArray<FText>& DialogueLines,
+    const FText& SpeakerName,
+    bool bCanControlDialogue,
+    bool bRequiresQuestDecision,
+    int32 DialogueSessionId)
 {
     EnsureQuestDialogueWidget();
     if (!QuestDialogueWidget)
@@ -4547,23 +4556,59 @@ void ABaseCharacter::ClientOpenQuestDialogue_Implementation(AQuestGiver* QuestGi
         return;
     }
 
-    QuestDialogueWidget->ConfigureDialogue(QuestGiver, DialogueLines, SpeakerName, bRequiresQuestDecision);
-    QuestDialogueWidget->SetVisibility(ESlateVisibility::Visible);
-    QuestDialogueWidget->SetKeyboardFocus();
-    SetQuestDialogueInputLocked(true);
+    QuestDialogueWidget->ConfigureDialogue(
+        QuestGiver,
+        DialogueLines,
+        SpeakerName,
+        bCanControlDialogue,
+        bRequiresQuestDecision,
+        DialogueSessionId);
+
+    // Spectators see the server-synchronised text without losing gameplay
+    // controls. Only the player who first pressed F owns the focused UI.
+    QuestDialogueWidget->SetVisibility(
+        bCanControlDialogue ? ESlateVisibility::Visible : ESlateVisibility::HitTestInvisible);
+    if (bCanControlDialogue)
+    {
+        QuestDialogueWidget->SetKeyboardFocus();
+        SetQuestDialogueInputLocked(true);
+    }
 }
 
-void ABaseCharacter::ClientFinishQuestDialogue_Implementation(bool bAccepted, const FText& ResultMessage)
+void ABaseCharacter::ClientUpdateQuestDialogue_Implementation(
+    AQuestGiver* QuestGiver,
+    int32 DialogueSessionId,
+    int32 DialoguePage,
+    bool bShowingQuestChoice)
 {
-    if (QuestDialogueWidget)
+    if (QuestDialogueWidget && QuestDialogueWidget->MatchesDialogue(QuestGiver, DialogueSessionId))
     {
-        QuestDialogueWidget->RemoveFromParent();
-        QuestDialogueWidget = nullptr;
+        QuestDialogueWidget->SetDialogueState(DialoguePage, bShowingQuestChoice);
+    }
+}
+
+void ABaseCharacter::ClientFinishQuestDialogue_Implementation(
+    AQuestGiver* QuestGiver,
+    int32 DialogueSessionId,
+    bool bAccepted,
+    const FText& ResultMessage)
+{
+    if (!QuestDialogueWidget || !QuestDialogueWidget->MatchesDialogue(QuestGiver, DialogueSessionId))
+    {
+        return;
     }
 
-    SetQuestDialogueInputLocked(false);
+    QuestDialogueWidget->RemoveFromParent();
+    QuestDialogueWidget = nullptr;
+    if (bQuestDialogueInputLocked)
+    {
+        SetQuestDialogueInputLocked(false);
+    }
 
-    ClientShowQuestMessage(ResultMessage.ToString());
+    if (!ResultMessage.IsEmpty())
+    {
+        ClientShowQuestMessage(ResultMessage.ToString());
+    }
 }
 
 void ABaseCharacter::CloseQuestDialogue()

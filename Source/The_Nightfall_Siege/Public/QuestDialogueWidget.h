@@ -15,7 +15,12 @@ class THE_NIGHTFALL_SIEGE_API UQuestDialogueWidget : public UUserWidget
 
 public:
     UFUNCTION(BlueprintCallable, Category = "Quest Dialogue")
-    void ConfigureDialogue(AQuestGiver* InQuestGiver, const TArray<FText>& InLines, const FText& InSpeakerName, bool bInRequiresQuestDecision);
+    void ConfigureDialogue(AQuestGiver* InQuestGiver, const TArray<FText>& InLines,
+        const FText& InSpeakerName, bool bInCanControlDialogue,
+        bool bInRequiresQuestDecision, int32 InDialogueSessionId);
+
+    void SetDialogueState(int32 InDialoguePage, bool bInShowingQuestChoice);
+    bool MatchesDialogue(const AQuestGiver* InQuestGiver, int32 InDialogueSessionId) const;
 
     UFUNCTION(BlueprintCallable, Category = "Quest Dialogue")
     void AdvanceDialogue();
@@ -71,6 +76,8 @@ private:
     UPROPERTY(Transient) TArray<FText> DialogueLines;
     UPROPERTY(Transient) FText SpeakerName;
     int32 CurrentPage = 0;
+    int32 DialogueSessionId = 0;
     bool bShowingChoice = false;
+    bool bCanControlDialogue = false;
     bool bRequiresQuestDecision = true;
 };

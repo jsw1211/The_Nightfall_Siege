@@ -350,13 +350,23 @@ public:
     void ServerInteractQuestGiver(AQuestGiver* QuestGiver);
 
     UFUNCTION(Server, Reliable)
-    void ServerSubmitQuestDecision(AQuestGiver* QuestGiver, bool bAccepted);
+    void ServerAdvanceQuestDialogue(AQuestGiver* QuestGiver, int32 DialogueSessionId);
+
+    UFUNCTION(Server, Reliable)
+    void ServerSubmitQuestDecision(AQuestGiver* QuestGiver, int32 DialogueSessionId, bool bAccepted);
 
     UFUNCTION(Client, Reliable)
-    void ClientOpenQuestDialogue(AQuestGiver* QuestGiver, const TArray<FText>& DialogueLines, const FText& SpeakerName, bool bRequiresQuestDecision);
+    void ClientOpenQuestDialogue(AQuestGiver* QuestGiver, const TArray<FText>& DialogueLines,
+        const FText& SpeakerName, bool bCanControlDialogue, bool bRequiresQuestDecision,
+        int32 DialogueSessionId);
 
     UFUNCTION(Client, Reliable)
-    void ClientFinishQuestDialogue(bool bAccepted, const FText& ResultMessage);
+    void ClientUpdateQuestDialogue(AQuestGiver* QuestGiver, int32 DialogueSessionId,
+        int32 DialoguePage, bool bShowingQuestChoice);
+
+    UFUNCTION(Client, Reliable)
+    void ClientFinishQuestDialogue(AQuestGiver* QuestGiver, int32 DialogueSessionId,
+        bool bAccepted, const FText& ResultMessage);
 
     void CloseQuestDialogue();
 

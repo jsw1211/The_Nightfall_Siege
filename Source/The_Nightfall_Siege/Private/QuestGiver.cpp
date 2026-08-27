@@ -82,26 +82,59 @@ void AQuestGiver::OnRangeBegin(UPrimitiveComponent*, AActor* OtherActor, UPrimit
 
 void AQuestGiver::OnRangeEnd(UPrimitiveComponent*, AActor* OtherActor, UPrimitiveComponent*, int32)
 {
-    if (ABaseCharacter* Player = Cast<ABaseCharacter>(OtherActor)) Player->SetNearbyQuestGiver(nullptr);
+    if (ABaseCharacter* Player = Cast<ABaseCharacter>(OtherActor))
+    {
+        Player->SetNearbyQuestGiver(nullptr);
+        if (HasAuthority() && Player == ActiveDialogueOwner)
+        {
+            CancelActiveDialogue();
+        }
+    }
+}
+
+void AQuestGiver::OnDialogueOwnerDestroyed(AActor* DestroyedActor)
+{
+    if (HasAuthority() && DestroyedActor == ActiveDialogueOwner)
+    {
+        CancelActiveDialogue();
+    }
 }
 
 void AQuestGiver::Interact(ABaseCharacter* Player)
 {
     if (!HasAuthority() || !CanInteractWith(Player)) return;
-    if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
+
+    // The first valid interaction owns the public conversation. Further F
+    // presses must never replace that owner while the dialogue is active.
+    if (ActiveDialogueOwner)
     {
-        if (PS->QuestStage == EQuestStage::NotAccepted)
-        {
-            Player->ClientOpenQuestDialogue(this, DialogueLines, SpeakerName, true);
-        }
-        else
-        {
-            const TArray<FText> InProgressDialogue = {
-                FText::FromString(TEXT("부디 저희를 도와주세요."))
-            };
-            Player->ClientOpenQuestDialogue(this, InProgressDialogue, SpeakerName, false);
-        }
+        if (IsValid(ActiveDialogueOwner) && CanInteractWith(ActiveDialogueOwner)) return;
+        CancelActiveDialogue();
     }
+
+    ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>();
+    if (!PS) return;
+
+    ActiveDialogueOwner = Player;
+    ActiveDialogueOwner->OnDestroyed.AddUniqueDynamic(this, &AQuestGiver::OnDialogueOwnerDestroyed);
+    ActiveDialoguePage = 0;
+    bShowingQuestChoice = false;
+    bActiveDialogueRequiresDecision = PS->QuestStage == EQuestStage::NotAccepted;
+    ActiveDialogueLines = bActiveDialogueRequiresDecision
+        ? DialogueLines
+        : TArray<FText>{ FText::FromString(TEXT("부디 저희를 도와주세요.")) };
+
+    if (DialogueSessionCounter == MAX_int32)
+    {
+        DialogueSessionCounter = 1;
+    }
+    else
+    {
+        ++DialogueSessionCounter;
+    }
+    ActiveDialogueSessionId = DialogueSessionCounter;
+
+    BroadcastDialogueOpened();
 }
 
 bool AQuestGiver::CanInteractWith(const ABaseCharacter* Player) const
@@ -112,16 +145,66 @@ bool AQuestGiver::CanInteractWith(const ABaseCharacter* Player) const
             <= FMath::Square(InteractionRange ? InteractionRange->GetScaledSphereRadius() + 100.f : 280.f);
 }
 
-void AQuestGiver::ResolveQuestDecision(ABaseCharacter* Player, bool bAccepted)
+void AQuestGiver::AdvanceDialogue(ABaseCharacter* Player, int32 DialogueSessionId)
 {
-    if (!HasAuthority() || !CanInteractWith(Player)) return;
+    if (!HasAuthority()
+        || Player != ActiveDialogueOwner
+        || DialogueSessionId != ActiveDialogueSessionId
+        || bShowingQuestChoice)
+    {
+        return;
+    }
+
+    if (!CanInteractWith(Player))
+    {
+        CancelActiveDialogue();
+        return;
+    }
+
+    if (ActiveDialoguePage + 1 < ActiveDialogueLines.Num())
+    {
+        ++ActiveDialoguePage;
+        BroadcastDialogueState();
+        return;
+    }
+
+    if (bActiveDialogueRequiresDecision)
+    {
+        bShowingQuestChoice = true;
+        BroadcastDialogueState();
+        return;
+    }
+
+    FinishActiveDialogue(false, FText::GetEmpty());
+}
+
+void AQuestGiver::ResolveQuestDecision(ABaseCharacter* Player, int32 DialogueSessionId, bool bAccepted)
+{
+    if (!HasAuthority()
+        || Player != ActiveDialogueOwner
+        || DialogueSessionId != ActiveDialogueSessionId
+        || !bActiveDialogueRequiresDecision
+        || !bShowingQuestChoice)
+    {
+        return;
+    }
+
+    if (!CanInteractWith(Player))
+    {
+        CancelActiveDialogue();
+        return;
+    }
 
     ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>();
-    if (!PS || PS->QuestStage != EQuestStage::NotAccepted) return;
+    if (!PS || PS->QuestStage != EQuestStage::NotAccepted)
+    {
+        CancelActiveDialogue();
+        return;
+    }
 
     if (!bAccepted)
     {
-        Player->ClientFinishQuestDialogue(false, FText::FromString(TEXT("언제든 준비가 되면 다시 말을 걸어 주세요.")));
+        FinishActiveDialogue(false, FText::FromString(TEXT("언제든 준비가 되면 다시 말을 걸어 주세요.")));
         return;
     }
 
@@ -139,5 +222,77 @@ void AQuestGiver::ResolveQuestDecision(ABaseCharacter* Player, bool bAccepted)
         PartyLeader->GrantQuestLantern();
     }
 
-    Player->ClientFinishQuestDialogue(true, PS->GetQuestObjectiveText());
+    FinishActiveDialogue(true, PS->GetQuestObjectiveText());
+}
+
+void AQuestGiver::BroadcastDialogueOpened()
+{
+    if (!HasAuthority() || !ActiveDialogueOwner || ActiveDialogueSessionId == 0) return;
+
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        APlayerController* PC = It->Get();
+        ABaseCharacter* Participant = PC ? Cast<ABaseCharacter>(PC->GetPawn()) : nullptr;
+        if (!Participant) continue;
+
+        Participant->ClientOpenQuestDialogue(
+            this,
+            ActiveDialogueLines,
+            SpeakerName,
+            Participant == ActiveDialogueOwner,
+            bActiveDialogueRequiresDecision,
+            ActiveDialogueSessionId);
+    }
+}
+
+void AQuestGiver::BroadcastDialogueState()
+{
+    if (!HasAuthority() || ActiveDialogueSessionId == 0) return;
+
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        APlayerController* PC = It->Get();
+        if (ABaseCharacter* Participant = PC ? Cast<ABaseCharacter>(PC->GetPawn()) : nullptr)
+        {
+            Participant->ClientUpdateQuestDialogue(
+                this,
+                ActiveDialogueSessionId,
+                ActiveDialoguePage,
+                bShowingQuestChoice);
+        }
+    }
+}
+
+void AQuestGiver::FinishActiveDialogue(bool bAccepted, const FText& ResultMessage)
+{
+    if (!HasAuthority() || ActiveDialogueSessionId == 0) return;
+
+    const int32 FinishedSessionId = ActiveDialogueSessionId;
+
+    // Clear server ownership before notifying the listen-server client so a
+    // new interaction can never inherit the completed session.
+    if (ActiveDialogueOwner)
+    {
+        ActiveDialogueOwner->OnDestroyed.RemoveDynamic(this, &AQuestGiver::OnDialogueOwnerDestroyed);
+    }
+    ActiveDialogueOwner = nullptr;
+    ActiveDialogueLines.Reset();
+    ActiveDialogueSessionId = 0;
+    ActiveDialoguePage = 0;
+    bActiveDialogueRequiresDecision = false;
+    bShowingQuestChoice = false;
+
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        APlayerController* PC = It->Get();
+        if (ABaseCharacter* Participant = PC ? Cast<ABaseCharacter>(PC->GetPawn()) : nullptr)
+        {
+            Participant->ClientFinishQuestDialogue(this, FinishedSessionId, bAccepted, ResultMessage);
+        }
+    }
+}
+
+void AQuestGiver::CancelActiveDialogue()
+{
+    FinishActiveDialogue(false, FText::GetEmpty());
 }

@@ -25,46 +25,64 @@ void UQuestDialogueWidget::NativeConstruct()
     RefreshDialogueView();
 }
 
-void UQuestDialogueWidget::ConfigureDialogue(AQuestGiver* InQuestGiver, const TArray<FText>& InLines, const FText& InSpeakerName, bool bInRequiresQuestDecision)
+void UQuestDialogueWidget::ConfigureDialogue(AQuestGiver* InQuestGiver, const TArray<FText>& InLines,
+    const FText& InSpeakerName, bool bInCanControlDialogue,
+    bool bInRequiresQuestDecision, int32 InDialogueSessionId)
 {
     QuestGiver = InQuestGiver;
     DialogueLines = InLines;
     SpeakerName = InSpeakerName;
     CurrentPage = 0;
+    DialogueSessionId = InDialogueSessionId;
     bShowingChoice = false;
+    bCanControlDialogue = bInCanControlDialogue;
     bRequiresQuestDecision = bInRequiresQuestDecision;
     RefreshDialogueView();
-    SetKeyboardFocus();
+    if (bCanControlDialogue)
+    {
+        SetKeyboardFocus();
+    }
+}
+
+void UQuestDialogueWidget::SetDialogueState(int32 InDialoguePage, bool bInShowingQuestChoice)
+{
+    const bool bWasShowingChoice = bShowingChoice;
+    CurrentPage = DialogueLines.Num() > 0
+        ? FMath::Clamp(InDialoguePage, 0, DialogueLines.Num() - 1)
+        : 0;
+    bShowingChoice = bInShowingQuestChoice;
+    RefreshDialogueView();
+
+    if (!bWasShowingChoice && bShowingChoice && bCanControlDialogue && bRequiresQuestDecision)
+    {
+        OnQuestChoiceShown();
+    }
+}
+
+bool UQuestDialogueWidget::MatchesDialogue(const AQuestGiver* InQuestGiver, int32 InDialogueSessionId) const
+{
+    return QuestGiver == InQuestGiver && DialogueSessionId == InDialogueSessionId;
 }
 
 FReply UQuestDialogueWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
     if (InKeyEvent.GetKey() == EKeys::F)
     {
-        if (!bShowingChoice) AdvanceDialogue();
-        return FReply::Handled();
+        if (bCanControlDialogue)
+        {
+            if (!bShowingChoice) AdvanceDialogue();
+            return FReply::Handled();
+        }
     }
     return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
 void UQuestDialogueWidget::AdvanceDialogue()
 {
-    if (bShowingChoice) return;
-    if (CurrentPage + 1 < DialogueLines.Num())
+    if (!bCanControlDialogue || bShowingChoice) return;
+    if (ABaseCharacter* Character = Cast<ABaseCharacter>(GetOwningPlayerPawn()))
     {
-        ++CurrentPage;
-        RefreshDialogueView();
-        return;
-    }
-    if (bRequiresQuestDecision)
-    {
-        bShowingChoice = true;
-        RefreshDialogueView();
-        OnQuestChoiceShown();
-    }
-    else if (ABaseCharacter* Character = Cast<ABaseCharacter>(GetOwningPlayerPawn()))
-    {
-        Character->CloseQuestDialogue();
+        Character->ServerAdvanceQuestDialogue(QuestGiver, DialogueSessionId);
     }
 }
 
@@ -82,20 +100,34 @@ void UQuestDialogueWidget::RefreshDialogueView()
     const FText Line = GetCurrentDialogueLine();
     if (SpeakerText) SpeakerText->SetText(SpeakerName);
     if (DialogueText) DialogueText->SetText(Line);
-    if (PageText) PageText->SetText(bShowingChoice
-        ? FText::FromString(TEXT("퀘스트를 수락하시겠습니까?"))
-        : FText::FromString(FString::Printf(TEXT("[F] 다음  %d / %d"), CurrentPage + 1, PageCount)));
-    if (AcceptButton) AcceptButton->SetVisibility(bShowingChoice ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-    if (DeclineButton) DeclineButton->SetVisibility(bShowingChoice ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+    if (PageText)
+    {
+        if (bShowingChoice)
+        {
+            PageText->SetText(bCanControlDialogue
+                ? FText::FromString(TEXT("퀘스트를 수락하시겠습니까?"))
+                : FText::FromString(TEXT("대화를 시작한 플레이어가 결정 중입니다.")));
+        }
+        else
+        {
+            PageText->SetText(bCanControlDialogue
+                ? FText::FromString(FString::Printf(TEXT("[F] 다음  %d / %d"), CurrentPage + 1, PageCount))
+                : FText::FromString(FString::Printf(TEXT("대화 진행 중  %d / %d"), CurrentPage + 1, PageCount)));
+        }
+    }
+
+    const bool bShouldShowChoice = bShowingChoice && bCanControlDialogue && bRequiresQuestDecision;
+    if (AcceptButton) AcceptButton->SetVisibility(bShouldShowChoice ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+    if (DeclineButton) DeclineButton->SetVisibility(bShouldShowChoice ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
     OnDialoguePageChanged(SpeakerName, Line, CurrentPage + 1, PageCount);
 }
 
 void UQuestDialogueWidget::SubmitDecision(bool bAccepted)
 {
-    if (!bShowingChoice) return;
+    if (!bShowingChoice || !bCanControlDialogue || !bRequiresQuestDecision) return;
     if (ABaseCharacter* Character = Cast<ABaseCharacter>(GetOwningPlayerPawn()))
     {
-        Character->ServerSubmitQuestDecision(QuestGiver, bAccepted);
+        Character->ServerSubmitQuestDecision(QuestGiver, DialogueSessionId, bAccepted);
     }
 }
 
