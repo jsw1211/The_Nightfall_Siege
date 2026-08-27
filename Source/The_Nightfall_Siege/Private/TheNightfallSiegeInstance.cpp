@@ -79,8 +79,17 @@ void UTheNightfallSiegeInstance::BindMainMenuJoinButton()
             // Replacing that binding prevents a second, hard-coded travel.
             JoinButton->OnClicked.Clear();
             JoinButton->OnClicked.AddDynamic(this, &UTheNightfallSiegeInstance::OnMainMenuJoinClicked);
-            return;
         }
+
+        if (UButton* HostButton = Cast<UButton>(Widget->GetWidgetFromName(TEXT("Btn_Host"))))
+        {
+            // Opening a listen server now requires the same nickname step as
+            // joining one, so the host never appears under the PC name.
+            HostButton->OnClicked.Clear();
+            HostButton->OnClicked.AddDynamic(this, &UTheNightfallSiegeInstance::OnMainMenuHostClicked);
+        }
+
+        return;
     }
 }
 
@@ -89,7 +98,22 @@ void UTheNightfallSiegeInstance::OnMainMenuJoinClicked()
     ShowIPJoinDialog();
 }
 
+void UTheNightfallSiegeInstance::OnMainMenuHostClicked()
+{
+    ShowHostDialog();
+}
+
 void UTheNightfallSiegeInstance::ShowIPJoinDialog()
+{
+    ShowConnectionDialog(false);
+}
+
+void UTheNightfallSiegeInstance::ShowHostDialog()
+{
+    ShowConnectionDialog(true);
+}
+
+void UTheNightfallSiegeInstance::ShowConnectionDialog(bool bHostMode)
 {
     if (IPJoinWidget && IPJoinWidget->IsInViewport())
     {
@@ -107,6 +131,7 @@ void UTheNightfallSiegeInstance::ShowIPJoinDialog()
         if (IPJoinWidget)
         {
             IPJoinWidget->AddToViewport(1000);
+            IPJoinWidget->SetHostMode(bHostMode);
             PlayerController->bShowMouseCursor = true;
             FInputModeUIOnly InputMode;
             InputMode.SetWidgetToFocus(IPJoinWidget->TakeWidget());

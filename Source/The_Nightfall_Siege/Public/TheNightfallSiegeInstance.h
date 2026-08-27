@@ -71,6 +71,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Network")
 	void ShowIPJoinDialog();
 
+	/** Opens the nickname dialog before creating the listen server. */
+	UFUNCTION(BlueprintCallable, Category = "Network")
+	void ShowHostDialog();
+
+	void SetPlayerNickname(const FString& InNickname) { PlayerNickname = InNickname; }
+	const FString& GetPlayerNickname() const { return PlayerNickname; }
+
 	UPROPERTY(BlueprintReadWrite)
 	bool bHasLantern = false;
 
@@ -113,6 +120,14 @@ private:
 
 	UFUNCTION()
 	void OnMainMenuJoinClicked();
+
+	UFUNCTION()
+	void OnMainMenuHostClicked();
+
+	void ShowConnectionDialog(bool bHostMode);
+
+	UPROPERTY(Transient)
+	FString PlayerNickname;
 
 	UPROPERTY(Transient)
 	TObjectPtr<class UIPJoinWidget> IPJoinWidget;

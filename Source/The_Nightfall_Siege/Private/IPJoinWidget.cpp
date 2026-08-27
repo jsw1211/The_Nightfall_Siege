@@ -13,6 +13,8 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "GameFramework/PlayerController.h"
+#include "Kismet/GameplayStatics.h"
+#include "TheNightfallSiegeInstance.h"
 
 namespace
 {
@@ -70,13 +72,27 @@ void UIPJoinWidget::NativeOnInitialized()
     UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("DialogContent"));
     DialogSize->SetContent(Content);
 
-    UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
-    Title->SetText(FText::FromString(TEXT("서버 IP 주소 입력")));
-    Title->SetJustification(ETextJustify::Center);
-    Title->SetFont(FSlateFontInfo(Title->GetFont().FontObject, 30));
-    Content->AddChildToVerticalBox(Title)->SetPadding(FMargin(0.f, 0.f, 0.f, 22.f));
+    TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
+    TitleText->SetText(FText::FromString(TEXT("닉네임 / 서버 IP 입력")));
+    TitleText->SetJustification(ETextJustify::Center);
+    TitleText->SetFont(FSlateFontInfo(TitleText->GetFont().FontObject, 30));
+    Content->AddChildToVerticalBox(TitleText)->SetPadding(FMargin(0.f, 0.f, 0.f, 22.f));
 
-    UHorizontalBox* AddressRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("AddressRow"));
+    UTextBlock* NicknameLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("NicknameLabel"));
+    NicknameLabel->SetText(FText::FromString(TEXT("닉네임")));
+    Content->AddChildToVerticalBox(NicknameLabel)->SetPadding(FMargin(0.f, 0.f, 0.f, 7.f));
+
+    NicknameTextBox = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("Player_Nickname"));
+    NicknameTextBox->SetHintText(FText::FromString(TEXT("닉네임 (최대 16자)")));
+    NicknameTextBox->SetSelectAllTextOnCommit(true);
+    NicknameTextBox->OnTextCommitted.AddDynamic(this, &UIPJoinWidget::OnNicknameCommitted);
+    Content->AddChildToVerticalBox(NicknameTextBox)->SetPadding(FMargin(0.f, 0.f, 0.f, 18.f));
+
+    AddressLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("AddressLabel"));
+    AddressLabel->SetText(FText::FromString(TEXT("서버 IP")));
+    Content->AddChildToVerticalBox(AddressLabel)->SetPadding(FMargin(0.f, 0.f, 0.f, 7.f));
+
+    AddressRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("AddressRow"));
     Content->AddChildToVerticalBox(AddressRow);
 
     AddressTextBox = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("IP_Address"));
@@ -86,17 +102,17 @@ void UIPJoinWidget::NativeOnInitialized()
     AddressTextBox->OnTextCommitted.AddDynamic(this, &UIPJoinWidget::OnAddressCommitted);
     UHorizontalBoxSlot* AddressSlot = AddressRow->AddChildToHorizontalBox(AddressTextBox);
     AddressSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-    AddressSlot->SetPadding(FMargin(0.f, 0.f, 12.f, 0.f));
+    AddressSlot->SetPadding(FMargin(0.f));
 
     OkButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("Btn_OK"));
     OkButton->OnClicked.AddDynamic(this, &UIPJoinWidget::OnOkClicked);
-    UTextBlock* OkText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("OkText"));
-    OkText->SetText(FText::FromString(TEXT("OK")));
-    OkText->SetJustification(ETextJustify::Center);
-    OkButton->SetContent(OkText);
-    UHorizontalBoxSlot* OkSlot = AddressRow->AddChildToHorizontalBox(OkButton);
-    OkSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
-    OkSlot->SetPadding(FMargin(0.f));
+    OkButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("OkText"));
+    OkButtonText->SetText(FText::FromString(TEXT("접속")));
+    OkButtonText->SetJustification(ETextJustify::Center);
+    OkButton->SetContent(OkButtonText);
+    UVerticalBoxSlot* OkSlot = Content->AddChildToVerticalBox(OkButton);
+    OkSlot->SetHorizontalAlignment(HAlign_Right);
+    OkSlot->SetPadding(FMargin(0.f, 18.f, 0.f, 0.f));
 
     ErrorText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ErrorText"));
     ErrorText->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.25f, 0.25f)));
@@ -105,12 +121,94 @@ void UIPJoinWidget::NativeOnInitialized()
     Content->AddChildToVerticalBox(ErrorText)->SetPadding(FMargin(0.f, 16.f, 0.f, 0.f));
 }
 
+void UIPJoinWidget::SetHostMode(bool bInHostMode)
+{
+    bHostMode = bInHostMode;
+
+    if (TitleText)
+    {
+        TitleText->SetText(FText::FromString(
+            bHostMode ? TEXT("닉네임 입력") : TEXT("닉네임 / 서버 IP 입력")));
+    }
+    if (OkButtonText)
+    {
+        OkButtonText->SetText(FText::FromString(bHostMode ? TEXT("서버 열기") : TEXT("접속")));
+    }
+
+    const ESlateVisibility AddressVisibility =
+        bHostMode ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
+    if (AddressLabel)
+    {
+        AddressLabel->SetVisibility(AddressVisibility);
+    }
+    if (AddressRow)
+    {
+        AddressRow->SetVisibility(AddressVisibility);
+    }
+
+    if (const UTheNightfallSiegeInstance* GameInstance =
+        GetGameInstance<UTheNightfallSiegeInstance>())
+    {
+        if (NicknameTextBox && !GameInstance->GetPlayerNickname().IsEmpty())
+        {
+            NicknameTextBox->SetText(FText::FromString(GameInstance->GetPlayerNickname()));
+        }
+    }
+
+    if (NicknameTextBox)
+    {
+        NicknameTextBox->SetKeyboardFocus();
+    }
+}
+
 void UIPJoinWidget::OnAddressCommitted(const FText&, ETextCommit::Type CommitMethod)
 {
     if (CommitMethod == ETextCommit::OnEnter)
     {
         OnOkClicked();
     }
+}
+
+void UIPJoinWidget::OnNicknameCommitted(const FText&, ETextCommit::Type CommitMethod)
+{
+    if (CommitMethod != ETextCommit::OnEnter)
+    {
+        return;
+    }
+
+    if (bHostMode)
+    {
+        OnOkClicked();
+    }
+    else if (AddressTextBox)
+    {
+        AddressTextBox->SetKeyboardFocus();
+    }
+}
+
+bool UIPJoinWidget::GetValidatedNickname(FString& OutNickname) const
+{
+    if (!NicknameTextBox)
+    {
+        return false;
+    }
+
+    OutNickname = NicknameTextBox->GetText().ToString().TrimStartAndEnd();
+    if (OutNickname.IsEmpty() || OutNickname.Len() > 16)
+    {
+        return false;
+    }
+
+    for (const TCHAR Character : OutNickname)
+    {
+        if (FChar::IsControl(Character) || Character == TEXT('?') ||
+            Character == TEXT('&') || Character == TEXT('=') || Character == TEXT('#'))
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool UIPJoinWidget::GetValidatedAddress(FString& OutAddress) const
@@ -137,10 +235,50 @@ bool UIPJoinWidget::GetValidatedAddress(FString& OutAddress) const
 
 void UIPJoinWidget::OnOkClicked()
 {
+    FString Nickname;
+    if (!GetValidatedNickname(Nickname))
+    {
+        ShowError(FText::FromString(TEXT("닉네임을 1~16자로 입력해주세요. (?, &, =, # 사용 불가)")));
+        if (NicknameTextBox)
+        {
+            NicknameTextBox->SetKeyboardFocus();
+        }
+        return;
+    }
+
     FString Address;
-    if (!GetValidatedAddress(Address))
+    if (!bHostMode && !GetValidatedAddress(Address))
     {
         ShowError(FText::FromString(TEXT("올바른 IP 주소를 입력해주세요.")));
+        if (AddressTextBox)
+        {
+            AddressTextBox->SetKeyboardFocus();
+        }
+        return;
+    }
+
+    UTheNightfallSiegeInstance* GameInstance =
+        GetGameInstance<UTheNightfallSiegeInstance>();
+    if (!GameInstance)
+    {
+        ShowConnectionError();
+        return;
+    }
+
+    // NightfallLocalPlayer returns this value from GetNickname(). Unreal then
+    // places it in the login URL and initializes the replicated PlayerState
+    // name before the lobby is shown.
+    GameInstance->SetPlayerNickname(Nickname);
+
+    if (bHostMode)
+    {
+        GameInstance->bIsHost = true;
+        SetConnecting(true);
+        UGameplayStatics::OpenLevel(
+            this,
+            FName(TEXT("/Game/Level/Lvl_Lobby")),
+            true,
+            TEXT("listen"));
         return;
     }
 
@@ -151,6 +289,7 @@ void UIPJoinWidget::OnOkClicked()
         return;
     }
 
+    GameInstance->bIsHost = false;
     SetConnecting(true);
     PlayerController->ClientTravel(Address, ETravelType::TRAVEL_Absolute);
 }
@@ -185,8 +324,13 @@ void UIPJoinWidget::SetConnecting(bool bConnecting)
     {
         AddressTextBox->SetIsReadOnly(bConnecting);
     }
+    if (NicknameTextBox)
+    {
+        NicknameTextBox->SetIsReadOnly(bConnecting);
+    }
     if (bConnecting)
     {
-        ShowError(FText::FromString(TEXT("서버에 연결 중입니다...")));
+        ShowError(FText::FromString(
+            bHostMode ? TEXT("로비를 여는 중입니다...") : TEXT("서버에 연결 중입니다...")));
     }
 }

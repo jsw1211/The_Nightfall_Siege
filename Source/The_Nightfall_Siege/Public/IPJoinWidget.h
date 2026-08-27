@@ -19,6 +19,9 @@ class THE_NIGHTFALL_SIEGE_API UIPJoinWidget : public UUserWidget
     GENERATED_BODY()
 
 public:
+    /** Configures the dialog for either opening a listen server or joining one. */
+    void SetHostMode(bool bInHostMode);
+
     void ShowConnectionError();
     bool IsConnecting() const { return bIsConnecting; }
 
@@ -32,12 +35,31 @@ private:
     UFUNCTION()
     void OnAddressCommitted(const FText& Text, ETextCommit::Type CommitMethod);
 
+    UFUNCTION()
+    void OnNicknameCommitted(const FText& Text, ETextCommit::Type CommitMethod);
+
     bool GetValidatedAddress(FString& OutAddress) const;
+    bool GetValidatedNickname(FString& OutNickname) const;
     void ShowError(const FText& Message);
     void SetConnecting(bool bConnecting);
 
     UPROPERTY(Transient)
+    TObjectPtr<UEditableTextBox> NicknameTextBox;
+
+    UPROPERTY(Transient)
     TObjectPtr<UEditableTextBox> AddressTextBox;
+
+    UPROPERTY(Transient)
+    TObjectPtr<class UHorizontalBox> AddressRow;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> AddressLabel;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> TitleText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> OkButtonText;
 
     UPROPERTY(Transient)
     TObjectPtr<UButton> OkButton;
@@ -45,5 +67,6 @@ private:
     UPROPERTY(Transient)
     TObjectPtr<UTextBlock> ErrorText;
 
+    bool bHostMode = false;
     bool bIsConnecting = false;
 };
