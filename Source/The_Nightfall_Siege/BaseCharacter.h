@@ -584,6 +584,11 @@ public:
     UQuestDialogueWidget* QuestDialogueWidget = nullptr;
 
     void EnsureQuestDialogueWidget();
+    void SetQuestDialogueInputLocked(bool bLocked);
+
+    // Prevent repeated interaction RPCs from stacking PlayerController input
+    // ignore requests and leaving the local player permanently locked.
+    bool bQuestDialogueInputLocked = false;
 
 	// 체력
 	UPROPERTY(ReplicatedUsing = OnRep_MaxHP, EditAnywhere, BlueprintReadWrite, Category = "Stats")
