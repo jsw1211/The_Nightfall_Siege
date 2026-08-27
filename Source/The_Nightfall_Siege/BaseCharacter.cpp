@@ -1012,7 +1012,7 @@ void ABaseCharacter::ToggleInventory()
         APlayerController* PC = Cast<APlayerController>(GetController());
         InventoryWidget = CreateWidget<UUserWidget>(PC, InventoryWidgetClass);
 
-        if (InventoryWidget)
+        if (IsValid(InventoryWidget))
         {
             InventoryWidget->AddToViewport();
             RefreshInventoryWidget();
@@ -1030,16 +1030,21 @@ void ABaseCharacter::ToggleInventory()
                 PC->SetIgnoreMoveInput(false);
                 PC->SetIgnoreLookInput(false);
             }
-        }
 
-        bInventoryOpen = true;
+            bInventoryOpen = true;
+        }
     }
     else
     {
-        if (InventoryWidget)
+        if (IsValid(InventoryWidget))
         {
             InventoryWidget->RemoveFromParent();
         }
+
+        // Once it leaves the viewport there is no reason for replication
+        // callbacks to update it. Clearing the reference also prevents a
+        // later callback from observing a stale, garbage-collected widget.
+        InventoryWidget = nullptr;
 
         if (!bShopOpen)
         {
@@ -1373,7 +1378,7 @@ void ABaseCharacter::OnRep_Slot4PurchasedItemIndex()
 
 void ABaseCharacter::RefreshInventoryWidget()
 {
-    if (!InventoryWidget)
+    if (!IsValid(InventoryWidget))
     {
         return;
     }

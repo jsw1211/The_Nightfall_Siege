@@ -963,7 +963,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "UI")
 	TSubclassOf<class UUserWidget> InventoryWidgetClass;
-	UUserWidget* InventoryWidget;
+
+	// The inventory is created at runtime and removed when closed. Keep the
+	// reference visible to GC while it is open so replication callbacks cannot
+	// dereference a widget that has already been collected.
+	UPROPERTY(Transient)
+	TObjectPtr<UUserWidget> InventoryWidget = nullptr;
 	bool bInventoryOpen = false;
 
 	UPROPERTY(EditAnywhere, Category = "Shop")
