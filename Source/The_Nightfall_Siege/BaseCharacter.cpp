@@ -4926,10 +4926,15 @@ void ABaseCharacter::RestoreAuthoritativeStateFromPlayerState(ABasePlayerState* 
 		}
 	}
 
-	CurrentHP = PS->SavedCurrentHP >= 0.f
+	const bool bIsLobbyMap = GetWorld()
+		&& GetWorld()->GetMapName().Contains(TEXT("Lvl_Lobby"));
+	CurrentHP = !bIsLobbyMap && PS->SavedCurrentHP >= 0.f
 		? FMath::Clamp(PS->SavedCurrentHP, 0.f, MaxHP)
 		: MaxHP;
-	PS->SavedCurrentHP = CurrentHP;
+	if (!bIsLobbyMap)
+	{
+		PS->SavedCurrentHP = CurrentHP;
+	}
 	BaseAttackPower = AttackPower;
 	Coin = PS->Coin;
 	PotionCount = PS->PotionCount;

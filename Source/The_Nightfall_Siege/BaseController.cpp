@@ -335,6 +335,11 @@ void ABaseController::ServerSelectCharacter_Implementation(ECharacterType NewCha
     }
 
     PS->SelectedCharacter = NewCharacter;
+	// Lobby pawns can still hold the default Archer's 300 HP. Character
+	// selection starts a new run, so gameplay must initialize from the chosen
+	// class maximum instead of carrying that lobby preview value forward.
+	PS->SavedCurrentHP = -1.f;
+	PS->ForceNetUpdate();
 
     UE_LOG(LogTemp, Error,
         TEXT("Character = %d"),
