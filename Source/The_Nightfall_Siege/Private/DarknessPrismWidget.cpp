@@ -39,8 +39,8 @@ void UDarknessPrismWidget::UpdatePrismStatus()
             TEXT("%s : %s\n"),
             *PS->GetPlayerName(),
             PS->bPrismCleansePressed
-            ? TEXT("Success")
-            : TEXT("Fail"));
+            ? TEXT("완료")
+            : TEXT("미완료"));
     }
 
     StatusText->SetText(FText::FromString(StatusString));

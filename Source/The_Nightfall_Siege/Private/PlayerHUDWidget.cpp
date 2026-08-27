@@ -15,8 +15,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Blueprint/WidgetTree.h"
 #include "DarknessPrismWidget.h"
-#include "BasePlayerState.h"
-#include "GameFramework/GameStateBase.h"
+
 
 UPlayerHUDWidget::UPlayerHUDWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
