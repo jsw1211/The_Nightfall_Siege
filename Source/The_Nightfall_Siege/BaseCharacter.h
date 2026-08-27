@@ -18,7 +18,9 @@
 #include "NiagaraComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Components/SphereComponent.h"
+#include "Components/WidgetComponent.h"
 #include "BaseCharacter.generated.h"
+
 
 class USkillTreeWidget;
 class ALantern;
@@ -579,6 +581,14 @@ public:
 
 	UPROPERTY()
 	UPlayerHUDWidget* HUDWidget;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
+	UWidgetComponent* NameWidgetComponent;
+
+	void UpdateNameWidget();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nickname")
+	float NicknameHeight = 220.f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
     TSubclassOf<UQuestWidget> QuestWidgetClass;

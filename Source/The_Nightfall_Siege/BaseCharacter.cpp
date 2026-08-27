@@ -58,6 +58,7 @@
 #include "VillageManager.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
+#include "Components/TextBlock.h"
 
 namespace
 {
@@ -227,6 +228,18 @@ ABaseCharacter::ABaseCharacter()
     UE_LOG(LogTemp, Warning, TEXT("%s"),
         *LanternLight->GetLightColor().ToString());
 
+    NameWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("NameWidgetComponent"));
+
+    NameWidgetComponent->SetupAttachment(GetMesh());
+
+    NameWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
+
+    NameWidgetComponent->SetDrawSize(FVector2D(300.f, 50.f));
+
+    NameWidgetComponent->SetDrawAtDesiredSize(true);
+
+    NameWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
     static ConstructorHelpers::FObjectFinder<UNiagaraSystem> HealEffectAsset(
         TEXT("/Game/Effects/1_Heal/NS_Heal.NS_Heal"));
 
@@ -273,6 +286,14 @@ ABaseCharacter::ABaseCharacter()
 void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+    if (NameWidgetComponent)
+    {
+        NameWidgetComponent->SetRelativeLocation(
+            FVector(0.f, 0.f, NicknameHeight));
+    }
+
+    UpdateNameWidget();
 
 	// Blueprint defaults must not desynchronise the visible lantern radius from
 	// the sphere that grants darkness protection.
@@ -4915,6 +4936,8 @@ void ABaseCharacter::OnRep_PlayerState()
 {
     Super::OnRep_PlayerState();
 
+    UpdateNameWidget();
+
 	// A remote pawn can receive its PlayerState after BeginPlay.  Create the
 	// local gameplay UI here as a second lifecycle-safe entry point so clients
 	// never depend on the host's spawn/possession timing.
@@ -5833,4 +5856,37 @@ bool ABaseCharacter::IsInsideActiveLanternSafeZone(const FVector& WorldLocation)
 void ABaseCharacter::ResetInteractionLock()
 {
     bInteractionLocked = false;
+}
+
+void ABaseCharacter::UpdateNameWidget()
+{
+    if (!NameWidgetComponent)
+    {
+        return;
+    }
+
+    UUserWidget* NameWidget = NameWidgetComponent->GetUserWidgetObject();
+
+    if (!NameWidget)
+    {
+        return;
+    }
+
+    UTextBlock* NicknameText =
+        Cast<UTextBlock>(NameWidget->GetWidgetFromName(TEXT("NicknameText")));
+
+    if (!NicknameText)
+    {
+        return;
+    }
+
+    APlayerState* PS = GetPlayerState();
+
+    if (!PS)
+    {
+        NicknameText->SetText(FText::GetEmpty());
+        return;
+    }
+
+    NicknameText->SetText(FText::FromString(PS->GetPlayerName()));
 }
