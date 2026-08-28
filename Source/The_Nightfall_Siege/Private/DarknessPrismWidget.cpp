@@ -1,6 +1,8 @@
 #include "DarknessPrismWidget.h"
 
+#include "BaseCharacter.h"
 #include "BasePlayerState.h"
+#include "Components/TextBlock.h"
 #include "GameFramework/GameStateBase.h"
 
 void UDarknessPrismWidget::NativeConstruct()
@@ -31,6 +33,16 @@ void UDarknessPrismWidget::UpdatePrismStatus()
         ABasePlayerState* PS = Cast<ABasePlayerState>(PlayerState);
 
         if (!PS)
+        {
+            continue;
+        }
+
+        const ABaseCharacter* Character =
+            Cast<ABaseCharacter>(PS->GetPawn());
+
+        // Match the group-cleanse requirement: only living prism holders
+        // participate in the complete/incomplete status list.
+        if (!Character || !Character->bHasPrism || Character->IsDead())
         {
             continue;
         }
