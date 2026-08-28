@@ -2437,7 +2437,7 @@ void ABaseCharacter::FinishPotionUse()
 		{
             if (PendingPurchasedPotionType == EShopItemType::HPPotion)
             {
-                const float BonusHP = MaxHP * 0.2f;
+                constexpr float BonusHP = 10.0f;
                 MaxHP += BonusHP;
                 CurrentHP += BonusHP;
 				SaveHealthToPlayerState();
@@ -2453,7 +2453,7 @@ void ABaseCharacter::FinishPotionUse()
 				// AttackPower can temporarily contain Warrior R's multiplier.  The
 				// potion is permanent, so grow the unbuffed value and then rebuild
 				// the currently visible value instead of persisting a temporary buff.
-				BaseAttackPower *= 1.2f;
+				BaseAttackPower += 10.0f;
 				const bool bWarriorRActive = CharacterType == ECharacterType::Warrior
 					&& GetWorldTimerManager().IsTimerActive(WarriorRBuffHandle);
 				AttackPower = BaseAttackPower * (bWarriorRActive
