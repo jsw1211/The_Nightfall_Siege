@@ -9,6 +9,7 @@
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "Lantern.h"
+#include "Altar.h"
 #include "BaseCharacter.h"
 #include "BaseController.h"
 AThe_Nightfall_SiegeGameMode::AThe_Nightfall_SiegeGameMode()
@@ -254,8 +255,20 @@ void AThe_Nightfall_SiegeGameMode::RequestPartyRetry(ABaseController* Requesting
 
 	const bool bWasBossEncounter = GetWorld()->GetMapName().Contains(TEXT("Boss_Arena"));
 
-    // 제단에 놓여 있던 랜턴을 Retry 시 호스트에게 복구
-    if (GameState)
+	// Only recover the lantern to the host when it is actually stranded on an
+	// altar that will be destroyed by retry travel. If a party member still
+	// owns it, seamless travel keeps that ownership on their PlayerState.
+	bool bLanternWasPlacedAtAltar = false;
+	for (TActorIterator<AAltar> It(GetWorld()); It; ++It)
+	{
+		if (IsValid(*It) && It->bLanternPlaced)
+		{
+			bLanternWasPlacedAtAltar = true;
+			break;
+		}
+	}
+
+    if (bLanternWasPlacedAtAltar && GameState)
     {
         for (APlayerState* PlayerState : GameState->PlayerArray)
         {
