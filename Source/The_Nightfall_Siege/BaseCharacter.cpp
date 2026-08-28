@@ -2307,14 +2307,17 @@ void ABaseCharacter::HandleWorldInteraction()
 
 void ABaseCharacter::InteractWithQuestGiver()
 {
-    if (bShopOpen)
-    {
-        return;
-    }
-
     if (NearbyQuestGiver)
     {
         ServerInteractQuestGiver(NearbyQuestGiver);
+        return;
+    }
+
+    // The shop may be open while the player is standing beside the quest
+    // giver. Let F request the higher-priority dialogue in that case; the shop
+    // is closed after the server accepts and broadcasts the conversation.
+    if (bShopOpen)
+    {
         return;
     }
 
@@ -4589,6 +4592,23 @@ void ABaseCharacter::ClientOpenQuestDialogue_Implementation(
     bool bRequiresQuestDecision,
     int32 DialogueSessionId)
 {
+    // Dialogue is the exclusive gameplay overlay. This RPC runs for every
+    // participant, so clear each player's local panels before adding and
+    // focusing the shared dialogue widget. Shop must close first because the
+    // inventory and skill-tree toggles intentionally refuse while it is open.
+    if (bShopOpen)
+    {
+        ToggleShop();
+    }
+    if (bInventoryOpen)
+    {
+        ToggleInventory();
+    }
+    if (bSkillTreeOpen)
+    {
+        ToggleSkillTree();
+    }
+
     EnsureQuestDialogueWidget();
     if (!QuestDialogueWidget)
     {
