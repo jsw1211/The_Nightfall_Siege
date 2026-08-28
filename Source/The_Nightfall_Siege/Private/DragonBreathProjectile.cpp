@@ -172,6 +172,17 @@ void ADragonBreathProjectile::OnOverlapBegin(
 		return;
 	}
 
+	// A dead character can still generate overlaps through its skeletal mesh
+	// after the movement capsule has been disabled. Let the projectile continue
+	// through the corpse instead of resolving the breath hit against it.
+	if (ABaseCharacter* OverlappedPlayer = Cast<ABaseCharacter>(OtherActor))
+	{
+		if (OverlappedPlayer->IsDead())
+		{
+			return;
+		}
+	}
+
 	UE_LOG(
 		LogTemp,
 		Error,

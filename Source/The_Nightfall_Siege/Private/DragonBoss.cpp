@@ -2183,7 +2183,7 @@ void ADragonBoss::CloseBreathFire()
 	{
 		ABaseCharacter* Player = Cast<ABaseCharacter>(Actor);
 
-		if (!Player)
+		if (!Player || Player->IsDead())
 		{
 			continue;
 		}
