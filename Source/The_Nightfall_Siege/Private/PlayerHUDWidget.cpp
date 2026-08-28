@@ -15,6 +15,11 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Blueprint/WidgetTree.h"
 #include "DarknessPrismWidget.h"
+#include "PartyMemberWidget.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
+#include "GameFramework/GameStateBase.h"
+#include "BasePlayerState.h"
 
 
 UPlayerHUDWidget::UPlayerHUDWidget(const FObjectInitializer& ObjectInitializer)
@@ -57,6 +62,8 @@ bool UPlayerHUDWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDrop
 void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry,float InDeltaTime)
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
+
+    UpdatePartyMemberList();
 
     ABaseCharacter* Player = Cast<ABaseCharacter>(GetOwningPlayerPawn());
 
@@ -232,3 +239,88 @@ void UPlayerHUDWidget::UpdateAttackPower(float AttackPower)
     }
 }
 
+void UPlayerHUDWidget::UpdatePartyMemberList()
+{
+    if (!PartyMemberList || !PartyMemberWidgetClass)
+    {
+        return;
+    }
+
+    ABaseCharacter* LocalPlayer =
+        Cast<ABaseCharacter>(GetOwningPlayerPawn());
+
+    if (!LocalPlayer)
+    {
+        return;
+    }
+
+    AGameStateBase* GameState =
+        GetWorld()
+        ? GetWorld()->GetGameState<AGameStateBase>()
+        : nullptr;
+
+    if (!GameState)
+    {
+        return;
+    }
+
+    // 현재 접속한 다른 플레이어 캐릭터를 수집
+    TArray<ABaseCharacter*> OtherPlayers;
+
+    for (APlayerState* PlayerState : GameState->PlayerArray)
+    {
+        if (!PlayerState)
+        {
+            continue;
+        }
+
+        ABasePlayerState* PS =
+            Cast<ABasePlayerState>(PlayerState);
+
+        if (!PS)
+        {
+            continue;
+        }
+
+        // 자기 자신 제외
+        if (PS == LocalPlayer->GetPlayerState())
+        {
+            continue;
+        }
+
+        ABaseCharacter* Character =
+            Cast<ABaseCharacter>(PS->GetPawn());
+
+        if (!Character)
+        {
+            continue;
+        }
+
+        OtherPlayers.Add(Character);
+    }
+
+    // 플레이어 수가 바뀐 경우에만 위젯 리스트를 다시 생성
+    if (PartyMemberWidgets.Num() != OtherPlayers.Num())
+    {
+        PartyMemberList->ClearChildren();
+        PartyMemberWidgets.Empty();
+
+        for (ABaseCharacter* Character : OtherPlayers)
+        {
+            UPartyMemberWidget* PartyWidget =
+                CreateWidget<UPartyMemberWidget>(
+                    GetWorld(),
+                    PartyMemberWidgetClass);
+
+            if (!PartyWidget)
+            {
+                continue;
+            }
+
+            PartyWidget->UpdatePartyMember(Character);
+
+            PartyMemberList->AddChild(PartyWidget);
+            PartyMemberWidgets.Add(PartyWidget);
+        }
+    }
+}

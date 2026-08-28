@@ -6,6 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "PlayerHUDWidget.generated.h"
 
+
 /**
  * 
  */
@@ -17,6 +18,8 @@ class UTexture2D;
 class UDragDropOperation;
 class FDragDropEvent;
 class UDarknessPrismWidget;
+class UVerticalBox;
+class UPartyMemberWidget;
 
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API UPlayerHUDWidget : public UUserWidget
@@ -100,4 +103,15 @@ public:
 
     void UpdateHealth(float CurrentHP, float MaxHP);
     void UpdateAttackPower(float AttackPower);
+
+    UPROPERTY(meta = (BindWidget))
+    UVerticalBox* PartyMemberList;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Party")
+    TSubclassOf<UPartyMemberWidget> PartyMemberWidgetClass;
+
+    UPROPERTY()
+    TArray<UPartyMemberWidget*> PartyMemberWidgets;
+
+    void UpdatePartyMemberList();
 };
