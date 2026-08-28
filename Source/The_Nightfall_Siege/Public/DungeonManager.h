@@ -52,9 +52,18 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Monster")
 	TSubclassOf<AMonster> MonsterClass;
 
-	// 제단당 몬스터 수
-	UPROPERTY(EditAnywhere)
-	int32 MonstersPerAltar;
+	// Minimum number of monsters selected independently for each altar.
+	UPROPERTY(EditAnywhere, Category = "Monster|Spawn", meta = (ClampMin = "1", UIMin = "1"))
+	int32 MinMonstersPerAltar;
+
+	// Maximum number of monsters selected independently for each altar.
+	UPROPERTY(EditAnywhere, Category = "Monster|Spawn", meta = (ClampMin = "1", UIMin = "1"))
+	int32 MaxMonstersPerAltar;
+
+	// Kept only so existing maps and Blueprints can deserialize the old fixed
+	// count. Runtime spawning uses the min/max range above.
+	UPROPERTY()
+	int32 MonstersPerAltar_DEPRECATED;
 
 	// 몬스터 생성 함수
 	void SpawnMonsters();

@@ -6,6 +6,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Monster.h"
 #include "BaseCharacter.h"
@@ -15,9 +16,110 @@
 #include "AltarInteractionWidget.h"
 #include "Components/DecalComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "NavigationSystem.h"
 #include "BasePlayerState.h"
 #include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
+
+namespace
+{
+	constexpr int32 MonsterEjectionDirectionAttempts = 12;
+	constexpr float MonsterEjectionGroundClearance = 5.f;
+	constexpr float MonsterEjectionWallClearance = 10.f;
+	constexpr float MonsterEjectionGroundTraceDistance = 100.f;
+	constexpr float MonsterEjectionGroundEdgeInset = 5.f;
+	constexpr float MonsterEjectionRetryInterval = 0.2f;
+	constexpr float MonsterEjectionNavTolerance = 25.f;
+	constexpr int32 MonsterEjectionGroundSampleCount = 8;
+
+	float GetEjectionAngleOffset(int32 Attempt)
+	{
+		if (Attempt == 0)
+		{
+			return 0.f;
+		}
+
+		const int32 Step = (Attempt + 1) / 2;
+		const float Sign = Attempt % 2 == 1 ? 1.f : -1.f;
+		return Sign * Step *
+			(360.f / static_cast<float>(MonsterEjectionDirectionAttempts));
+	}
+
+	bool FindSupportedEjectionGround(
+		UWorld* World,
+		const AAltar* Altar,
+		const AMonster* Monster,
+		const FVector& NavLocation,
+		float CapsuleRadius,
+		float WalkableFloorZ,
+		float MaxStepHeight,
+		FVector& OutGroundLocation)
+	{
+		FCollisionQueryParams GroundQuery(
+			SCENE_QUERY_STAT(MonsterAltarEjectionGround),
+			false);
+		GroundQuery.AddIgnoredActor(Altar);
+		GroundQuery.AddIgnoredActor(Monster);
+
+		FHitResult CenterHit;
+		if (!World->LineTraceSingleByChannel(
+				CenterHit,
+				NavLocation + FVector(
+					0.f,
+					0.f,
+					MonsterEjectionGroundTraceDistance * 0.5f),
+				NavLocation - FVector(
+					0.f,
+					0.f,
+					MonsterEjectionGroundTraceDistance),
+				ECC_Visibility,
+				GroundQuery) ||
+			CenterHit.ImpactNormal.Z < WalkableFloorZ)
+		{
+			return false;
+		}
+
+		const float SupportRadius = FMath::Max(
+			CapsuleRadius - MonsterEjectionGroundEdgeInset,
+			CapsuleRadius * 0.5f);
+
+		for (int32 SampleIndex = 0;
+			SampleIndex < MonsterEjectionGroundSampleCount;
+			++SampleIndex)
+		{
+			const float Angle = 2.f * UE_PI *
+				static_cast<float>(SampleIndex) /
+				static_cast<float>(MonsterEjectionGroundSampleCount);
+			const FVector SampleLocation = CenterHit.ImpactPoint + FVector(
+				FMath::Cos(Angle) * SupportRadius,
+				FMath::Sin(Angle) * SupportRadius,
+				0.f);
+			FHitResult SupportHit;
+			if (!World->LineTraceSingleByChannel(
+					SupportHit,
+					SampleLocation + FVector(
+						0.f,
+						0.f,
+						MonsterEjectionGroundTraceDistance * 0.5f),
+					SampleLocation - FVector(
+						0.f,
+						0.f,
+						MonsterEjectionGroundTraceDistance),
+					ECC_Visibility,
+					GroundQuery) ||
+				SupportHit.ImpactNormal.Z < WalkableFloorZ ||
+				FMath::Abs(
+					SupportHit.ImpactPoint.Z - CenterHit.ImpactPoint.Z) >
+					MaxStepHeight + MonsterEjectionGroundClearance)
+			{
+				return false;
+			}
+		}
+
+		OutGroundLocation = CenterHit.ImpactPoint;
+		return true;
+	}
+}
 
 // Sets default values
 AAltar::AAltar()
@@ -174,6 +276,27 @@ void AAltar::PushMonstersOffAltar()
 		return;
 	}
 
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const double CurrentTime = World->GetTimeSeconds();
+	if (CurrentTime < NextMonsterEjectionAttemptTime)
+	{
+		return;
+	}
+	NextMonsterEjectionAttemptTime =
+		CurrentTime + MonsterEjectionRetryInterval;
+
+	UNavigationSystemV1* NavigationSystem =
+		FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+	if (!NavigationSystem)
+	{
+		return;
+	}
+
 	TArray<AActor*> OverlappingMonsters;
 	MonsterExclusionCapsule->GetOverlappingActors(
 		OverlappingMonsters,
@@ -190,22 +313,171 @@ void AAltar::PushMonstersOffAltar()
 			continue;
 		}
 
+		UCapsuleComponent* MonsterCapsule = Monster->GetCapsuleComponent();
+		if (!MonsterCapsule)
+		{
+			continue;
+		}
+
 		FVector AwayFromAltar = Monster->GetActorLocation() - AltarLocation;
 		AwayFromAltar.Z = 0.f;
-		if (AwayFromAltar.IsNearlyZero())
+		if (!AwayFromAltar.Normalize())
 		{
 			AwayFromAltar = FVector::ForwardVector;
 		}
-		else
-		{
-			AwayFromAltar.Normalize();
-		}
 
 		const float EjectDistance = ExclusionRadius +
-			Monster->GetCapsuleComponent()->GetScaledCapsuleRadius() + 50.f;
-		FVector SafeLocation = AltarLocation + AwayFromAltar * EjectDistance;
-		SafeLocation.Z = Monster->GetActorLocation().Z;
-		Monster->SetActorLocation(SafeLocation, false, nullptr, ETeleportType::TeleportPhysics);
+			MonsterCapsule->GetScaledCapsuleRadius() + 50.f;
+		const float CapsuleRadius = MonsterCapsule->GetScaledCapsuleRadius();
+		const float CapsuleHalfHeight =
+			MonsterCapsule->GetScaledCapsuleHalfHeight();
+		const FVector OriginalLocation = Monster->GetActorLocation();
+		const FRotator OriginalRotation = Monster->GetActorRotation();
+		const float ClearanceRadius = CapsuleRadius +
+			MonsterEjectionWallClearance;
+		const FVector ProjectionExtent(
+			ClearanceRadius,
+			ClearanceRadius,
+			CapsuleHalfHeight + 100.f);
+
+		FNavAgentProperties AgentProperties =
+			Monster->GetNavAgentPropertiesRef();
+		AgentProperties.AgentRadius = FMath::Max(
+			AgentProperties.AgentRadius,
+			CapsuleRadius);
+		AgentProperties.AgentHeight = FMath::Max(
+			AgentProperties.AgentHeight,
+			CapsuleHalfHeight * 2.f);
+		ANavigationData* NavData = NavigationSystem->GetNavDataForProps(
+			AgentProperties,
+			AltarLocation);
+		if (!NavData)
+		{
+			continue;
+		}
+
+		for (int32 Attempt = 0;
+			Attempt < MonsterEjectionDirectionAttempts;
+			++Attempt)
+		{
+			const FVector EjectDirection = AwayFromAltar.RotateAngleAxis(
+				GetEjectionAngleOffset(Attempt),
+				FVector::UpVector);
+			const FVector DesiredLocation =
+				AltarLocation + EjectDirection * EjectDistance;
+
+			FNavLocation ProjectedLocation;
+			if (!NavigationSystem->ProjectPointToNavigation(
+					DesiredLocation,
+					ProjectedLocation,
+					ProjectionExtent,
+					NavData))
+			{
+				continue;
+			}
+
+			// Projection may find a valid polygon back on top of the altar. Only
+			// accept points whose whole capsule is outside the exclusion area.
+			if (FVector::Dist2D(AltarLocation, ProjectedLocation.Location) <
+					ExclusionRadius + CapsuleRadius)
+			{
+				continue;
+			}
+
+			const UCharacterMovementComponent* Movement =
+				Monster->GetCharacterMovement();
+			const float WalkableFloorZ = Movement
+				? Movement->GetWalkableFloorZ()
+				: 0.7f;
+			const float MaxStepHeight = Movement
+				? Movement->MaxStepHeight
+				: 45.f;
+			FVector GroundLocation;
+			if (!FindSupportedEjectionGround(
+					World,
+					this,
+					Monster,
+					ProjectedLocation.Location,
+					CapsuleRadius,
+					WalkableFloorZ,
+					MaxStepHeight,
+					GroundLocation))
+			{
+				continue;
+			}
+
+			const FVector SafeLocation = GroundLocation +
+				FVector(
+					0.f,
+					0.f,
+					CapsuleHalfHeight + MonsterEjectionGroundClearance);
+			FCollisionQueryParams PathQuery(
+				SCENE_QUERY_STAT(MonsterAltarEjectionPath),
+				false);
+			PathQuery.AddIgnoredActor(this);
+			PathQuery.AddIgnoredActor(Monster);
+			if (World->LineTraceTestByChannel(
+					Monster->GetActorLocation(),
+					SafeLocation,
+					ECC_Visibility,
+					PathQuery))
+			{
+				continue;
+			}
+
+			if (!Monster->TeleportTo(
+				SafeLocation,
+				Monster->GetActorRotation(),
+				false,
+				false))
+			{
+				continue;
+			}
+
+			const FVector ActualLocation = Monster->GetActorLocation();
+			FNavLocation ActualNavLocation;
+			FVector ActualGroundLocation;
+			const bool bActualLocationIsSafe =
+				FVector::Dist2D(AltarLocation, ActualLocation) >=
+					ExclusionRadius + CapsuleRadius &&
+				NavigationSystem->ProjectPointToNavigation(
+					ActualLocation,
+					ActualNavLocation,
+					FVector(
+						MonsterEjectionNavTolerance,
+						MonsterEjectionNavTolerance,
+						CapsuleHalfHeight + MonsterEjectionGroundTraceDistance),
+					NavData) &&
+				FVector::Dist2D(ActualLocation, ActualNavLocation.Location) <=
+					MonsterEjectionNavTolerance &&
+				FindSupportedEjectionGround(
+					World,
+					this,
+					Monster,
+					ActualLocation,
+					CapsuleRadius,
+					WalkableFloorZ,
+					MaxStepHeight,
+					ActualGroundLocation) &&
+				!World->LineTraceTestByChannel(
+					OriginalLocation,
+					ActualLocation,
+					ECC_Visibility,
+					PathQuery);
+
+			if (bActualLocationIsSafe)
+			{
+				break;
+			}
+
+			// TeleportTo may adjust an encroaching endpoint. Restore the known
+			// previous position if that adjustment left navigation or floor support.
+			Monster->TeleportTo(
+				OriginalLocation,
+				OriginalRotation,
+				false,
+				true);
+		}
 	}
 }
 

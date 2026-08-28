@@ -126,4 +126,7 @@ public:
 		int32 OtherBodyIndex);
 
 	void PushMonstersOffAltar();
+
+private:
+	double NextMonsterEjectionAttemptTime = 0.0;
 };

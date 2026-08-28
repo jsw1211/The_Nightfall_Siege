@@ -142,6 +142,10 @@ AMonster::AMonster()
 void AMonster::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Path following should never let a monster step off the navigable floor,
+	// even if avoidance or a short movement correction points over an edge.
+	GetCharacterMovement()->bCanWalkOffLedges = false;
 	
     DungeonManager = Cast<ADungeonManager>(UGameplayStatics::GetActorOfClass(GetWorld(), ADungeonManager::StaticClass()));
 
