@@ -5,6 +5,41 @@
 #include "Monster.h"
 #include "DragonBoss.h"
 
+namespace
+{
+void ConfigureNonBlockingWeaponCollision(
+	USkeletalMeshComponent* Mesh,
+	UBoxComponent* WeaponCollision)
+{
+	if (Mesh)
+	{
+		// The skeletal mesh is visual only; WeaponCollision owns all melee hits.
+		Mesh->SetSimulatePhysics(false);
+		Mesh->SetCollisionProfileName(TEXT("NoCollision"));
+		Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Mesh->SetCollisionResponseToAllChannels(ECR_Ignore);
+		Mesh->SetGenerateOverlapEvents(false);
+		Mesh->CanCharacterStepUpOn = ECB_No;
+		Mesh->SetCanEverAffectNavigation(false);
+	}
+
+	if (WeaponCollision)
+	{
+		// Some weapon Blueprints have serialized blocking responses that override
+		// the native constructor. Reapplying overlap-only responses before every
+		// swing prevents the hitbox from pushing players while preserving overlap
+		// notifications for monsters and all dragon hitbox object types.
+		WeaponCollision->SetSimulatePhysics(false);
+		WeaponCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		WeaponCollision->SetGenerateOverlapEvents(true);
+		WeaponCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
+		WeaponCollision->SetCollisionObjectType(ECC_WorldDynamic);
+		WeaponCollision->CanCharacterStepUpOn = ECB_No;
+		WeaponCollision->SetCanEverAffectNavigation(false);
+	}
+}
+}
+
 // Sets default values
 AWeaponBase::AWeaponBase()
 {
@@ -18,21 +53,17 @@ AWeaponBase::AWeaponBase()
 
 	WeaponCollision->SetupAttachment(Mesh);
 
-	WeaponCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
-	WeaponCollision->SetGenerateOverlapEvents(true);
-
-	WeaponCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
-
-	WeaponCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-
-	WeaponCollision->SetCollisionObjectType(ECC_WorldDynamic);
+	ConfigureNonBlockingWeaponCollision(Mesh, WeaponCollision);
 }
 
 // Called when the game starts or when spawned
 void AWeaponBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Blueprint defaults are applied after the native constructor, so enforce
+	// the collision contract again once the final component templates exist.
+	ConfigureNonBlockingWeaponCollision(Mesh, WeaponCollision);
 	
 	WeaponCollision->OnComponentBeginOverlap.AddDynamic(this, &AWeaponBase::OnWeaponOverlap);
 
@@ -91,6 +122,9 @@ void AWeaponBase::EnableCollision()
 	HitMonsters.Empty();
 	HitDragons.Empty();
 
+	// Apply responses before enabling queries so an already-overlapping player
+	// never sees even one frame of the Blueprint's stale blocking hitbox.
+	ConfigureNonBlockingWeaponCollision(Mesh, WeaponCollision);
 	WeaponCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 }
 

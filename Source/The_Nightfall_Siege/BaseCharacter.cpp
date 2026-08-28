@@ -62,6 +62,25 @@
 
 namespace
 {
+void ConfigureCosmeticEquipmentCollision(UStaticMeshComponent* Mesh)
+{
+    if (!Mesh)
+    {
+        return;
+    }
+
+    // These meshes are only the held-item visuals. Their gameplay volumes are
+    // separate query components, so a hidden or animated item must never block
+    // another character's movement sweep.
+    Mesh->SetSimulatePhysics(false);
+    Mesh->SetCollisionProfileName(TEXT("NoCollision"));
+    Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    Mesh->SetCollisionResponseToAllChannels(ECR_Ignore);
+    Mesh->SetGenerateOverlapEvents(false);
+    Mesh->CanCharacterStepUpOn = ECB_No;
+    Mesh->SetCanEverAffectNavigation(false);
+}
+
 bool IsFrontendMap(const UWorld* World)
 {
     if (!World)
@@ -147,6 +166,8 @@ ABaseCharacter::ABaseCharacter()
 
     EquippedLanternMesh->SetupAttachment(GetMesh(), TEXT("LanternSocket"));
 
+    ConfigureCosmeticEquipmentCollision(EquippedLanternMesh);
+
     EquippedLanternMesh->SetVisibility(false);
 
     EquippedLanternMesh->SetCastShadow(false);
@@ -154,6 +175,8 @@ ABaseCharacter::ABaseCharacter()
     EquippedPrismMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EquippedPrismMesh"));
 
     EquippedPrismMesh->SetupAttachment(GetMesh(), TEXT("PrismSocket"));
+
+    ConfigureCosmeticEquipmentCollision(EquippedPrismMesh);
 
     EquippedPrismMesh->SetVisibility(false);
 
@@ -286,6 +309,12 @@ ABaseCharacter::ABaseCharacter()
 void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+    // Blueprint component templates can retain older BlockAllDynamic values
+    // even after the native defaults change. Reapply this at runtime for every
+    // class (Paladin, Warrior, and Archer) and on server plus clients.
+    ConfigureCosmeticEquipmentCollision(EquippedLanternMesh);
+    ConfigureCosmeticEquipmentCollision(EquippedPrismMesh);
 
     if (NameWidgetComponent)
     {
