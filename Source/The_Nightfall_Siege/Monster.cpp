@@ -450,9 +450,30 @@ void AMonster::ClearHitFlash()
 
 void AMonster::MulticastPlayDeath_Implementation()
 {
+    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+    {
+        Movement->StopMovementImmediately();
+        Movement->DisableMovement();
+    }
+
+    if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+    {
+        // A dead monster must no longer block pawns or receive gameplay
+        // overlaps, but removing the capsule entirely lets root motion and
+        // network corrections carry it through the dungeon floor.
+        Capsule->SetGenerateOverlapEvents(false);
+        Capsule->SetCollisionResponseToAllChannels(ECR_Ignore);
+        Capsule->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+        Capsule->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    }
+
+    if (USkeletalMeshComponent* MonsterMesh = GetMesh())
+    {
+        MonsterMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    }
+
     if (DeathMontage)
     {
-        GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         PlayAnimMontage(DeathMontage);
     }
 }
@@ -556,10 +577,6 @@ void AMonster::TakeMonsterDamage(float Damage)
 
         // 이동 정지
         GetCharacterMovement()->DisableMovement();
-
-        // 충돌 제거
-        GetCapsuleComponent()->SetCollisionEnabled(
-            ECollisionEnabled::NoCollision);
 
         // 공격 중지
         bCanAttack = false;
