@@ -214,7 +214,29 @@ void APortal::Interact(ABaseCharacter* Player)
         {
             if (ABaseCharacter* PartyMember = Cast<ABaseCharacter>(Actor))
             {
+				const bool bReviveInVillage =
+					PortalType == EPortalType::ReturnVillage
+					&& PartyMember->IsDead();
                 PartyMember->PrepareForPortalTravel();
+
+				if (bReviveInVillage)
+				{
+					if (ABasePlayerState* PlayerState =
+						PartyMember->GetPlayerState<ABasePlayerState>())
+					{
+						// Keep the old dungeon pawn dead. Only replace the travel
+						// snapshot so the fresh village pawn spawns at full health.
+						PlayerState->SavedCurrentHP = PartyMember->MaxHP;
+						if (UTheNightfallSiegeInstance* GI =
+							GetGameInstance<UTheNightfallSiegeInstance>())
+						{
+							GI->SaveTravelHealth(
+								PlayerState->GetPlayerId(),
+								PartyMember->MaxHP);
+						}
+						PlayerState->ForceNetUpdate();
+					}
+				}
             }
         }
     }
