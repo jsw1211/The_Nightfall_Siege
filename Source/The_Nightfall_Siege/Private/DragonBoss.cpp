@@ -729,6 +729,13 @@ void ADragonBoss::OnBreathMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 void ADragonBoss::StopBreathTracking()
 {
 	bCenterTracking = false;
+	if (IsValid(CurrentBreathZone))
+	{
+		// Send the exact last tracked transform before the warning is frozen and
+		// the attack montage starts.
+		CurrentBreathZone->ForceNetUpdate();
+	}
+	ForceNetUpdate();
 	CurrentBreathZone = nullptr;
 }
 
@@ -1827,6 +1834,7 @@ void ADragonBoss::StartAttackTelegraph(
 
 			Zone->LifeTime = BiteWarningTime;
 			Zone->SetLifeSpan(BiteWarningTime);
+			Zone->ForceNetUpdate();
 		}
 
 		break;
@@ -1864,6 +1872,7 @@ void ADragonBoss::StartAttackTelegraph(
 			Zone->LifeTime = CloseBreathWarningTime;
 			Zone->SetLifeSpan(CloseBreathWarningTime);
 			CurrentCloseBreathZone = Zone;
+			Zone->ForceNetUpdate();
 		}
 
 		break;
@@ -1911,6 +1920,8 @@ void ADragonBoss::StartAttackTelegraph(
 			{
 				CurrentBreathZone = Zone;
 			}
+
+			Zone->ForceNetUpdate();
 		}
 
 		break;
@@ -1947,6 +1958,7 @@ void ADragonBoss::StartAttackTelegraph(
 
 			Zone->LifeTime = DebuffWarningTime;
 			Zone->SetLifeSpan(DebuffWarningTime);
+			Zone->ForceNetUpdate();
 		}
 
 		// 이펙트는 기존대로 텔레그래프 시작 시 재생
@@ -2170,6 +2182,7 @@ void ADragonBoss::CloseBreathFire()
 		// Use the exact notify-frame centre immediately before spawning the FX and
 		// applying damage. Tick has already kept the warning close to this point.
 		CurrentCloseBreathZone->SetActorLocation(BreathCenter);
+		CurrentCloseBreathZone->ForceNetUpdate();
 	}
 	CurrentCloseBreathZone = nullptr;
 

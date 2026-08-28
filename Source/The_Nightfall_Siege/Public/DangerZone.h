@@ -28,6 +28,11 @@ public:
 	ADangerZone();
 
 protected:
+	// Blueprint class defaults can override the native actor replication flags.
+	// Re-apply the movement requirement after all Blueprint components and
+	// defaults have been initialized.
+	virtual void PostInitializeComponents() override;
+
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 

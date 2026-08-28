@@ -28,6 +28,17 @@ ADangerZone::ADangerZone()
 
 }
 
+void ADangerZone::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	// BP_DangerZone has a legacy class-default override that disables movement
+	// replication even though the native constructor enables it.  Central breath
+	// and close breath move their warnings after spawning, so enforce the flag
+	// after Blueprint defaults have been applied on both server and clients.
+	SetReplicateMovement(true);
+}
+
 // Called when the game starts or when spawned
 void ADangerZone::BeginPlay()
 {
