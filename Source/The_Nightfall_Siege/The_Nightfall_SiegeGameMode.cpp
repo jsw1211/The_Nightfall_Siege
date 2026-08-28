@@ -253,6 +253,35 @@ void AThe_Nightfall_SiegeGameMode::RequestPartyRetry(ABaseController* Requesting
     if (!HasAuthority() || !bPartyRetryAvailable || !RequestingController) return;
 
 	const bool bWasBossEncounter = GetWorld()->GetMapName().Contains(TEXT("Boss_Arena"));
+
+    // 제단에 놓여 있던 랜턴을 Retry 시 호스트에게 복구
+    if (GameState)
+    {
+        for (APlayerState* PlayerState : GameState->PlayerArray)
+        {
+            ABasePlayerState* PS = Cast<ABasePlayerState>(PlayerState);
+
+            if (!PS)
+            {
+                continue;
+            }
+
+            // 호스트의 PlayerState인지 확인
+            AController* Controller = Cast<AController>(PS->GetOwner());
+            if (Controller && Controller->IsLocalController())
+            {
+                PS->bHasLantern = true;
+                PS->bLanternEquipped = true;
+                PS->ForceNetUpdate();
+
+                UE_LOG(LogTemp, Warning,
+                    TEXT("[Retry] Lantern restored to host"));
+
+                break;
+            }
+        }
+    }
+
 	if (!bWasBossEncounter && GameState)
 	{
 		// Restore the balance saved when this dungeon attempt began.  PlayerState
