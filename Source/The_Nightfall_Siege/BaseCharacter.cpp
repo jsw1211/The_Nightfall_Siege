@@ -5273,15 +5273,20 @@ void ABaseCharacter::OnRep_DarknessDebuff()
     UE_LOG(LogTemp, Warning,
         TEXT("Darkness : %d"),
         bDarknessDebuff);
+}
 
-    if (!bDarknessDebuff && DarknessCleanseEffect)
+void ABaseCharacter::MulticastPlayDarknessCleanseEffect_Implementation()
+{
+    if (!DarknessCleanseEffect)
     {
-        UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-            GetWorld(),
-            DarknessCleanseEffect,
-            GetActorLocation()
-        );
+        return;
     }
+
+    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+        GetWorld(),
+        DarknessCleanseEffect,
+        GetActorLocation()
+    );
 }
 
 void ABaseCharacter::DebugBossPattern1()

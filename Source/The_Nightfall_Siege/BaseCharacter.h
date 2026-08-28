@@ -813,8 +813,13 @@ public:
 	UFUNCTION()
 	void OnRep_DarknessDebuff();
 
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayDarknessCleanseEffect();
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effect")
 	UNiagaraSystem* DarknessCleanseEffect = nullptr;
+
+
 
 	void EndAttackSpeedBuff();
 

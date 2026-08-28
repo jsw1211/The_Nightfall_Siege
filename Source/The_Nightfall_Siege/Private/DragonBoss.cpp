@@ -919,6 +919,8 @@ void ADragonBoss::RegisterPrismCleanseParticipant(ABaseCharacter* Player)
 		{
 			Character->bDarknessDebuff = false;
 
+			Character->MulticastPlayDarknessCleanseEffect();
+
 			if (ABasePlayerState* PS =
 				Character->GetPlayerState<ABasePlayerState>())
 			{
