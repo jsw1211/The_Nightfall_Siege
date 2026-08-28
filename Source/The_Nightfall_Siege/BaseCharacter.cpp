@@ -4603,15 +4603,15 @@ void ABaseCharacter::ClientOpenQuestDialogue_Implementation(
         bRequiresQuestDecision,
         DialogueSessionId);
 
-    // Spectators see the server-synchronised text without losing gameplay
-    // controls. Only the player who first pressed F owns the focused UI.
+    // Every participant is locked for the lifetime of the shared dialogue.
+    // Only the player who first pressed F can advance it or choose a response.
     QuestDialogueWidget->SetVisibility(
         bCanControlDialogue ? ESlateVisibility::Visible : ESlateVisibility::HitTestInvisible);
     if (bCanControlDialogue)
     {
         QuestDialogueWidget->SetKeyboardFocus();
-        SetQuestDialogueInputLocked(true);
     }
+    SetQuestDialogueInputLocked(true);
 }
 
 void ABaseCharacter::ClientUpdateQuestDialogue_Implementation(
