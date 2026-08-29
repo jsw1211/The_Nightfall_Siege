@@ -225,14 +225,15 @@ void APortal::Interact(ABaseCharacter* Player)
 						PartyMember->GetPlayerState<ABasePlayerState>())
 					{
 						// Keep the old dungeon pawn dead. Only replace the travel
-						// snapshot so the fresh village pawn spawns at full health.
-						PlayerState->SavedCurrentHP = PartyMember->MaxHP;
+						// snapshot so the fresh village pawn revives at half health.
+						const float ReviveHP = PartyMember->MaxHP * 0.5f;
+						PlayerState->SavedCurrentHP = ReviveHP;
 						if (UTheNightfallSiegeInstance* GI =
 							GetGameInstance<UTheNightfallSiegeInstance>())
 						{
 							GI->SaveTravelHealth(
 								PlayerState->GetPlayerId(),
-								PartyMember->MaxHP);
+								ReviveHP);
 						}
 						PlayerState->ForceNetUpdate();
 					}
