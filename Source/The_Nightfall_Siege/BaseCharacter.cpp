@@ -411,12 +411,12 @@ void ABaseCharacter::BeginPlay()
         QMultiplier = 1.0f;
         EMultiplier = 1.0f;
         RMultiplier = 2.0f;
-
         BuffAttackSpeed = 1.2f; // W Lv.1 = 1.2배
 
         AttackSpeed = 1.0f;
 
         DefaultAttackSpeed = 1.0f;
+        BuffAttackSpeed = 1.2f;
 
         break;
 
@@ -429,6 +429,8 @@ void ABaseCharacter::BeginPlay()
 		EMultiplier = 1.0f;
 		QRadius = 120.f;
 		WarriorERadius = 300.f;
+		WarriorWCooldownReduction = 1.0f;
+		WarriorRDamageBonus = 0.3f;
 
         break;
     }
@@ -2224,7 +2226,7 @@ void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
 
             break;
 
-        case ESkillType::W:
+		case ESkillType::W:
 			WarriorWCooldownReduction =
 				(SkillLevel >= 4) ? 4.0f :
 				(SkillLevel == 3) ? 3.0f :
@@ -2240,7 +2242,7 @@ void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
 
             break;
 
-        case ESkillType::R:
+		case ESkillType::R:
 			WarriorRDamageBonus =
 				(SkillLevel >= 4) ? 1.0f :
 				(SkillLevel == 3) ? 0.8f :
@@ -3528,15 +3530,6 @@ void ABaseCharacter::ExecuteE()
         );
 
         return;
-    }
-
-    if (CharacterType == ECharacterType::Paladin)
-    {
-        ShieldHP = MaxHP * 0.1f;
-
-        UE_LOG(LogTemp, Warning,
-            TEXT("Shield : %f"),
-            ShieldHP);
     }
 
     if (CharacterType == ECharacterType::Paladin && HealAmount > 0.f)
@@ -5115,9 +5108,9 @@ void ABaseCharacter::ResetSkillUpgradeEffects()
 	HealAmount = 0.05f;
 	RHealAmount = 0.1f;
 	PaladinWDefenseRate = 0.1f;
-	BuffAttackSpeed = 1.5f;
-	WarriorWCooldownReduction = 0.f;
-	WarriorRDamageBonus = 0.f;
+	BuffAttackSpeed = 1.2f;
+	WarriorWCooldownReduction = 1.f;
+	WarriorRDamageBonus = 0.3f;
 	bRBonusDamage = false;
 	ERadius = 700.f;
 
@@ -5125,19 +5118,22 @@ void ABaseCharacter::ResetSkillUpgradeEffects()
 	{
 	case ECharacterType::Paladin:
 		QMultiplier = 1.f;
+		HealAmount = 0.05f;
+		RHealAmount = 0.1f;
+		PaladinWDefenseRate = 0.1f;
 		break;
-    case ECharacterType::Archer:
-        QMultiplier = 1.0f;
-        EMultiplier = 1.f;
-        RMultiplier = 2.0f;
-        BuffAttackSpeed = 1.2f;
-        break;
-    case ECharacterType::Warrior:
-        QMultiplier = 1.f;
-        EMultiplier = 1.f;
-        WarriorWCooldownReduction = 1.0f;
-        WarriorRDamageBonus = 0.3f;
-        break;
+	case ECharacterType::Archer:
+		QMultiplier = 1.f;
+		EMultiplier = 1.f;
+		RMultiplier = 2.f;
+		BuffAttackSpeed = 1.2f;
+		break;
+	case ECharacterType::Warrior:
+		QMultiplier = 1.f;
+		EMultiplier = 1.f;
+		WarriorWCooldownReduction = 1.f;
+		WarriorRDamageBonus = 0.3f;
+		break;
 	default:
 		break;
 	}
