@@ -331,12 +331,13 @@ void AThe_Nightfall_SiegeGameMode::RequestPartyRetry(ABaseController* Requesting
 				// current health, but retry must revive dead players.
 				if (ABasePlayerState* BasePlayerState = Cast<ABasePlayerState>(PlayerState))
 				{
-					BasePlayerState->SavedCurrentHP = Character->MaxHP;
+					const float ReviveHP = Character->MaxHP * 0.5f;
+					BasePlayerState->SavedCurrentHP = ReviveHP;
 					if (UTheNightfallSiegeInstance* GI = GetGameInstance<UTheNightfallSiegeInstance>())
 					{
 						// Retry is the one travel path that intentionally revives
-						// everyone instead of carrying their (zero) current HP.
-						GI->SaveTravelHealth(BasePlayerState->GetPlayerId(), Character->MaxHP);
+						// everyone at half health instead of carrying their zero HP.
+						GI->SaveTravelHealth(BasePlayerState->GetPlayerId(), ReviveHP);
 					}
 					BasePlayerState->ForceNetUpdate();
 				}

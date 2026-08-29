@@ -340,26 +340,33 @@ void ABaseCharacter::BeginPlay()
 		LanternSafeRadius / FMath::Max(FMath::Abs(LanternDecalScale.Y), KINDA_SMALL_NUMBER),
 		LanternSafeRadius / FMath::Max(FMath::Abs(LanternDecalScale.Z), KINDA_SMALL_NUMBER));
 
-    // A retry travels to the village and creates a fresh pawn.  Restore every
-    // local/server movement and input restriction that death may have set.
-    bIsDead = false;
-    GetCharacterMovement()->SetMovementMode(MOVE_Walking);
-    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    // Fresh pawns normally start alive, but initial replication can already
+    // identify this one as a dead pawn restored after travel. Never overwrite
+    // that persistent state or replay its one-shot death presentation.
+    if (bIsDead)
+    {
+        ApplyDeathRestrictions();
+    }
+    else
+    {
+        GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+        GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+
+        if (APlayerController* RespawnController = Cast<APlayerController>(GetController()))
+        {
+            EnableInput(RespawnController);
+            if (ABaseController* BaseRespawnController = Cast<ABaseController>(RespawnController))
+            {
+                BaseRespawnController->ClearDeathRestrictions();
+            }
+        }
+    }
     // Cover the opposite spawn order from AMonster::BeginPlay. Movement-ignore
     // lists are local state, so this intentionally runs on server and clients.
     for (TActorIterator<AMonster> It(GetWorld()); It; ++It)
     {
         MoveIgnoreActorAdd(*It);
         It->MoveIgnoreActorAdd(this);
-    }
-
-    if (APlayerController* RespawnController = Cast<APlayerController>(GetController()))
-    {
-        EnableInput(RespawnController);
-        if (ABaseController* BaseRespawnController = Cast<ABaseController>(RespawnController))
-        {
-            BaseRespawnController->ClearDeathRestrictions();
-        }
     }
 
 	// The PlayerState is the server-authoritative character selection. The
@@ -411,12 +418,12 @@ void ABaseCharacter::BeginPlay()
         QMultiplier = 1.0f;
         EMultiplier = 1.0f;
         RMultiplier = 2.0f;
-
         BuffAttackSpeed = 1.2f; // W Lv.1 = 1.2배
 
         AttackSpeed = 1.0f;
 
         DefaultAttackSpeed = 1.0f;
+        BuffAttackSpeed = 1.2f;
 
         break;
 
@@ -429,6 +436,8 @@ void ABaseCharacter::BeginPlay()
 		EMultiplier = 1.0f;
 		QRadius = 120.f;
 		WarriorERadius = 300.f;
+		WarriorWCooldownReduction = 1.0f;
+		WarriorRDamageBonus = 0.3f;
 
         break;
     }
@@ -643,6 +652,44 @@ void ABaseCharacter::BeginPlay()
     }
 }
 
+void ABaseCharacter::PawnClientRestart()
+{
+    Super::PawnClientRestart();
+
+    // ACharacter::PawnClientRestart can restore movement and input after the
+    // initial dead-state replication. Reapply the persistent restrictions
+    // without invoking Die() or replaying its one-shot presentation.
+    if (bIsDead)
+    {
+        OnRep_IsDead();
+    }
+}
+
+void ABaseCharacter::Restart()
+{
+    Super::Restart();
+
+    // Server possession dispatches Restart after PossessedBy restores travel
+    // state. Keep a restored dead pawn from returning to the default walking
+    // movement mode during that final restart step.
+    if (bIsDead)
+    {
+        ApplyDeathRestrictions();
+    }
+}
+
+void ABaseCharacter::ApplyDeathRestrictions()
+{
+    GetCharacterMovement()->DisableMovement();
+    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        PC->StopMovement();
+        DisableInput(PC);
+    }
+}
+
 void ABaseCharacter::Die()
 {
     if (bIsDead)
@@ -650,21 +697,14 @@ void ABaseCharacter::Die()
         return;
     }
 
+    bSuppressRestoredDeathSound = false;
     bIsDead = true;
     CurrentHP = 0.f;
 	SaveHealthToPlayerState();
 
     ForceNetUpdate();
 
-    GetCharacterMovement()->DisableMovement();
-
-    ABaseController* PC = Cast<ABaseController>(GetController());
-    if (PC)
-    {
-        DisableInput(PC);
-    }
-
-    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    ApplyDeathRestrictions();
 
     // 이거 추가해야 함
     PlayAnimMontage(DeathMontage);
@@ -686,13 +726,10 @@ void ABaseCharacter::OnRep_IsDead()
         return;
     }
 
-    GetCharacterMovement()->DisableMovement();
+    ApplyDeathRestrictions();
 
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
-        PC->StopMovement();
-        DisableInput(PC);
-
         if (ABaseController* BaseController = Cast<ABaseController>(PC))
         {
             BaseController->ShowDeathScreen(false);
@@ -1743,6 +1780,29 @@ void ABaseCharacter::TakePlayerDamage(float Damage)
     }
 }
 
+void ABaseCharacter::ApplyDarknessDebuffHealthDrain(float MaxHealthFraction)
+{
+    if (!HasAuthority() || bIsDead || !bDarknessDebuff)
+    {
+        return;
+    }
+
+    const float HealthLoss = MaxHP * FMath::Max(0.f, MaxHealthFraction);
+    if (HealthLoss <= 0.f)
+    {
+        return;
+    }
+
+    CurrentHP = FMath::Max(0.f, CurrentHP - HealthLoss);
+    SaveHealthToPlayerState();
+    ForceNetUpdate();
+
+    if (CurrentHP <= 0.f)
+    {
+        Die();
+    }
+}
+
 void ABaseCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
     bIsUsingSkill = false;
@@ -2224,7 +2284,7 @@ void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
 
             break;
 
-        case ESkillType::W:
+		case ESkillType::W:
 			WarriorWCooldownReduction =
 				(SkillLevel >= 4) ? 4.0f :
 				(SkillLevel == 3) ? 3.0f :
@@ -2240,7 +2300,7 @@ void ABaseCharacter::ApplySkillUpgrade(FSkillUpgradeData UpgradeData)
 
             break;
 
-        case ESkillType::R:
+		case ESkillType::R:
 			WarriorRDamageBonus =
 				(SkillLevel >= 4) ? 1.0f :
 				(SkillLevel == 3) ? 0.8f :
@@ -3530,15 +3590,6 @@ void ABaseCharacter::ExecuteE()
         return;
     }
 
-    if (CharacterType == ECharacterType::Paladin)
-    {
-        ShieldHP = MaxHP * 0.1f;
-
-        UE_LOG(LogTemp, Warning,
-            TEXT("Shield : %f"),
-            ShieldHP);
-    }
-
     if (CharacterType == ECharacterType::Paladin && HealAmount > 0.f)
     {
         HealTickCount = 0;
@@ -4020,6 +4071,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABaseCharacter, CurrentHP);
     DOREPLIFETIME(ABaseCharacter, MaxHP);
     DOREPLIFETIME(ABaseCharacter, AttackSpeed);
+    DOREPLIFETIME(ABaseCharacter, bSuppressRestoredDeathSound);
     DOREPLIFETIME(ABaseCharacter, bIsDead);
 	DOREPLIFETIME(ABaseCharacter, CharacterType);
     DOREPLIFETIME(ABaseCharacter, bHasLantern);
@@ -5115,9 +5167,9 @@ void ABaseCharacter::ResetSkillUpgradeEffects()
 	HealAmount = 0.05f;
 	RHealAmount = 0.1f;
 	PaladinWDefenseRate = 0.1f;
-	BuffAttackSpeed = 1.5f;
-	WarriorWCooldownReduction = 0.f;
-	WarriorRDamageBonus = 0.f;
+	BuffAttackSpeed = 1.2f;
+	WarriorWCooldownReduction = 1.f;
+	WarriorRDamageBonus = 0.3f;
 	bRBonusDamage = false;
 	ERadius = 700.f;
 
@@ -5125,19 +5177,22 @@ void ABaseCharacter::ResetSkillUpgradeEffects()
 	{
 	case ECharacterType::Paladin:
 		QMultiplier = 1.f;
+		HealAmount = 0.05f;
+		RHealAmount = 0.1f;
+		PaladinWDefenseRate = 0.1f;
 		break;
-    case ECharacterType::Archer:
-        QMultiplier = 1.0f;
-        EMultiplier = 1.f;
-        RMultiplier = 2.0f;
-        BuffAttackSpeed = 1.2f;
-        break;
-    case ECharacterType::Warrior:
-        QMultiplier = 1.f;
-        EMultiplier = 1.f;
-        WarriorWCooldownReduction = 1.0f;
-        WarriorRDamageBonus = 0.3f;
-        break;
+	case ECharacterType::Archer:
+		QMultiplier = 1.f;
+		EMultiplier = 1.f;
+		RMultiplier = 2.f;
+		BuffAttackSpeed = 1.2f;
+		break;
+	case ECharacterType::Warrior:
+		QMultiplier = 1.f;
+		EMultiplier = 1.f;
+		WarriorWCooldownReduction = 1.f;
+		WarriorRDamageBonus = 0.3f;
+		break;
 	default:
 		break;
 	}
@@ -5204,6 +5259,15 @@ void ABaseCharacter::RestoreAuthoritativeStateFromPlayerState(ABasePlayerState* 
 	else
 	{
 		CurrentHP = MaxHP;
+	}
+	const bool bRestoredDeadState = !bIsLobbyMap && CurrentHP <= 0.f;
+	bSuppressRestoredDeathSound = bRestoredDeadState;
+	bIsDead = bRestoredDeadState;
+	if (bRestoredDeadState)
+	{
+		// Restore only the persistent restrictions. Die() would incorrectly
+		// replay the one-shot sound and notify GameMode of a second death.
+		OnRep_IsDead();
 	}
 	if (!bIsLobbyMap)
 	{

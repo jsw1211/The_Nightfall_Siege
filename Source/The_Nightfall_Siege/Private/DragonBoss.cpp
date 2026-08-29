@@ -822,6 +822,17 @@ void ADragonBoss::DebuffAttack()
 		}
 	}
 
+	if (AlivePlayers.Num() > 0 &&
+		!GetWorldTimerManager().IsTimerActive(DebuffDamageHandle))
+	{
+		GetWorldTimerManager().SetTimer(
+			DebuffDamageHandle,
+			this,
+			&ADragonBoss::ApplyDebuffDamageTick,
+			1.f,
+			true);
+	}
+
 	GetWorldTimerManager().SetTimer(
 		AttackEndHandle,
 		this,
@@ -829,6 +840,36 @@ void ADragonBoss::DebuffAttack()
 		2.5f,
 		false
 	);
+}
+
+void ADragonBoss::ApplyDebuffDamageTick()
+{
+	if (!HasAuthority() || CurrentState == EDragonState::Dead)
+	{
+		GetWorldTimerManager().ClearTimer(DebuffDamageHandle);
+		return;
+	}
+
+	UpdatePlayerList();
+
+	bool bHasActiveDebuff = false;
+	for (ABaseCharacter* Player : AlivePlayers)
+	{
+		if (!Player || !Player->bDarknessDebuff)
+		{
+			continue;
+		}
+
+		Player->ApplyDarknessDebuffHealthDrain(
+			DebuffMaxHealthDrainPerSecond);
+
+		bHasActiveDebuff |= !Player->IsDead();
+	}
+
+	if (!bHasActiveDebuff)
+	{
+		GetWorldTimerManager().ClearTimer(DebuffDamageHandle);
+	}
 }
 
 void ADragonBoss::ResetPrismCleanseParticipants()
@@ -939,6 +980,7 @@ void ADragonBoss::RegisterPrismCleanseParticipant(ABaseCharacter* Player)
 		}
 	}
 
+	GetWorldTimerManager().ClearTimer(DebuffDamageHandle);
 	PrismCleanseParticipants.Empty();
 	UE_LOG(LogTemp, Warning, TEXT("Group prism cleanse completed by %d players"), RequiredParticipants);
 }

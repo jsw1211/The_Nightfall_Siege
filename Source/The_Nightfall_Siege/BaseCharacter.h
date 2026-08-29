@@ -134,6 +134,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	void Die();
+	void ApplyDeathRestrictions();
 	void PlayHit();
 
 	void EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketName, AActor*& OutWeapon);
@@ -142,6 +143,8 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+	virtual void Restart() override;
+	virtual void PawnClientRestart() override;
 	virtual bool CanBeBaseForCharacter(APawn* Pawn) const override;
 
 	// Called to bind functionality to input
@@ -218,6 +221,11 @@ public:
 	UFUNCTION()
 	void TakePlayerDamage(float Damage);
 
+	// Boss blackout is a health drain rather than combat damage. It must remove
+	// the exact max-health fraction without being absorbed by shields, defense,
+	// or lantern darkness protection.
+	void ApplyDarknessDebuffHealthDrain(float MaxHealthFraction);
+
 	void ExecuteQDamage();
 
 	// 스킬 사용 중인지
@@ -237,13 +245,13 @@ public:
 	float EMultiplier = 1.2f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-	float RMultiplier = 3.f;
+	float RMultiplier = 2.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-	float HealAmount = 0.1f;
+	float HealAmount = 0.05f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-	float RHealAmount = 0.2f;	
+	float RHealAmount = 0.1f;
 
 	bool bRBonusDamage = false;
 
@@ -252,8 +260,8 @@ public:
 
 	float DefaultAttackSpeed = 1.0f;
 
-	float BuffAttackSpeed = 1.5f;
-	float PaladinWDefenseRate = 0.0f;
+	float BuffAttackSpeed = 1.2f;
+	float PaladinWDefenseRate = 0.1f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill", meta = (ClampMin = "0"))
 	float WBuffDuration = 5.0f;
@@ -661,8 +669,8 @@ public:
 	// accumulating the same upgrade again after travel/load.
 	float BaseAttackPower = 100.0f;
 
-	float WarriorRDamageBonus = 0.0f;
-	float WarriorWCooldownReduction = 0.0f;
+	float WarriorRDamageBonus = 0.3f;
+	float WarriorWCooldownReduction = 1.0f;
 	FTimerHandle WarriorRBuffHandle;
 
 	void EndWarriorRBuff();
@@ -806,6 +814,10 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	bool IsDead() const;
+	bool ShouldSuppressRestoredDeathSound() const
+	{
+		return bSuppressRestoredDeathSound;
+	}
 
 	UPROPERTY(ReplicatedUsing = OnRep_DarknessDebuff, BlueprintReadOnly)
 	bool bDarknessDebuff = false;
@@ -831,6 +843,9 @@ public:
 	bool CanUseCombatAction() const;
 
 	// 상태
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "State")
+	bool bSuppressRestoredDeathSound = false;
+
 	UPROPERTY(ReplicatedUsing = OnRep_IsDead, VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	bool bIsDead = false;
 
