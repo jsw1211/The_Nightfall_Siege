@@ -410,9 +410,9 @@ void AMonster::ClearTaunt()
         TEXT("Taunt End"));
 }
 
-void AMonster::MulticastShowDamage_Implementation(float Damage)
+void AMonster::MulticastShowDamage_Implementation(float Damage, float VerticalOffset)
 {
-    ShowDamage(Damage);
+    ShowDamage(Damage, VerticalOffset);
     PlayHitFlash();
 }
 
@@ -502,7 +502,24 @@ void AMonster::TakeMonsterDamage(float Damage)
 
     CurrentHP -= Damage;
 
-    MulticastShowDamage(Damage);
+    // 동시에 들어오는 데미지 폰트의 위치를 아래에서 위로 쌓음
+    constexpr float DamageStackHeight = 30.f;
+
+    const float VerticalOffset = DamageStackIndex * DamageStackHeight;
+
+    MulticastShowDamage(Damage, VerticalOffset);
+
+    DamageStackIndex++;
+
+    GetWorldTimerManager().ClearTimer(DamageStackResetTimerHandle);
+
+    GetWorldTimerManager().SetTimer(
+        DamageStackResetTimerHandle,
+        this,
+        &AMonster::ResetDamageStack,
+        0.03f,
+        false
+    );
 
     UE_LOG(LogTemp, Warning, TEXT("Monster HP: %f"), CurrentHP);
 
@@ -591,6 +608,11 @@ void AMonster::TakeMonsterDamage(float Damage)
         // 죽는 애니메이션
         MulticastPlayDeath();
     }
+}
+
+void AMonster::ResetDamageStack()
+{
+    DamageStackIndex = 0;
 }
 
 bool AMonster::CanSeePlayer(ABaseCharacter* Player)

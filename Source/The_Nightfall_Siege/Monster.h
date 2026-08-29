@@ -80,9 +80,9 @@ public:
 	void TakeMonsterDamage(float Damage);
 
 	UFUNCTION(NetMulticast, Reliable)
-	void MulticastShowDamage(float Damage);
+	void MulticastShowDamage(float Damage, float VerticalOffset);
 
-	void MulticastShowDamage_Implementation(float Damage);
+	void MulticastShowDamage_Implementation(float Damage, float VerticalOffset);
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayDeath();
@@ -90,7 +90,9 @@ public:
 	void MulticastPlayDeath_Implementation();
 
 	UFUNCTION(BlueprintImplementableEvent)
-	void ShowDamage(float Damage);
+	void ShowDamage(float Damage, float VerticalOffset);
+
+
 	/** Red overlay shown whenever this monster takes valid damage. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hit Reaction", meta = (ClampMin = "0.0", Units = "s"))
 	float HitFlashDuration = 0.5f;
@@ -106,6 +108,13 @@ public:
 	void ClearHitFlash();
 
 	FTimerHandle HitFlashTimerHandle;
+
+	// 데미지 폰트가 동시에 여러 개 뜰 때 위치를 구분하기 위한 카운터
+	int32 DamageStackIndex = 0;
+
+	FTimerHandle DamageStackResetTimerHandle;
+
+	void ResetDamageStack();
 
 	UPROPERTY()
 	ADungeonManager* DungeonManager;
