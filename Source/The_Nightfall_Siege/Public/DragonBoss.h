@@ -187,6 +187,7 @@ public:
 	FTimerHandle PhaseTwoMaterialHandle;
 	FTimerHandle PhaseTwoMaterialReplicationHandle;
 	FTimerHandle PhaseTransitionEndHandle;
+	FTimerHandle DebuffDamageHandle;
 
 	// =========================
 	// Functions
@@ -205,6 +206,7 @@ public:
 	void BreathAttack();
 
 	void DebuffAttack();
+	void ApplyDebuffDamageTick();
 	void ResetPrismCleanseParticipants();
 	void RegisterPrismCleanseParticipant(ABaseCharacter* Player);
 
@@ -338,6 +340,11 @@ public:
 	// their F interactions can clear the blackout debuff.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss|Debuff", meta = (ClampMin = "0.0"))
 	float PrismCleanseGatherRadius = 1000.f;
+
+	// Fraction of each affected player's own maximum health removed every
+	// second. This is a direct health drain and intentionally ignores lanterns.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss|Debuff", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float DebuffMaxHealthDrainPerSecond = 0.01f;
 
 	bool ArePrismHoldersGathered(const TArray<AActor*>& PlayerActors) const;
 

@@ -1745,6 +1745,29 @@ void ABaseCharacter::TakePlayerDamage(float Damage)
     }
 }
 
+void ABaseCharacter::ApplyDarknessDebuffHealthDrain(float MaxHealthFraction)
+{
+    if (!HasAuthority() || bIsDead || !bDarknessDebuff)
+    {
+        return;
+    }
+
+    const float HealthLoss = MaxHP * FMath::Max(0.f, MaxHealthFraction);
+    if (HealthLoss <= 0.f)
+    {
+        return;
+    }
+
+    CurrentHP = FMath::Max(0.f, CurrentHP - HealthLoss);
+    SaveHealthToPlayerState();
+    ForceNetUpdate();
+
+    if (CurrentHP <= 0.f)
+    {
+        Die();
+    }
+}
+
 void ABaseCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
     bIsUsingSkill = false;

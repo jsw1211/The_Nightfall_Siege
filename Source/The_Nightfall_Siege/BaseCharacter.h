@@ -218,6 +218,11 @@ public:
 	UFUNCTION()
 	void TakePlayerDamage(float Damage);
 
+	// Boss blackout is a health drain rather than combat damage. It must remove
+	// the exact max-health fraction without being absorbed by shields, defense,
+	// or lantern darkness protection.
+	void ApplyDarknessDebuffHealthDrain(float MaxHealthFraction);
+
 	void ExecuteQDamage();
 
 	// 스킬 사용 중인지
