@@ -67,7 +67,7 @@ public:
 	UPROPERTY()
 	int32 QVolleyId = INDEX_NONE;
 
-	void Explode(const FVector& ImpactCenter);
+	void Explode(const FVector& ImpactCenter, AMonster* DirectHitMonster = nullptr);
 
 	UPROPERTY(EditAnywhere)
 	float QExplosionRadius = 120.f;

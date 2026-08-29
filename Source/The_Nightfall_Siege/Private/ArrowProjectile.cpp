@@ -205,7 +205,7 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 		}
 		if (ArrowType == EArrowType::QExplosive)
 		{
-			Explode(ImpactPoint);
+			Explode(ImpactPoint, Monster);
 			return;
 		}
 
@@ -302,7 +302,9 @@ void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActo
 	}
 }
 
-void AArrowProjectile::Explode(const FVector& ImpactCenter)
+void AArrowProjectile::Explode(
+	const FVector& ImpactCenter,
+	AMonster* DirectHitMonster)
 {
 	if (bImpactHandled)
 	{
@@ -375,10 +377,13 @@ void AArrowProjectile::Explode(const FVector& ImpactCenter)
 		{
 			AMonster* Monster = Cast<AMonster>(Result.GetActor());
 
-			if (Monster && OwnerCharacter && ArrowType != EArrowType::Explosive &&
+			if (Monster && OwnerCharacter &&
+				ArrowType != EArrowType::Explosive &&
+				ArrowType != EArrowType::QExplosive &&
 				!ExplodedMonsters.Contains(Monster))
 			{
 				ExplodedMonsters.Add(Monster);
+
 				float Damage = OwnerCharacter->GetAttackPower() * DamageMultiplier;
 
 				Monster->TakeMonsterDamage(Damage);
@@ -438,6 +443,16 @@ void AArrowProjectile::Explode(const FVector& ImpactCenter)
 		}
 	}
 
+	if (ArrowType == EArrowType::QExplosive &&
+		DirectHitMonster &&
+		OwnerCharacter)
+	{
+		const float Damage =
+			OwnerCharacter->GetAttackPower() * DamageMultiplier;
+
+		DirectHitMonster->TakeMonsterDamage(Damage);
+	}
+
 	StopTrailAndDestroy();
 }
 
@@ -461,7 +476,7 @@ void AArrowProjectile::OnProjectileStop(
 
 		if (ArrowType == EArrowType::QExplosive)
 		{
-			Explode(ImpactResult.ImpactPoint);
+			Explode(ImpactResult.ImpactPoint, Monster);
 			return;
 		}
 
