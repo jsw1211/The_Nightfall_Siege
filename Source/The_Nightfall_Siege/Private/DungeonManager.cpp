@@ -100,12 +100,7 @@
 
 			const float CapsuleRadius = Capsule->GetScaledCapsuleRadius();
 			const float CapsuleHalfHeight = Capsule->GetScaledCapsuleHalfHeight();
-			const float ExclusionRadius = Altar->MonsterExclusionCapsule
-				? Altar->MonsterExclusionCapsule->GetScaledCapsuleRadius()
-				: 0.f;
-			const float MinimumSafeDistance = FMath::Max(
-				MinAltarSpawnDistance,
-				ExclusionRadius + CapsuleRadius + SpawnWallClearance);
+			const float MinimumSafeDistance = MinAltarSpawnDistance;
 			const FVector MonsterLocation = Monster->GetActorLocation();
 			const float DistanceFromAltar = FVector::Dist2D(
 				Altar->GetActorLocation(),
@@ -221,12 +216,7 @@
 
 			const float CapsuleRadius = Capsule->GetScaledCapsuleRadius();
 			const float CapsuleHalfHeight = Capsule->GetScaledCapsuleHalfHeight();
-			const float ExclusionRadius = Altar->MonsterExclusionCapsule
-				? Altar->MonsterExclusionCapsule->GetScaledCapsuleRadius()
-				: 0.f;
-			const float MinimumSafeDistance = FMath::Max(
-				MinAltarSpawnDistance,
-				ExclusionRadius + CapsuleRadius + SpawnWallClearance);
+			const float MinimumSafeDistance = MinAltarSpawnDistance;
 
 			FNavAgentProperties AgentProperties =
 				MonsterDefault->GetNavAgentPropertiesRef();

@@ -3,6 +3,7 @@
 
 #include "ArrowProjectile.h"
 #include "Components/SphereComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Monster.h"
 #include "BaseCharacter.h"
@@ -23,18 +24,30 @@ namespace
 // Sets default values
 AArrowProjectile::AArrowProjectile()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
-	Collision = CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
+	// 실제 액터의 기준점
+	USceneComponent* SceneRoot =
+		CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
 
-	RootComponent = Collision;
+	RootComponent = SceneRoot;
 
-	Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh"));
+	// 충돌 구체
+	Collision =
+		CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
 
-	Mesh->SetupAttachment(RootComponent);
+	Collision->SetupAttachment(SceneRoot);
 
-	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
+	// 화살 외형
+	Mesh =
+		CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh"));
+
+	Mesh->SetupAttachment(SceneRoot);
+
+	// 투사체 이동
+	ProjectileMovement =
+		CreateDefaultSubobject<UProjectileMovementComponent>(
+			TEXT("ProjectileMovement"));
 
 	ProjectileMovement->InitialSpeed = 3000.f;
 	ProjectileMovement->MaxSpeed = 3000.f;
@@ -52,8 +65,15 @@ AArrowProjectile::AArrowProjectile()
 
 	Collision->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
 
-	Collision->OnComponentBeginOverlap.AddDynamic(this, &AArrowProjectile::OnArrowOverlap);
-	ProjectileMovement->OnProjectileStop.AddDynamic(this, &AArrowProjectile::OnProjectileStop);
+	Collision->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
+
+	Collision->OnComponentBeginOverlap.AddDynamic(
+		this,
+		&AArrowProjectile::OnArrowOverlap);
+
+	ProjectileMovement->OnProjectileStop.AddDynamic(
+		this,
+		&AArrowProjectile::OnProjectileStop);
 }
 
 // Called when the game starts or when spawned
@@ -91,7 +111,10 @@ void AArrowProjectile::BeginPlay()
 
 	for (TActorIterator<AAltar> It(GetWorld()); It; ++It)
 	{
-		Collision->IgnoreActorWhenMoving(*It, true);
+		AAltar* Altar = *It;
+
+		// 제단 전체를 화살 충돌에서 완전히 무시
+		Collision->IgnoreActorWhenMoving(Altar, true);
 	}
 
 	ResolveInitialOverlaps();
@@ -183,8 +206,15 @@ void AArrowProjectile::ResolveInitialOverlaps()
 	}
 }
 
-void AArrowProjectile::OnArrowOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+void AArrowProjectile::OnArrowOverlap(
+	UPrimitiveComponent* OverlappedComp,
+	AActor* OtherActor,
+	UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex,
+	bool bFromSweep,
+	const FHitResult& SweepResult)
 {
+
 	AMonster* Monster = Cast<AMonster>(OtherActor);
 
 	if (Monster && OwnerCharacter)
@@ -518,8 +548,7 @@ void AArrowProjectile::OnProjectileStop(
 		return;
 	}
 
-	if (ArrowType == EArrowType::Explosive ||
-		ArrowType == EArrowType::QExplosive)
+	if (ArrowType == EArrowType::Explosive)
 	{
 		Explode(ImpactResult.ImpactPoint);
 		return;

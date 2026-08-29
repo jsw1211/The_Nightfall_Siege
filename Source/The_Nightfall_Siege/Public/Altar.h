@@ -8,7 +8,6 @@
 
 class UStaticMeshComponent;
 class UBoxComponent;
-class UCapsuleComponent;
 class UDecalComponent;
 class AMonster;
 class ALantern;
@@ -38,11 +37,6 @@ public:
 	// 상호작용 범위
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	UBoxComponent* InteractionBox;
-
-	// Keeps monsters off the altar platform without blocking players from its
-	// interaction range.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision")
-	UCapsuleComponent* MonsterExclusionCapsule;
 
 	// 활성화 여부
 	UPROPERTY(ReplicatedUsing = OnRep_Activated, BlueprintReadOnly)
@@ -125,8 +119,4 @@ public:
 		UPrimitiveComponent* OtherComp,
 		int32 OtherBodyIndex);
 
-	void PushMonstersOffAltar();
-
-private:
-	double NextMonsterEjectionAttemptTime = 0.0;
 };
