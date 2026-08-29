@@ -4008,8 +4008,8 @@ void ABaseCharacter::ExecuteAttack()
 
             if (Monster)
             {
-                Monster->TakeMonsterDamage(
-                    AttackPower);
+                //Monster->TakeMonsterDamage(
+                    //AttackPower);
 
                 UE_LOG(LogTemp, Warning,
                     TEXT("Basic Attack Hit"));
