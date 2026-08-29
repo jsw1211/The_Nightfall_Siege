@@ -237,13 +237,13 @@ public:
 	float EMultiplier = 1.2f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-	float RMultiplier = 3.f;
+	float RMultiplier = 2.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-	float HealAmount = 0.1f;
+	float HealAmount = 0.05f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-	float RHealAmount = 0.2f;	
+	float RHealAmount = 0.1f;
 
 	bool bRBonusDamage = false;
 
@@ -252,8 +252,8 @@ public:
 
 	float DefaultAttackSpeed = 1.0f;
 
-	float BuffAttackSpeed = 1.5f;
-	float PaladinWDefenseRate = 0.0f;
+	float BuffAttackSpeed = 1.2f;
+	float PaladinWDefenseRate = 0.1f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill", meta = (ClampMin = "0"))
 	float WBuffDuration = 5.0f;
@@ -661,8 +661,8 @@ public:
 	// accumulating the same upgrade again after travel/load.
 	float BaseAttackPower = 100.0f;
 
-	float WarriorRDamageBonus = 0.0f;
-	float WarriorWCooldownReduction = 0.0f;
+	float WarriorRDamageBonus = 0.3f;
+	float WarriorWCooldownReduction = 1.0f;
 	FTimerHandle WarriorRBuffHandle;
 
 	void EndWarriorRBuff();
