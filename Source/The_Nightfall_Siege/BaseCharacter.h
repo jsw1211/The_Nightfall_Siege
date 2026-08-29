@@ -134,6 +134,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	void Die();
+	void ApplyDeathRestrictions();
 	void PlayHit();
 
 	void EquipWeapon(TSubclassOf<AActor> WeaponClass, FName SocketName, AActor*& OutWeapon);
@@ -142,6 +143,8 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+	virtual void Restart() override;
+	virtual void PawnClientRestart() override;
 	virtual bool CanBeBaseForCharacter(APawn* Pawn) const override;
 
 	// Called to bind functionality to input
@@ -811,6 +814,10 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	bool IsDead() const;
+	bool ShouldSuppressRestoredDeathSound() const
+	{
+		return bSuppressRestoredDeathSound;
+	}
 
 	UPROPERTY(ReplicatedUsing = OnRep_DarknessDebuff, BlueprintReadOnly)
 	bool bDarknessDebuff = false;
@@ -836,6 +843,9 @@ public:
 	bool CanUseCombatAction() const;
 
 	// 상태
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "State")
+	bool bSuppressRestoredDeathSound = false;
+
 	UPROPERTY(ReplicatedUsing = OnRep_IsDead, VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	bool bIsDead = false;
 

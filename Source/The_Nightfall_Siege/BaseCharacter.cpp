@@ -340,26 +340,33 @@ void ABaseCharacter::BeginPlay()
 		LanternSafeRadius / FMath::Max(FMath::Abs(LanternDecalScale.Y), KINDA_SMALL_NUMBER),
 		LanternSafeRadius / FMath::Max(FMath::Abs(LanternDecalScale.Z), KINDA_SMALL_NUMBER));
 
-    // A retry travels to the village and creates a fresh pawn.  Restore every
-    // local/server movement and input restriction that death may have set.
-    bIsDead = false;
-    GetCharacterMovement()->SetMovementMode(MOVE_Walking);
-    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    // Fresh pawns normally start alive, but initial replication can already
+    // identify this one as a dead pawn restored after travel. Never overwrite
+    // that persistent state or replay its one-shot death presentation.
+    if (bIsDead)
+    {
+        ApplyDeathRestrictions();
+    }
+    else
+    {
+        GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+        GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+
+        if (APlayerController* RespawnController = Cast<APlayerController>(GetController()))
+        {
+            EnableInput(RespawnController);
+            if (ABaseController* BaseRespawnController = Cast<ABaseController>(RespawnController))
+            {
+                BaseRespawnController->ClearDeathRestrictions();
+            }
+        }
+    }
     // Cover the opposite spawn order from AMonster::BeginPlay. Movement-ignore
     // lists are local state, so this intentionally runs on server and clients.
     for (TActorIterator<AMonster> It(GetWorld()); It; ++It)
     {
         MoveIgnoreActorAdd(*It);
         It->MoveIgnoreActorAdd(this);
-    }
-
-    if (APlayerController* RespawnController = Cast<APlayerController>(GetController()))
-    {
-        EnableInput(RespawnController);
-        if (ABaseController* BaseRespawnController = Cast<ABaseController>(RespawnController))
-        {
-            BaseRespawnController->ClearDeathRestrictions();
-        }
     }
 
 	// The PlayerState is the server-authoritative character selection. The
@@ -645,6 +652,44 @@ void ABaseCharacter::BeginPlay()
     }
 }
 
+void ABaseCharacter::PawnClientRestart()
+{
+    Super::PawnClientRestart();
+
+    // ACharacter::PawnClientRestart can restore movement and input after the
+    // initial dead-state replication. Reapply the persistent restrictions
+    // without invoking Die() or replaying its one-shot presentation.
+    if (bIsDead)
+    {
+        OnRep_IsDead();
+    }
+}
+
+void ABaseCharacter::Restart()
+{
+    Super::Restart();
+
+    // Server possession dispatches Restart after PossessedBy restores travel
+    // state. Keep a restored dead pawn from returning to the default walking
+    // movement mode during that final restart step.
+    if (bIsDead)
+    {
+        ApplyDeathRestrictions();
+    }
+}
+
+void ABaseCharacter::ApplyDeathRestrictions()
+{
+    GetCharacterMovement()->DisableMovement();
+    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        PC->StopMovement();
+        DisableInput(PC);
+    }
+}
+
 void ABaseCharacter::Die()
 {
     if (bIsDead)
@@ -652,21 +697,14 @@ void ABaseCharacter::Die()
         return;
     }
 
+    bSuppressRestoredDeathSound = false;
     bIsDead = true;
     CurrentHP = 0.f;
 	SaveHealthToPlayerState();
 
     ForceNetUpdate();
 
-    GetCharacterMovement()->DisableMovement();
-
-    ABaseController* PC = Cast<ABaseController>(GetController());
-    if (PC)
-    {
-        DisableInput(PC);
-    }
-
-    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    ApplyDeathRestrictions();
 
     // 이거 추가해야 함
     PlayAnimMontage(DeathMontage);
@@ -688,13 +726,10 @@ void ABaseCharacter::OnRep_IsDead()
         return;
     }
 
-    GetCharacterMovement()->DisableMovement();
+    ApplyDeathRestrictions();
 
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
-        PC->StopMovement();
-        DisableInput(PC);
-
         if (ABaseController* BaseController = Cast<ABaseController>(PC))
         {
             BaseController->ShowDeathScreen(false);
@@ -4036,6 +4071,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ABaseCharacter, CurrentHP);
     DOREPLIFETIME(ABaseCharacter, MaxHP);
     DOREPLIFETIME(ABaseCharacter, AttackSpeed);
+    DOREPLIFETIME(ABaseCharacter, bSuppressRestoredDeathSound);
     DOREPLIFETIME(ABaseCharacter, bIsDead);
 	DOREPLIFETIME(ABaseCharacter, CharacterType);
     DOREPLIFETIME(ABaseCharacter, bHasLantern);
@@ -5223,6 +5259,15 @@ void ABaseCharacter::RestoreAuthoritativeStateFromPlayerState(ABasePlayerState* 
 	else
 	{
 		CurrentHP = MaxHP;
+	}
+	const bool bRestoredDeadState = !bIsLobbyMap && CurrentHP <= 0.f;
+	bSuppressRestoredDeathSound = bRestoredDeadState;
+	bIsDead = bRestoredDeadState;
+	if (bRestoredDeadState)
+	{
+		// Restore only the persistent restrictions. Die() would incorrectly
+		// replay the one-shot sound and notify GameMode of a second death.
+		OnRep_IsDead();
 	}
 	if (!bIsLobbyMap)
 	{
