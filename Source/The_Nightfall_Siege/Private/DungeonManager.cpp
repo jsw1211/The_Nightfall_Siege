@@ -7,6 +7,7 @@
 	#include "BaseCharacter.h"
 	#include "BasePlayerState.h"
 	#include "DungeonPrism.h"
+	#include "TheNightfallSiegeInstance.h"
 	#include "Components/CapsuleComponent.h"
 	#include "GameFramework/CharacterMovementComponent.h"
 	#include "Kismet/GameplayStatics.h"
@@ -437,6 +438,47 @@ void ADungeonManager::UpdatePlayerMonsterProgress(bool bMonsterWasKilled)
 
 		const AMonster* MonsterDefault = MonsterClass->GetDefaultObject<AMonster>();
 		TArray<AActor*> FoundAltars;
+		int32 MinimumCount = FMath::Max(1, MinMonstersPerAltar);
+		int32 MaximumCount = FMath::Max(MinimumCount, MaxMonstersPerAltar);
+		int32 DungeonEntryNumber = 0;
+
+		// The dungeon map is selected randomly, but the monster range follows the
+		// party's progress through the raid. ClearedDungeonCount is unchanged by a
+		// retry, so retrying a dungeon also keeps the same spawn range.
+		if (const UTheNightfallSiegeInstance* GameInstance =
+			Cast<UTheNightfallSiegeInstance>(GetGameInstance()))
+		{
+			DungeonEntryNumber = FMath::Clamp(
+				GameInstance->ClearedDungeonCount + 1,
+				1,
+				3);
+			switch (DungeonEntryNumber)
+			{
+			case 1:
+				MinimumCount = 3;
+				MaximumCount = 4;
+				break;
+			case 2:
+				MinimumCount = 4;
+				MaximumCount = 6;
+				break;
+			default:
+				MinimumCount = 6;
+				MaximumCount = 8;
+				break;
+			}
+		}
+
+		if (DungeonEntryNumber > 0)
+		{
+			UE_LOG(
+				LogTemp,
+				Log,
+				TEXT("Dungeon entry %d uses %d-%d monsters per altar"),
+				DungeonEntryNumber,
+				MinimumCount,
+				MaximumCount);
+		}
 
 		UGameplayStatics::GetAllActorsOfClass(
 			GetWorld(),
@@ -450,8 +492,6 @@ void ADungeonManager::UpdatePlayerMonsterProgress(bool bMonsterWasKilled)
 
 			if (!Altar) continue;
 
-			const int32 MinimumCount = FMath::Max(1, MinMonstersPerAltar);
-			const int32 MaximumCount = FMath::Max(MinimumCount, MaxMonstersPerAltar);
 			const int32 TargetMonsterCount = FMath::RandRange(
 				MinimumCount,
 				MaximumCount);
