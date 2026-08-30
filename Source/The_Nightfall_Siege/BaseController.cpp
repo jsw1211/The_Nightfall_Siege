@@ -10,6 +10,7 @@
 #include "LobbyWidget.h"
 #include "TimerManager.h"
 #include "The_Nightfall_SiegeGameMode.h"
+#include "GameFramework/PlayerState.h"
 #include "GameFramework/GameStateBase.h"
 #include "TheNightfallSiegeInstance.h"
 #include "NiagaraFunctionLibrary.h"
@@ -785,6 +786,14 @@ void ABaseController::ServerBackToTitle_Implementation()
     GameMode->ResetGameStateForNewRun();
 
     // 타이틀 화면으로 이동
-    GetWorld()->ServerTravel(
-        TEXT("/Game/Level/Lvl_MainMenu?listen"));
+    for (APlayerState* PS : GameMode->GameState->PlayerArray)
+    {
+        if (ABaseController* Controller =
+            PS ? Cast<ABaseController>(PS->GetOwner()) : nullptr)
+        {
+            Controller->ClientTravel(
+                TEXT("/Game/Level/Lvl_MainMenu"),
+                ETravelType::TRAVEL_Absolute);
+        }
+    }
 }
