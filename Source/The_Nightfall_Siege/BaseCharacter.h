@@ -53,6 +53,16 @@ enum class EItemAnimationState : uint8
 	PotionUsing
 };
 
+// Damage context for the right-hand weapon hitbox. Animation notifies only
+// open and close the hitbox; this context decides whether that window is an
+// actual basic/Q attack and which damage multiplier it uses.
+enum class EMeleeWeaponAttackType : uint8
+{
+	None,
+	Basic,
+	Q
+};
+
 UCLASS()
 class THE_NIGHTFALL_SIEGE_API ABaseCharacter : public ACharacter
 {
@@ -112,8 +122,6 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastAttack();
 
-	void ExecuteAttack();
-
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastQImpact(FVector Location);
 
@@ -122,6 +130,10 @@ public:
 
 	UFUNCTION(BlueprintPure)
 	float GetAttackPower() const { return AttackPower; }
+
+	// Called by AWeaponBase on the authority instance. Returning false keeps
+	// unrelated notify windows (for example Warrior E) damage-free.
+	bool TryGetMeleeWeaponHitDamage(float& OutDamage, bool& bOutIsQHit) const;
 
 	bool bInteractionLocked = false;
 
@@ -225,8 +237,6 @@ public:
 	// the exact max-health fraction without being absorbed by shields, defense,
 	// or lantern darkness protection.
 	void ApplyDarknessDebuffHealthDrain(float MaxHealthFraction);
-
-	void ExecuteQDamage();
 
 	// 스킬 사용 중인지
 	bool bIsUsingSkill = false;
@@ -862,6 +872,11 @@ public:
 	void ServerPickupCoin(class ACoin* CoinActor);
 
 protected:
+	EMeleeWeaponAttackType ActiveMeleeWeaponAttack = EMeleeWeaponAttackType::None;
+
+	void PrepareMeleeWeaponAttack(EMeleeWeaponAttackType AttackType);
+	void ClearMeleeWeaponAttack();
+
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;
 
@@ -998,7 +1013,6 @@ protected:
 	FTimerHandle RCooldownTimer;
 
 	// 스킬 데미지 타이밍
-	FTimerHandle QDamageTimer;
 	FTimerHandle EDamageTimer;
 
 	// 쿨타임 리셋 함수

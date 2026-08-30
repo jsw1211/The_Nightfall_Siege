@@ -310,6 +310,15 @@ void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Authoritative melee hitboxes are attached to animated weapon sockets.
+	// Keep bone transforms current even for dedicated servers and characters
+	// outside a listen-server host's camera, where rendering cannot drive them.
+	if (HasAuthority())
+	{
+		GetMesh()->VisibilityBasedAnimTickOption =
+			EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	}
+
     // Blueprint component templates can retain older BlockAllDynamic values
     // even after the native defaults change. Reapply this at runtime for every
     // class (Paladin, Warrior, and Archer) and on server plus clients.
@@ -680,6 +689,8 @@ void ABaseCharacter::Restart()
 
 void ABaseCharacter::ApplyDeathRestrictions()
 {
+    ClearMeleeWeaponAttack();
+
     GetCharacterMovement()->DisableMovement();
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
@@ -1805,8 +1816,30 @@ void ABaseCharacter::ApplyDarknessDebuffHealthDrain(float MaxHealthFraction)
 
 void ABaseCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
-    bIsUsingSkill = false;
-    bIsAttacking = false;
+    const UAnimInstance* AnimInstance = GetMesh()
+        ? GetMesh()->GetAnimInstance()
+        : nullptr;
+    const bool bSameMontageStillPlaying =
+        AnimInstance && Montage && AnimInstance->Montage_IsPlaying(Montage);
+
+    // A montage can be interrupted before its DisableWeaponCollision notify.
+    // Ignore a stale end callback when a newer instance of the same montage is
+    // already playing; otherwise it could close the new attack's hit window.
+    if (Montage == AttackMontage && !bSameMontageStillPlaying)
+    {
+        bIsAttacking = false;
+        ClearMeleeWeaponAttack();
+    }
+    else if (Montage == QMontage && !bSameMontageStillPlaying)
+    {
+        bIsUsingSkill = false;
+        ClearMeleeWeaponAttack();
+    }
+    else if ((Montage == EMontage || Montage == RMontage || Montage == WMontage) &&
+        !bSameMontageStillPlaying)
+    {
+        bIsUsingSkill = false;
+    }
 
     CompleteHeldItemAnimation(Montage, bInterrupted);
 
@@ -2792,6 +2825,17 @@ void ABaseCharacter::OnLanternUnequipFinished()
 
 void ABaseCharacter::EnableWeaponCollision()
 {
+    float Damage = 0.f;
+    bool bIsQHit = false;
+
+    // Anim notifies also run on clients, and Warrior E currently contains the
+    // same generic collision notifies. Only a server-side basic/Q context may
+    // open a damage-producing hitbox.
+    if (!TryGetMeleeWeaponHitDamage(Damage, bIsQHit))
+    {
+        return;
+    }
+
     AWeaponBase* Weapon = Cast<AWeaponBase>(RightHandWeapon);
 
     if (Weapon)
@@ -2812,6 +2856,46 @@ void ABaseCharacter::DisableWeaponCollision()
 
         UE_LOG(LogTemp, Warning, TEXT("Collision OFF"));
     }
+}
+
+void ABaseCharacter::PrepareMeleeWeaponAttack(EMeleeWeaponAttackType AttackType)
+{
+    // Every attack begins with a closed hitbox. The montage notify is the only
+    // operation allowed to open it later in the animation.
+    if (AWeaponBase* Weapon = Cast<AWeaponBase>(RightHandWeapon))
+    {
+        Weapon->DisableCollision();
+    }
+
+    ActiveMeleeWeaponAttack = AttackType;
+}
+
+void ABaseCharacter::ClearMeleeWeaponAttack()
+{
+    if (AWeaponBase* Weapon = Cast<AWeaponBase>(RightHandWeapon))
+    {
+        Weapon->DisableCollision();
+    }
+
+    ActiveMeleeWeaponAttack = EMeleeWeaponAttackType::None;
+}
+
+bool ABaseCharacter::TryGetMeleeWeaponHitDamage(
+    float& OutDamage,
+    bool& bOutIsQHit) const
+{
+    OutDamage = 0.f;
+    bOutIsQHit = false;
+
+    if (!HasAuthority() || bIsDead ||
+        ActiveMeleeWeaponAttack == EMeleeWeaponAttackType::None)
+    {
+        return false;
+    }
+
+    bOutIsQHit = ActiveMeleeWeaponAttack == EMeleeWeaponAttackType::Q;
+    OutDamage = AttackPower * (bOutIsQHit ? QMultiplier : 1.f);
+    return OutDamage > 0.f;
 }
 
 void ABaseCharacter::SpawnArrow()
@@ -3206,22 +3290,16 @@ void ABaseCharacter::ServerUseQ_Implementation()
         false
     );
 
-    // 팔라딘 / 워리어 Q는 0.8초 후 데미지 적용
+    // Melee Q damage is resolved only while its montage notifies have the
+    // right-hand weapon collision enabled. Archer Q remains projectile-driven.
     if (CharacterType == ECharacterType::Paladin ||
         CharacterType == ECharacterType::Warrior)
     {
-        GetWorldTimerManager().SetTimer(
-            QDamageTimer,
-            this,
-            &ABaseCharacter::ExecuteQDamage,
-            0.8f,
-            false
-        );
+        PrepareMeleeWeaponAttack(EMeleeWeaponAttackType::Q);
     }
     else
     {
-        // 아처는 기존처럼 투사체가 데미지를 처리하므로 여기서 Q 데미지를 적용하지 않음.
-        ExecuteQDamage();
+        ClearMeleeWeaponAttack();
     }
 
     ClientStartSkillCooldown(ESkillType::Q, QCooldown);
@@ -3240,22 +3318,41 @@ void ABaseCharacter::MulticastPlayQ_Implementation()
         AICon->StopMovement();
     }
 
+    float PlayedDuration = 0.f;
+
     if (CharacterType == ECharacterType::Archer)
     {
         if (QMontage)
         {
-            PlayAnimMontage(QMontage, AttackSpeed);
+            PlayedDuration = PlayAnimMontage(QMontage, AttackSpeed);
         }
     }
     else
     {
         if (QMontage)
         {
-            PlayAnimMontage(QMontage);
+            PlayedDuration = PlayAnimMontage(QMontage);
         }
-        else
+    }
+
+    // No montage means no notify can ever open a valid damage window or later
+    // deliver OnMontageEnded. Roll the action state back immediately.
+    if (PlayedDuration <= 0.f)
+    {
+        bIsUsingSkill = false;
+        ClearMeleeWeaponAttack();
+    }
+    else
+    {
+        // PlayAnimMontage can synchronously end an older montage instance.
+        // Re-arm the new action after it returns so that stale callback cannot
+        // clear the context prepared by ServerUseQ.
+        bIsUsingSkill = true;
+        if (HasAuthority() &&
+            (CharacterType == ECharacterType::Paladin ||
+             CharacterType == ECharacterType::Warrior))
         {
-            bIsUsingSkill = false;
+            ActiveMeleeWeaponAttack = EMeleeWeaponAttackType::Q;
         }
     }
 
@@ -3301,77 +3398,6 @@ void ABaseCharacter::UseQ()
         &ABaseCharacter::ResetQCooldown,
         QCooldown,
         false);
-}
-
-void ABaseCharacter::ExecuteQDamage()
-{
-    UE_LOG(LogTemp, Warning, TEXT("ExecuteQDamage"));
-
-    // Archer Q is projectile-driven. The old point-blank sphere dealt a
-    // second hit before the volley reached the same target.
-    if (CharacterType == ECharacterType::Archer)
-    {
-        return;
-    }
-
-    FVector Start = GetActorLocation();
-
-    TArray<FOverlapResult> Overlaps;
-
-    // Melee Q range is measured from the outer edge of this character's
-    // capsule, matching the monster attack-range calculation.
-    const bool bMeleeCharacter =
-        CharacterType == ECharacterType::Warrior || CharacterType == ECharacterType::Paladin;
-    const float QCollisionRadius = bMeleeCharacter
-        ? QRadius + GetCapsuleComponent()->GetScaledCapsuleRadius()
-        : QRadius;
-    FCollisionShape Sphere = FCollisionShape::MakeSphere(QCollisionRadius);
-
-    bool bHit = GetWorld()->OverlapMultiByChannel(
-        Overlaps,
-        Start,
-        FQuat::Identity,
-        ECC_Pawn,
-        Sphere);
-
-    UE_LOG(LogTemp, Warning, TEXT("Hit : %d"), bHit);
-
-    if (bHit)
-    {
-        for (auto& Result : Overlaps)
-        {
-            AMonster* Monster = Cast<AMonster>(Result.GetActor());
-
-            UE_LOG(LogTemp, Warning, TEXT("Overlap : %s"),
-                *Result.GetActor()->GetName());
-
-            if (Monster)
-            {
-                Monster->TakeMonsterDamage(AttackPower * QMultiplier);
-
-                MulticastQImpact(
-                    Monster->GetActorLocation() + FVector(0, 0, 80)
-                );
-            }
-
-            ADragonBoss* Dragon = Cast<ADragonBoss>(Result.GetActor());
-
-            if (Dragon)
-            {
-                Dragon->TakeBossDamage(AttackPower * QMultiplier);
-
-                if (QImpactEffect)
-                {
-                    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-                        GetWorld(),
-                        QImpactEffect,
-                        Dragon->GetActorLocation() + FVector(0, 0, 120));
-                }
-
-                UE_LOG(LogTemp, Warning, TEXT("Dragon Hit By Q"));
-            }
-        }
-    }
 }
 
 void ABaseCharacter::ServerUseW_Implementation()
@@ -3500,6 +3526,15 @@ void ABaseCharacter::MulticastPlayW_Implementation()
 
 void ABaseCharacter::ServerUseE_Implementation()
 {
+    if (!bCanUseE || !CanUseCombatAction())
+    {
+        return;
+    }
+
+    // Warrior E has generic weapon-collision notifies, but its gameplay damage
+    // remains the existing timed area attack rather than an extra axe hit.
+    ClearMeleeWeaponAttack();
+
     MulticastPlayE();
 
     ExecuteE();
@@ -3942,8 +3977,18 @@ void ABaseCharacter::ServerAttack_Implementation(FRotator TargetRotation)
     }
 
     SetActorRotation(TargetRotation);
+
+    if (CharacterType == ECharacterType::Paladin ||
+        CharacterType == ECharacterType::Warrior)
+    {
+        PrepareMeleeWeaponAttack(EMeleeWeaponAttackType::Basic);
+    }
+    else
+    {
+        ClearMeleeWeaponAttack();
+    }
+
     MulticastAttack();
-    ExecuteAttack();
 }
 
 void ABaseCharacter::MulticastAttack_Implementation()
@@ -3957,75 +4002,27 @@ void ABaseCharacter::MulticastAttack_Implementation()
         AICon->StopMovement();
     }
 
-    if (AttackMontage)
+    const float PlayedDuration = AttackMontage
+        ? PlayAnimMontage(AttackMontage, AttackSpeed)
+        : 0.f;
+
+    // Without a playing montage there are no collision notifies and no
+    // OnMontageEnded callback, so do not leave the character/context locked.
+    if (PlayedDuration <= 0.f)
     {
-        PlayAnimMontage(
-            AttackMontage,
-            AttackSpeed);
+        bIsAttacking = false;
+        ClearMeleeWeaponAttack();
     }
-}
-
-void ABaseCharacter::ExecuteAttack()
-{
-    if (!HasAuthority())
+    else
     {
-        return;
-    }
-
-    
-
-    // Archer basic attacks are resolved by AArrowProjectile. Keeping the
-    // melee overlap here caused a close target to take one instant hit and a
-    // second hit from the arrow.
-    if (CharacterType == ECharacterType::Archer)
-    {
-        return;
-    }
-
-    FVector Start = GetActorLocation();
-
-    TArray<FOverlapResult> Overlaps;
-
-    // Warrior and Paladin use the same 120-unit capsule-edge range as a
-    // monster attack.
-    const float AttackRange = 120.f + GetCapsuleComponent()->GetScaledCapsuleRadius();
-    FCollisionShape Sphere = FCollisionShape::MakeSphere(AttackRange);
-
-    bool bHit =
-        GetWorld()->OverlapMultiByChannel(
-            Overlaps,
-            Start,
-            FQuat::Identity,
-            ECC_Pawn,
-            Sphere);
-
-    if (bHit)
-    {
-        for (auto& Result : Overlaps)
+        // Reassert state after PlayAnimMontage in case it synchronously fired
+        // the end callback for an older montage instance.
+        bIsAttacking = true;
+        if (HasAuthority() &&
+            (CharacterType == ECharacterType::Paladin ||
+             CharacterType == ECharacterType::Warrior))
         {
-            AMonster* Monster =
-                Cast<AMonster>(Result.GetActor());
-
-            if (Monster)
-            {
-                //Monster->TakeMonsterDamage(
-                    //AttackPower);
-
-                UE_LOG(LogTemp, Warning,
-                    TEXT("Basic Attack Hit"));
-            }
-
-            ADragonBoss* Dragon =
-                Cast<ADragonBoss>(Result.GetActor());
-
-            if (Dragon)
-            {
-                Dragon->TakeBossDamage(
-                    AttackPower);
-
-                UE_LOG(LogTemp, Warning,
-                    TEXT("Basic Attack Hit Dragon"));
-            }
+            ActiveMeleeWeaponAttack = EMeleeWeaponAttackType::Basic;
         }
     }
 }

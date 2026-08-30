@@ -78,6 +78,17 @@ void AWeaponBase::Tick(float DeltaTime)
 
 void AWeaponBase::OnWeaponOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
+	float Damage = 0.f;
+	bool bIsQHit = false;
+
+	// Montage notifies execute on every machine. Only the authoritative attack
+	// context may turn an overlap into gameplay damage.
+	if (!OwnerCharacter ||
+		!OwnerCharacter->TryGetMeleeWeaponHitDamage(Damage, bIsQHit))
+	{
+		return;
+	}
+
 	AMonster* Monster = Cast<AMonster>(OtherActor);
 
 	if (Monster)
@@ -91,9 +102,12 @@ void AWeaponBase::OnWeaponOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 
 		UE_LOG(LogTemp, Warning, TEXT("Weapon Hit Monster"));
 
-		if (OwnerCharacter)
+		Monster->TakeMonsterDamage(Damage);
+
+		if (bIsQHit)
 		{
-			Monster->TakeMonsterDamage(OwnerCharacter->GetAttackPower());
+			OwnerCharacter->MulticastQImpact(
+				Monster->GetActorLocation() + FVector(0.f, 0.f, 80.f));
 		}
 	}
 
@@ -110,9 +124,12 @@ void AWeaponBase::OnWeaponOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 		UE_LOG(LogTemp, Warning,
 			TEXT("Weapon Hit Dragon"));
 
-		if (OwnerCharacter)
+		Dragon->TakeBossDamage(Damage);
+
+		if (bIsQHit)
 		{
-			Dragon->TakeBossDamage(OwnerCharacter->GetAttackPower());
+			OwnerCharacter->MulticastQImpact(
+				Dragon->GetActorLocation() + FVector(0.f, 0.f, 120.f));
 		}
 	}
 }
