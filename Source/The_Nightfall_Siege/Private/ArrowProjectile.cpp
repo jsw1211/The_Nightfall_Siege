@@ -80,6 +80,23 @@ AArrowProjectile::AArrowProjectile()
 void AArrowProjectile::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// ProjectileMovement automatically chose the Blueprint's non-primitive
+	// SceneRoot, so the child sphere never participated in the movement sweep.
+	// Promote the sphere at runtime while preserving the authored mesh offsets.
+	// This also makes the trail (attached after BeginPlay) follow the component
+	// whose per-actor ignore list actually controls projectile movement.
+	USceneComponent* PreviousRoot = GetRootComponent();
+	if (Collision && PreviousRoot && PreviousRoot != Collision)
+	{
+		Collision->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+		SetRootComponent(Collision);
+		PreviousRoot->AttachToComponent(
+			Collision,
+			FAttachmentTransformRules::KeepWorldTransform);
+	}
+
+	ProjectileMovement->SetUpdatedComponent(Collision);
 	
 	// Blueprint defaults must never make an arrow or its visual ricochet.
 	ProjectileMovement->bShouldBounce = false;
@@ -102,11 +119,23 @@ void AArrowProjectile::BeginPlay()
 	Mesh->SetSimulatePhysics(false);
 	Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-	// Keep altar physics and interaction intact for every other actor. Only the
-	// projectile's swept root ignores its owner and altar actors.
+	// Keep these actors' own collision settings intact. Only this projectile's
+	// moving collision ignores its owner, other players, and altar actors.
 	if (OwnerCharacter)
 	{
 		Collision->IgnoreActorWhenMoving(OwnerCharacter, true);
+	}
+
+	// Players, monsters, and the dragon all use the Pawn channel, so changing
+	// that channel would also remove valid enemy hits. Ignore only the other
+	// player-character actors for this projectile's movement sweep instead.
+	for (TActorIterator<ABaseCharacter> It(GetWorld()); It; ++It)
+	{
+		ABaseCharacter* PlayerCharacter = *It;
+		if (PlayerCharacter && PlayerCharacter != OwnerCharacter)
+		{
+			Collision->IgnoreActorWhenMoving(PlayerCharacter, true);
+		}
 	}
 
 	for (TActorIterator<AAltar> It(GetWorld()); It; ++It)
