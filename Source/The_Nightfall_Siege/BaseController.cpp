@@ -13,6 +13,7 @@
 #include "TheNightfallSiegeInstance.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
@@ -22,6 +23,36 @@
 #include "UObject/ConstructorHelpers.h"
 #include "The_Nightfall_SiegeGameMode.h"
 #include "Kismet/KismetSystemLibrary.h"
+
+namespace
+{
+void ApplyImmediateMoveFacing(
+    ABaseCharacter* Character,
+    const FRotator& TargetRotation)
+{
+    if (!Character)
+    {
+        return;
+    }
+
+    // An autonomous proxy can still have a delayed saved move waiting to be
+    // combined with the next CharacterMovement update. That combine rewinds
+    // the capsule to the saved move's start rotation, which can undo a
+    // SetActorRotation performed by the click handler for a frame (or until
+    // the next replicated update). Send the pending move before changing yaw
+    // so the new facing becomes the start rotation of the next predicted move.
+    if (UCharacterMovementComponent* Movement =
+        Character->GetCharacterMovement())
+    {
+        Movement->FlushServerMoves();
+    }
+
+    Character->SetActorRotation(FRotator(
+        0.f,
+        TargetRotation.Yaw,
+        0.f));
+}
+}
 
 void ABaseController::SetupInputComponent()
 {
@@ -94,7 +125,7 @@ void ABaseController::MoveToMouse()
         FRotator TargetRotation =
             Direction.Rotation();
 
-        MyCharacter->SetActorRotation(TargetRotation);
+        ApplyImmediateMoveFacing(MyCharacter, TargetRotation);
 
         if (ClickFX)
         {
@@ -148,7 +179,15 @@ void ABaseController::RotateCharacterToCursor()
 
     FRotator TargetRotation = Direction.Rotation();
 
-    BasePawn->SetActorRotation(TargetRotation);
+    if (ABaseCharacter* BaseCharacter =
+        Cast<ABaseCharacter>(BasePawn))
+    {
+        ApplyImmediateMoveFacing(BaseCharacter, TargetRotation);
+    }
+    else
+    {
+        BasePawn->SetActorRotation(TargetRotation);
+    }
 }
 
 void ABaseController::BeginPlay()
@@ -363,7 +402,8 @@ void ABaseController::ServerStartMoveToLocation_Implementation(
         return;
     }
 
-    MyCharacter->SetActorRotation(TargetRotation);
+    ApplyImmediateMoveFacing(MyCharacter, TargetRotation);
+    MyCharacter->ForceNetUpdate();
     UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, TargetLocation);
 }
 
