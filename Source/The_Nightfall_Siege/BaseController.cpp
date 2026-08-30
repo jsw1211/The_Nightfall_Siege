@@ -4,6 +4,7 @@
 #include "BaseController.h"
 #include "BaseCharacter.h"
 #include "PauseMenuWidget.h"
+#include "PausedOverlayWidget.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "Blueprint/UserWidget.h"
 #include "BasePlayerState.h"
@@ -12,6 +13,7 @@
 #include "The_Nightfall_SiegeGameMode.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/GameStateBase.h"
+#include "GameFramework/WorldSettings.h"
 #include "TheNightfallSiegeInstance.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
@@ -33,6 +35,16 @@ void ABaseController::SetupInputComponent()
 	FInputKeyBinding& PauseBinding = InputComponent->BindKey(
 		EKeys::Escape, IE_Pressed, this, &ABaseController::TogglePauseMenu);
 	PauseBinding.bExecuteWhenPaused = true;
+}
+
+void ABaseController::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    if (IsLocalController())
+    {
+        RefreshGlobalPausePresentation();
+    }
 }
 
 void ABaseController::OnRightClick()
@@ -636,50 +648,180 @@ void ABaseController::TogglePauseMenu()
         return;
     }
 
-    if (bPauseMenuVisible)
+    if (UGameplayStatics::IsGamePaused(this))
     {
-        ResumePausedGame();
-        return;
-    }
-
-    if (!PauseMenuWidget)
-    {
-        TSubclassOf<UPauseMenuWidget> WidgetClass = PauseMenuWidgetClass;
-        if (!WidgetClass)
+        const AWorldSettings* WorldSettings = GetWorldSettings();
+        if (WorldSettings &&
+            WorldSettings->GetPauserPlayerState() == PlayerState)
         {
-            WidgetClass = UPauseMenuWidget::StaticClass();
+            ResumePausedGame();
         }
-        PauseMenuWidget = CreateWidget<UPauseMenuWidget>(this, WidgetClass);
-    }
-    if (!PauseMenuWidget)
-    {
         return;
     }
 
-    PauseMenuWidget->AddToViewport(2000);
-    bPauseMenuVisible = true;
-    UGameplayStatics::SetGamePaused(this, true);
-
-    bShowMouseCursor = true;
-    FInputModeUIOnly InputMode;
-    InputMode.SetWidgetToFocus(PauseMenuWidget->TakeWidget());
-    SetInputMode(InputMode);
+    ServerRequestGlobalPause(true);
 }
 
-void ABaseController::ResumePausedGame()
+void ABaseController::ServerRequestGlobalPause_Implementation(bool bShouldPause)
 {
-    if (!bPauseMenuVisible)
+    AWorldSettings* WorldSettings = GetWorldSettings();
+    if (!WorldSettings || !PlayerState)
     {
         return;
     }
 
-    UGameplayStatics::SetGamePaused(this, false);
-    if (PauseMenuWidget)
+    APlayerState* CurrentPauser = WorldSettings->GetPauserPlayerState();
+
+    if (bShouldPause)
+    {
+        // Use the authoritative version of the requesting controller so a
+        // remote client's PlayerState, rather than the listen host, owns the
+        // shared pause.
+        FCanUnpause CanUnpauseDelegate;
+        CanUnpauseDelegate.BindUObject(
+            this, &ABaseController::CanClearGlobalPause);
+
+        if (CurrentPauser || !SetPause(true, CanUnpauseDelegate))
+        {
+            return;
+        }
+
+        WorldSettings->ForceNetUpdate();
+        return;
+    }
+
+    // Players viewing the read-only Paused notice cannot resume somebody
+    // else's pause.
+    if (CurrentPauser != PlayerState || !SetPause(false))
+    {
+        return;
+    }
+
+    // SetPause forces a WorldSettings update only when pausing. Push the
+    // cleared PauserPlayerState immediately on resume as well.
+    WorldSettings->ForceNetUpdate();
+}
+
+bool ABaseController::CanClearGlobalPause() const
+{
+    // The server RPC performs the ownership check. Binding this delegate to
+    // the requesting controller also lets GameMode remove the pause cleanly
+    // if that controller disconnects while the world is stopped.
+    return true;
+}
+
+void ABaseController::RefreshGlobalPausePresentation()
+{
+    const AWorldSettings* WorldSettings = GetWorldSettings();
+    APlayerState* Pauser = WorldSettings
+        ? WorldSettings->GetPauserPlayerState()
+        : nullptr;
+
+    const bool bIsPaused = Pauser != nullptr;
+    const bool bIsPauseOwner = bIsPaused && Pauser == PlayerState;
+
+    if (bIsPaused)
+    {
+        if (!bGlobalPausePresentationActive ||
+            bPauseMenuVisible != bIsPauseOwner)
+        {
+            ShowGlobalPausePresentation(bIsPauseOwner);
+        }
+    }
+    else if (bGlobalPausePresentationActive)
+    {
+        HideGlobalPausePresentation();
+    }
+}
+
+void ABaseController::ShowGlobalPausePresentation(bool bIsPauseOwner)
+{
+    const bool bWasPauseMenuVisible = bPauseMenuVisible;
+
+    if (PauseMenuWidget && PauseMenuWidget->IsInViewport())
     {
         PauseMenuWidget->RemoveFromParent();
     }
-    bPauseMenuVisible = false;
+    if (PausedOverlayWidget && PausedOverlayWidget->IsInViewport())
+    {
+        PausedOverlayWidget->RemoveFromParent();
+    }
 
+    bPauseMenuVisible = false;
+    bGlobalPausePresentationActive = true;
+
+    if (bIsPauseOwner)
+    {
+        if (!PauseMenuWidget)
+        {
+            TSubclassOf<UPauseMenuWidget> WidgetClass = PauseMenuWidgetClass;
+            if (!WidgetClass)
+            {
+                WidgetClass = UPauseMenuWidget::StaticClass();
+            }
+            PauseMenuWidget = CreateWidget<UPauseMenuWidget>(this, WidgetClass);
+        }
+
+        if (PauseMenuWidget)
+        {
+            PauseMenuWidget->AddToViewport(2000);
+            bPauseMenuVisible = true;
+
+            bShowMouseCursor = true;
+            // Keep the legacy Escape binding available while Slate owns the
+            // menu focus. Other gameplay bindings do not execute while the
+            // world is paused because only Escape opts into paused input.
+            FInputModeGameAndUI InputMode;
+            InputMode.SetWidgetToFocus(PauseMenuWidget->TakeWidget());
+            InputMode.SetLockMouseToViewportBehavior(
+                EMouseLockMode::DoNotLock);
+            InputMode.SetHideCursorDuringCapture(false);
+            SetInputMode(InputMode);
+        }
+        return;
+    }
+
+    if (bWasPauseMenuVisible)
+    {
+        RestoreGameplayInputAfterPause();
+    }
+
+    if (!PausedOverlayWidget)
+    {
+        PausedOverlayWidget = CreateWidget<UPausedOverlayWidget>(
+            this, UPausedOverlayWidget::StaticClass());
+    }
+
+    if (PausedOverlayWidget)
+    {
+        PausedOverlayWidget->AddToViewport(2000);
+    }
+}
+
+void ABaseController::HideGlobalPausePresentation()
+{
+    const bool bWasPauseMenuVisible = bPauseMenuVisible;
+
+    if (PauseMenuWidget && PauseMenuWidget->IsInViewport())
+    {
+        PauseMenuWidget->RemoveFromParent();
+    }
+    if (PausedOverlayWidget && PausedOverlayWidget->IsInViewport())
+    {
+        PausedOverlayWidget->RemoveFromParent();
+    }
+
+    bPauseMenuVisible = false;
+    bGlobalPausePresentationActive = false;
+
+    if (bWasPauseMenuVisible)
+    {
+        RestoreGameplayInputAfterPause();
+    }
+}
+
+void ABaseController::RestoreGameplayInputAfterPause()
+{
     bShowMouseCursor = true;
     FInputModeGameOnly InputMode;
     InputMode.SetConsumeCaptureMouseDown(false);
@@ -688,9 +830,44 @@ void ABaseController::ResumePausedGame()
     SetIgnoreLookInput(false);
 }
 
+void ABaseController::ResumePausedGame()
+{
+    if (!IsLocalController() || !bPauseMenuVisible)
+    {
+        return;
+    }
+
+    ServerRequestGlobalPause(false);
+}
+
 void ABaseController::ExitPausedGame()
 {
-    UGameplayStatics::SetGamePaused(this, false);
+    if (bPauseMenuVisible)
+    {
+        // Wait for the server to release the shared pause before closing the
+        // requesting client. Quitting immediately can drop the unpause RPC.
+        ServerExitPausedGame();
+        return;
+    }
+    ExitGame();
+}
+
+void ABaseController::ServerExitPausedGame_Implementation()
+{
+    AWorldSettings* WorldSettings = GetWorldSettings();
+    if (!WorldSettings ||
+        WorldSettings->GetPauserPlayerState() != PlayerState ||
+        !SetPause(false))
+    {
+        return;
+    }
+
+    WorldSettings->ForceNetUpdate();
+    ClientQuitAfterPauseReleased();
+}
+
+void ABaseController::ClientQuitAfterPauseReleased_Implementation()
+{
     ExitGame();
 }
 

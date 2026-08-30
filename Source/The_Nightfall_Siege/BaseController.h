@@ -10,6 +10,7 @@
 
 class UHierarchicalInstancedStaticMeshComponent;
 class UPauseMenuWidget;
+class UPausedOverlayWidget;
 
 #include "BaseController.generated.h"
 
@@ -23,6 +24,7 @@ class THE_NIGHTFALL_SIEGE_API ABaseController : public APlayerController
 
 protected:
 	virtual void SetupInputComponent() override;
+	virtual void Tick(float DeltaSeconds) override;
 
 	void OnRightClick();
 
@@ -81,6 +83,15 @@ protected:
 	void ResumePausedGame();
 	void ExitPausedGame();
 
+	UFUNCTION(Server, Reliable)
+	void ServerRequestGlobalPause(bool bShouldPause);
+
+	UFUNCTION(Server, Reliable)
+	void ServerExitPausedGame();
+
+	UFUNCTION(Client, Reliable)
+	void ClientQuitAfterPauseReleased();
+
 	bool IsRetryAvailable() const { return bRetryAvailable; }
 	bool IsGameClearVisible() const { return bGameClearVisible; }
 
@@ -121,9 +132,19 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UPauseMenuWidget> PauseMenuWidget = nullptr;
 
+	UPROPERTY()
+	TObjectPtr<UPausedOverlayWidget> PausedOverlayWidget = nullptr;
+
 	bool bRetryAvailable = false;
 	bool bGameClearVisible = false;
 	bool bPauseMenuVisible = false;
+	bool bGlobalPausePresentationActive = false;
+
+	void RefreshGlobalPausePresentation();
+	void ShowGlobalPausePresentation(bool bIsPauseOwner);
+	void HideGlobalPausePresentation();
+	void RestoreGameplayInputAfterPause();
+	bool CanClearGlobalPause() const;
 
 	FTimerHandle GameClearTimerHandle;
 
