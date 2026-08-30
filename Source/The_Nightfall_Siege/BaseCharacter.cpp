@@ -143,7 +143,11 @@ ABaseCharacter::ABaseCharacter()
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationRoll = false;
 
-	GetCharacterMovement()->bOrientRotationToMovement = false;
+	// Follow the current navigation path segment instead of looking straight at
+	// the final click location. CharacterMovement also predicts this rotation on
+	// the owning client and replicates the authoritative yaw to other clients.
+	GetCharacterMovement()->bOrientRotationToMovement = true;
+	GetCharacterMovement()->bUseControllerDesiredRotation = false;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f);
 
     SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
@@ -309,6 +313,15 @@ ABaseCharacter::ABaseCharacter()
 void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Playable characters are Blueprint-derived. Reapply the shared movement
+	// facing policy after Blueprint defaults/construction have been loaded so
+	// host and remote-client pawns always use the same path-facing behavior.
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->bOrientRotationToMovement = true;
+		Movement->bUseControllerDesiredRotation = false;
+	}
 
 	// Authoritative melee hitboxes are attached to animated weapon sockets.
 	// Keep bone transforms current even for dedicated servers and characters

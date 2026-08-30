@@ -13,7 +13,6 @@
 #include "TheNightfallSiegeInstance.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
-#include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
@@ -23,36 +22,6 @@
 #include "UObject/ConstructorHelpers.h"
 #include "The_Nightfall_SiegeGameMode.h"
 #include "Kismet/KismetSystemLibrary.h"
-
-namespace
-{
-void ApplyImmediateMoveFacing(
-    ABaseCharacter* Character,
-    const FRotator& TargetRotation)
-{
-    if (!Character)
-    {
-        return;
-    }
-
-    // An autonomous proxy can still have a delayed saved move waiting to be
-    // combined with the next CharacterMovement update. That combine rewinds
-    // the capsule to the saved move's start rotation, which can undo a
-    // SetActorRotation performed by the click handler for a frame (or until
-    // the next replicated update). Send the pending move before changing yaw
-    // so the new facing becomes the start rotation of the next predicted move.
-    if (UCharacterMovementComponent* Movement =
-        Character->GetCharacterMovement())
-    {
-        Movement->FlushServerMoves();
-    }
-
-    Character->SetActorRotation(FRotator(
-        0.f,
-        TargetRotation.Yaw,
-        0.f));
-}
-}
 
 void ABaseController::SetupInputComponent()
 {
@@ -66,21 +35,7 @@ void ABaseController::SetupInputComponent()
 
 void ABaseController::OnRightClick()
 {
-    ABaseCharacter* MyCharacter =
-        Cast<ABaseCharacter>(GetPawn());
-
-    if (!MyCharacter || MyCharacter->bIsDead)
-    {
-        return;
-    }
-
-    FHitResult Hit;
-    if (GetHitResultUnderCursor(ECC_Visibility, false, Hit))
-    {
-        RotateCharacterToCursor();
-
-        UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, Hit.Location);
-    }
+    MoveToMouse();
 }
 
 void ABaseController::MoveToMouse()
@@ -117,16 +72,6 @@ void ABaseController::MoveToMouse()
 
     if (Hit.bBlockingHit)
     {
-        FVector Direction =
-            Hit.Location - MyCharacter->GetActorLocation();
-
-        Direction.Z = 0.f;
-
-        FRotator TargetRotation =
-            Direction.Rotation();
-
-        ApplyImmediateMoveFacing(MyCharacter, TargetRotation);
-
         if (ClickFX)
         {
             UNiagaraFunctionLibrary::SpawnSystemAtLocation(
@@ -152,41 +97,8 @@ void ABaseController::MoveToMouse()
         // so it must not start the path twice.
         if (!HasAuthority())
         {
-            ServerStartMoveToLocation(Hit.Location, TargetRotation);
+            ServerStartMoveToLocation(Hit.Location);
         }
-    }
-}
-
-void ABaseController::RotateCharacterToCursor()
-{
-    FHitResult Hit;
-    if (!GetHitResultUnderCursor(ECC_Visibility, false, Hit))
-        return;
-
-    APawn* BasePawn = GetPawn();
-    if (!BasePawn) return;
-
-    if (ABaseCharacter* BaseCharacter = Cast<ABaseCharacter>(BasePawn))
-    {
-        if (BaseCharacter->bIsDead)
-        {
-            return;
-        }
-    }
-
-    FVector Direction = Hit.Location - BasePawn->GetActorLocation();
-    Direction.Z = 0.f;
-
-    FRotator TargetRotation = Direction.Rotation();
-
-    if (ABaseCharacter* BaseCharacter =
-        Cast<ABaseCharacter>(BasePawn))
-    {
-        ApplyImmediateMoveFacing(BaseCharacter, TargetRotation);
-    }
-    else
-    {
-        BasePawn->SetActorRotation(TargetRotation);
     }
 }
 
@@ -391,8 +303,7 @@ void ABaseController::SelectCharacter(ECharacterType NewCharacter)
 }
 
 void ABaseController::ServerStartMoveToLocation_Implementation(
-    FVector TargetLocation,
-    FRotator TargetRotation)
+    FVector TargetLocation)
 {
     ABaseCharacter* MyCharacter = Cast<ABaseCharacter>(GetPawn());
     if (!MyCharacter || MyCharacter->bIsDead ||
@@ -402,8 +313,6 @@ void ABaseController::ServerStartMoveToLocation_Implementation(
         return;
     }
 
-    ApplyImmediateMoveFacing(MyCharacter, TargetRotation);
-    MyCharacter->ForceNetUpdate();
     UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, TargetLocation);
 }
 

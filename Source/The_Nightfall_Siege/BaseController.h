@@ -28,8 +28,6 @@ protected:
 
 	void MoveToMouse();
 
-	void RotateCharacterToCursor();
-
 	virtual void BeginPlay() override;
 
 	UPROPERTY(EditDefaultsOnly, Category = UI)
@@ -60,7 +58,7 @@ protected:
 
 	public:
 	UFUNCTION(Server, Reliable)
-	void ServerStartMoveToLocation(FVector TargetLocation, FRotator TargetRotation);
+	void ServerStartMoveToLocation(FVector TargetLocation);
 
 	UFUNCTION(Client, Reliable)
 	void ClientShowYouDied();
