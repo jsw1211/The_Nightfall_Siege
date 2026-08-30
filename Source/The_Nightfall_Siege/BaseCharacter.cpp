@@ -437,7 +437,10 @@ void ABaseCharacter::BeginPlay()
         MaxHP = 300.f;
         AttackPower = 200.f;
 
+        // Q
         QMultiplier = 1.0f;
+        QCooldown = 5.f;
+
         EMultiplier = 1.0f;
         RMultiplier = 2.0f;
         BuffAttackSpeed = 1.2f; // W Lv.1 = 1.2배
