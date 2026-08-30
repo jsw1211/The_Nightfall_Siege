@@ -598,24 +598,29 @@ void ABaseCharacter::BeginPlay()
 
 	RestoreSkillUpgrades();
 
-    ABasePlayerState* PS = GetPlayerState<ABasePlayerState>();
-
-    if (PS)
+    // PlayerState is the durable source only on the authority.  A client can
+    // receive the pawn and PlayerState in either order; copying PlayerState
+    // values into replicated pawn properties here can overwrite a newer
+    // bLanternEquipped value without updating the replication shadow state.
+    if (HasAuthority())
     {
-        UE_LOG(LogTemp, Warning,
-            TEXT("BeginPlay PS Lantern=%d CharacterBefore=%d"),
-            PS->bHasLantern,
-            bHasLantern);
+        if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("BeginPlay PS Lantern=%d CharacterBefore=%d"),
+                PS->bHasLantern,
+                bHasLantern);
 
-        bHasLantern = PS->bHasLantern;
-        bLanternEquipped = PS->bLanternEquipped;
+            bHasLantern = PS->bHasLantern;
+            bLanternEquipped = PS->bLanternEquipped;
 
-        bHasPrism = PS->bHasPrism;
-        bPrismEquipped = PS->bPrismEquipped;
+            bHasPrism = PS->bHasPrism;
+            bPrismEquipped = PS->bPrismEquipped;
 
-        UE_LOG(LogTemp, Warning,
-            TEXT("CharacterAfter Lantern=%d"),
-            bHasLantern);
+            UE_LOG(LogTemp, Warning,
+                TEXT("CharacterAfter Lantern=%d"),
+                bHasLantern);
+        }
     }
 
     if (bHasLantern)
@@ -628,16 +633,20 @@ void ABaseCharacter::BeginPlay()
         Slot3Icon = PrismIcon;
     }
 
-    if (bLanternEquipped)
+    // RepNotify does not run when an initial replicated value equals the CDO
+    // default.  Apply the state unconditionally so inherited Blueprint
+    // component defaults can never leave a light visible on a remote screen.
+    OnRep_LanternEquipped();
+    OnRep_PrismEquipped();
+
+    if (HasAuthority() && bLanternEquipped)
     {
-        OnRep_LanternEquipped();
         bLanternPoseActive = true;
         SetItemAnimationState(EItemAnimationState::LanternIdle);
     }
 
-    if (bPrismEquipped)
+    if (HasAuthority() && bPrismEquipped)
     {
-        OnRep_PrismEquipped();
         bPrismPoseActive = true;
         SetItemAnimationState(EItemAnimationState::PrismIdle);
     }
@@ -939,10 +948,16 @@ void ABaseCharacter::MulticastSetLanternDirectionEffect_Implementation(
         return;
     }
 
-    if (!bVisible)
+    // This RPC is intentionally unreliable because the rotation is refreshed
+    // several times per second.  A delayed "show" packet must never revive the
+    // effect after the replicated equipped state has already turned it off.
+    const bool bShouldShow = bVisible
+        && bLanternEquipped
+        && bLanternGuideReady;
+    if (!bShouldShow)
     {
-        LanternDirectionEffectComponent->Deactivate();
-        LanternDirectionEffectComponent->SetVisibility(false);
+        LanternDirectionEffectComponent->DeactivateImmediate();
+        LanternDirectionEffectComponent->SetVisibility(false, true);
         return;
     }
 
@@ -4331,9 +4346,10 @@ void ABaseCharacter::OnRep_LanternEquipped()
     bLanternGuideReady = bLanternEquipped
         && ItemAnimationState == EItemAnimationState::LanternIdle;
 
-    EquippedLanternMesh->SetVisibility(bLanternEquipped);
+    EquippedLanternMesh->SetVisibility(bLanternEquipped, true);
 
     LanternLight->SetVisibility(bLanternEquipped, true);
+    LanternLight->SetActive(bLanternEquipped);
 
     // The decal is sized from LanternLightSphere in BeginPlay, the same
     // sphere used for the authoritative darkness-protection overlap.  Show
@@ -4349,8 +4365,8 @@ void ABaseCharacter::OnRep_LanternEquipped()
     // immediately on unequip so it never lingers for one update interval.
     if (!bLanternEquipped && LanternDirectionEffectComponent)
     {
-        LanternDirectionEffectComponent->Deactivate();
-        LanternDirectionEffectComponent->SetVisibility(false);
+        LanternDirectionEffectComponent->DeactivateImmediate();
+        LanternDirectionEffectComponent->SetVisibility(false, true);
     }
 
     LanternLightSphere->SetCollisionEnabled(
@@ -4401,6 +4417,15 @@ void ABaseCharacter::ServerUseSlot1_Implementation()
 
     bLanternEquipped = bEquip;
 
+    // PlayerState survives pawn recreation and seamless travel.  Keep its
+    // durable value in lockstep with the replicated pawn state; otherwise a
+    // later client lifecycle callback can restore an old equipped=true value.
+    if (ABasePlayerState* PS = GetPlayerState<ABasePlayerState>())
+    {
+        PS->bLanternEquipped = bLanternEquipped;
+        PS->ForceNetUpdate();
+    }
+
     UE_LOG(LogTemp, Warning,
         TEXT("ServerUseSlot1 After Equipped=%d"),
         bLanternEquipped);
@@ -4432,6 +4457,25 @@ void ABaseCharacter::MulticastPlayLanternMontage_Implementation(bool bEquip)
     }
     else
     {
+        // This multicast is reliable, so it is an immediate cosmetic fallback
+        // in addition to bLanternEquipped's RepNotify.  It also covers clients
+        // whose actor/PlayerState initialization happened in the same frame.
+        bLanternGuideReady = false;
+        if (LanternDirectionEffectComponent)
+        {
+            LanternDirectionEffectComponent->DeactivateImmediate();
+            LanternDirectionEffectComponent->SetVisibility(false, true);
+        }
+        if (LanternLight)
+        {
+            LanternLight->SetVisibility(false, true);
+            LanternLight->SetActive(false);
+        }
+        if (EquippedLanternMesh)
+        {
+            EquippedLanternMesh->SetVisibility(false, true);
+        }
+
         // Completion is driven by the authoritative timer started on server.
     }
 }
@@ -5091,11 +5135,6 @@ void ABaseCharacter::OnRep_PlayerState()
 		Slot4PurchasedItemIndex = PurchasedItems.IsValidIndex(PS->Slot4PurchasedItemIndex)
 			? PS->Slot4PurchasedItemIndex
 			: INDEX_NONE;
-        bHasLantern = PS->bHasLantern;
-        bLanternEquipped = PS->bLanternEquipped;
-
-        bHasPrism = PS->bHasPrism;
-        bPrismEquipped = PS->bPrismEquipped;
 
         UE_LOG(LogTemp, Warning,
             TEXT("Restore Item From PlayerState Lantern=%d Equipped=%d"),
@@ -5111,6 +5150,14 @@ void ABaseCharacter::OnRep_PlayerState()
 		OnRep_PurchasedItems();
 		OnRep_Slot4PurchasedItemIndex();
 	}
+
+    // Equipment presentation follows the pawn's RepNotify properties.  Do not
+    // copy the independently replicated PlayerState values into those fields
+    // on a client: their arrival order is undefined and doing so bypasses the
+    // pawn replication shadow.  Reapply the current pawn state here only to
+    // normalize inherited Blueprint component defaults.
+    OnRep_LanternEquipped();
+    OnRep_PrismEquipped();
 
     if (bHasLantern)
     {
@@ -5148,6 +5195,27 @@ void ABaseCharacter::PossessedBy(AController* NewController)
             TEXT("Server Restore Item Lantern=%d"),
             bHasLantern);
     }
+
+    // BeginPlay commonly runs before possession after seamless travel.  Apply
+    // the just-restored authoritative held-item state now and replicate a
+    // coherent idle pose to every client.
+    bLanternPoseActive = bLanternEquipped;
+    bPrismPoseActive = bPrismEquipped;
+    if (bLanternEquipped)
+    {
+        SetItemAnimationState(EItemAnimationState::LanternIdle);
+    }
+    else if (bPrismEquipped)
+    {
+        SetItemAnimationState(EItemAnimationState::PrismIdle);
+    }
+    else
+    {
+        SetItemAnimationState(EItemAnimationState::None);
+    }
+    OnRep_LanternEquipped();
+    OnRep_PrismEquipped();
+    ForceNetUpdate();
 
     if (bHasLantern)
     {
