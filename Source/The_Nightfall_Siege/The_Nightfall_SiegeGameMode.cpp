@@ -5,6 +5,7 @@
 #include "CharacterType.h"
 #include "BaseLobbyGameState.h"
 #include "BasePlayerState.h"
+#include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerStart.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
@@ -12,6 +13,8 @@
 #include "Altar.h"
 #include "BaseCharacter.h"
 #include "BaseController.h"
+
+
 AThe_Nightfall_SiegeGameMode::AThe_Nightfall_SiegeGameMode()
 {
 	// Every gameplay map uses ServerTravel. Keep each player's PlayerState
@@ -191,7 +194,7 @@ void AThe_Nightfall_SiegeGameMode::PostLogin(APlayerController* NewPlayer)
 
 	UE_LOG(LogTemp, Warning, TEXT("Player Joined"));
 
-	AGameStateBase* GS = GetGameState<AGameStateBase>();
+    ABaseLobbyGameState* GS = GetGameState<ABaseLobbyGameState>();
 
 	if (GS)
 	{
@@ -203,9 +206,11 @@ void AThe_Nightfall_SiegeGameMode::PostLogin(APlayerController* NewPlayer)
         // the party quest, rather than starting at NotAccepted locally.
         if (ABasePlayerState* JoiningState = NewPlayer ? NewPlayer->GetPlayerState<ABasePlayerState>() : nullptr)
         {
-            for (APlayerState* PlayerState : GS->PlayerArray)
+            for (APlayerState* ExistingPlayerState : GS->PlayerArray)
             {
-                ABasePlayerState* ExistingState = Cast<ABasePlayerState>(PlayerState);
+                ABasePlayerState* ExistingState =
+                    Cast<ABasePlayerState>(ExistingPlayerState);
+
                 if (ExistingState && ExistingState != JoiningState)
                 {
                     JoiningState->CopyQuestProgressFrom(*ExistingState);
@@ -366,3 +371,8 @@ void AThe_Nightfall_SiegeGameMode::HandleBossDefeated()
     }
 }
 
+void AThe_Nightfall_SiegeGameMode::ResetGameStateForNewRun()
+{
+    bPartyRetryAvailable = false;
+    bGameClearAnnounced = false;
+}

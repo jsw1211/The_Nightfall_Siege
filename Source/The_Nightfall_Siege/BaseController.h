@@ -125,6 +125,8 @@ protected:
 	bool bGameClearVisible = false;
 	bool bPauseMenuVisible = false;
 
+	FTimerHandle GameClearTimerHandle;
+
 
 public:
 
@@ -144,4 +146,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Game Clear")
 	void ExitGame();
+
+	UFUNCTION(Server, Reliable)
+	void ServerBackToTitle();
+
+	UFUNCTION(BlueprintCallable)
+	void BackToTitle();
 };

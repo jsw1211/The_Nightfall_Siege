@@ -10,6 +10,7 @@
 #include "LobbyWidget.h"
 #include "TimerManager.h"
 #include "The_Nightfall_SiegeGameMode.h"
+#include "GameFramework/GameStateBase.h"
 #include "TheNightfallSiegeInstance.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
@@ -321,7 +322,7 @@ ABaseController::ABaseController()
     PrimaryActorTick.bCanEverTick = true;
 
     static ConstructorHelpers::FClassFinder<UUserWidget> DeathScreenWidgetBP(TEXT("/Game/BP/WBP_DeathScreen"));
-    static ConstructorHelpers::FClassFinder<UUserWidget> GameClearWidgetBP(TEXT("/Game/BP/WBP_GameClear"));
+    static ConstructorHelpers::FClassFinder<UUserWidget> GameClearWidgetBP(TEXT("/Game/BP/WBP_EndingCredits"));
     static ConstructorHelpers::FClassFinder<UPauseMenuWidget> PauseMenuWidgetBP(TEXT("/Game/BP/WBP_PauseMenuDesigner"));
 
     if (DeathScreenWidgetBP.Succeeded())
@@ -565,53 +566,66 @@ void ABaseController::ClientEnableRetry_Implementation()
 
 void ABaseController::ClientShowGameClear_Implementation()
 {
-    if (!IsLocalController()) return;
+    if (!IsLocalController())
+    {
+        return;
+    }
 
-    // A dead player can still see the party defeat the dragon.  The clear
-    // result replaces the death result, so never leave both overlays visible.
+    // 사망 화면 제거
     bRetryAvailable = false;
+
     if (DeathScreenWidget)
     {
         DeathScreenWidget->RemoveFromParent();
         DeathScreenWidget = nullptr;
     }
 
+    // 이미 엔딩 화면 처리 중이면 중복 방지
+    if (bGameClearVisible)
+    {
+        return;
+    }
+
+    // 엔딩 처리 시작 상태로 변경
     bGameClearVisible = true;
     bShowMouseCursor = true;
-    if (!GameClearWidget && GameClearWidgetClass)
-    {
-        GameClearWidget = CreateWidget<UUserWidget>(this, GameClearWidgetClass);
-        if (GameClearWidget)
+
+    // 보스 처치 후 5초 뒤 엔딩 WBP 표시
+    GetWorld()->GetTimerManager().SetTimer(
+        GameClearTimerHandle,
+        [this]()
         {
-            GameClearWidget->AddToViewport(1100);
-
-            if (UTextBlock* TitleText = Cast<UTextBlock>(GameClearWidget->GetWidgetFromName(TEXT("YouDiedText"))))
+            if (!IsValid(this) || !IsLocalController())
             {
-                TitleText->SetText(FText::FromString(TEXT("GAME CLEAR!")));
-                TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.78f, 0.05f)));
+                return;
             }
 
-            if (UTextBlock* ExitText = Cast<UTextBlock>(GameClearWidget->GetWidgetFromName(TEXT("RetryText"))))
+            // 엔딩 크레딧 WBP 생성
+            if (!GameClearWidget && GameClearWidgetClass)
             {
-                ExitText->SetText(FText::FromString(TEXT("EXIT GAME")));
+                GameClearWidget =
+                    CreateWidget<UUserWidget>(this, GameClearWidgetClass);
+
+                if (GameClearWidget)
+                {
+                    GameClearWidget->AddToViewport(1100);
+                }
             }
 
-            if (UButton* ExitButton = Cast<UButton>(GameClearWidget->GetWidgetFromName(TEXT("RetryButton"))))
-            {
-                ExitButton->SetVisibility(ESlateVisibility::Visible);
-                ExitButton->SetIsEnabled(true);
-                ExitButton->OnClicked.RemoveDynamic(this, &ABaseController::ExitGame);
-                ExitButton->OnClicked.AddDynamic(this, &ABaseController::ExitGame);
-            }
-        }
-    }
+            // 엔딩 크레딧 동안 UI 입력
+            FInputModeUIOnly InputMode;
 
-    FInputModeUIOnly InputMode;
-    if (GameClearWidget)
-    {
-        InputMode.SetWidgetToFocus(GameClearWidget->TakeWidget());
-    }
-    SetInputMode(InputMode);
+            if (GameClearWidget)
+            {
+                InputMode.SetWidgetToFocus(
+                    GameClearWidget->TakeWidget());
+            }
+
+            SetInputMode(InputMode);
+        },
+        5.0f,
+        false
+    );
 }
 
 void ABaseController::TogglePauseMenu()
@@ -695,4 +709,82 @@ void ABaseController::ServerRequestRetry_Implementation()
 void ABaseController::ExitGame()
 {
     UKismetSystemLibrary::QuitGame(this, this, EQuitPreference::Quit, false);
+}
+
+void ABaseController::BackToTitle()
+{
+    ServerBackToTitle();
+}
+
+void ABaseController::ServerBackToTitle_Implementation()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    AThe_Nightfall_SiegeGameMode* GameMode =
+        GetWorld()->GetAuthGameMode<AThe_Nightfall_SiegeGameMode>();
+
+    if (!GameMode)
+    {
+        return;
+    }
+
+    // 모든 플레이어의 진행 상태 초기화
+    if (GameMode->GameState)
+    {
+        for (APlayerState* ExistingPlayerState : GameMode->GameState->PlayerArray)
+        {
+            ABasePlayerState* PS =
+                Cast<ABasePlayerState>(ExistingPlayerState);
+
+            if (!PS)
+            {
+                continue;
+            }
+
+            PS->SelectedCharacter = ECharacterType::Archer;
+            PS->SetReady(false);
+
+            PS->bHasLantern = false;
+            PS->bLanternEquipped = false;
+
+            PS->bHasPrism = false;
+            PS->bPrismEquipped = false;
+
+            PS->Coin = 0;
+            PS->PotionCount = 0;
+            PS->SkillPoints = 0;
+
+            PS->PurchasedItems.Empty();
+            PS->Slot4PurchasedItemIndex = INDEX_NONE;
+
+            PS->SavedCurrentHP = -1.f;
+
+            PS->bHasDungeonCoinCheckpoint = false;
+            PS->DungeonEntryCoin = 0;
+
+            PS->ForceNetUpdate();
+        }
+    }
+
+    // GameInstance에 저장된 진행 상태도 초기화
+    if (UTheNightfallSiegeInstance* GI =
+        GetGameInstance<UTheNightfallSiegeInstance>())
+    {
+        GI->bHasLantern = false;
+        GI->bWorldLanternDestroyed = false;
+        GI->bHasPrism = false;
+
+        // 프로젝트에 존재하는 진행/여행 상태 초기화 함수가 있다면
+        // 여기서 같이 초기화
+    }
+
+    // GameMode 자체의 게임 종료 상태 초기화
+    GameMode->ResetGameStateForNewRun();
+
+    // 타이틀 화면으로 이동
+    GetWorld()->ServerTravel(
+        TEXT("/Game/Level/Lvl_MainMenu?listen"));
 }

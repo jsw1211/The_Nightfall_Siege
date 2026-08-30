@@ -46,6 +46,8 @@ public:
 	void RequestPartyRetry(class ABaseController* RequestingController);
 	void HandleBossDefeated();
 
+	void ResetGameStateForNewRun();
+
 private:
 	bool bPartyRetryAvailable = false;
 	bool bGameClearAnnounced = false;

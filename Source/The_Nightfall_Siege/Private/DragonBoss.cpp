@@ -1753,10 +1753,19 @@ void ADragonBoss::Die()
 	{
 		if (ABaseCharacter* Player = Cast<ABaseCharacter>(Actor))
 		{
+			// 드래곤 처치 즉시 암흑 디버프 해제
+			if (Player->bDarknessDebuff)
+			{
+				Player->bDarknessDebuff = false;
+				Player->MulticastPlayDarknessCleanseEffect();
+				Player->ForceNetUpdate();
+			}
+
 			if (ABasePlayerState* PS = Player->GetPlayerState<ABasePlayerState>())
 			{
 				PS->NotifyBossDefeated();
-				Player->ClientShowQuestMessage(PS->GetQuestObjectiveText().ToString());
+				Player->ClientShowQuestMessage(
+					PS->GetQuestObjectiveText().ToString());
 			}
 		}
 	}
@@ -2581,6 +2590,7 @@ void ADragonBoss::CheckPhaseTwo()
 	GetWorldTimerManager().ClearTimer(AttackEndHandle);
 	GetWorldTimerManager().ClearTimer(ChargingEffectHandle);
 	GetWorldTimerManager().ClearTimer(TelegraphHandle);
+	GetWorldTimerManager().ClearTimer(DebuffDamageHandle);
 
 	ForceNetUpdate();
 	MulticastStartPhaseTwoTransition();
