@@ -167,8 +167,6 @@ void UTheNightfallSiegeInstance::StartRaid()
         FVector(6360.f, 25440.f, 0.f)
     };
 
-    RemainingDungeonPortalLocations = DungeonPortalLocations;
-
     ClearedDungeonCount = 0;
     CurrentDungeon = NAME_None;
     bBossPortalSpawned = false;
@@ -219,16 +217,15 @@ FName UTheNightfallSiegeInstance::SelectNextDungeon()
     return CurrentDungeon;
 }
 
-bool UTheNightfallSiegeInstance::SelectNextDungeonPortalLocation(FVector& OutLocation)
+bool UTheNightfallSiegeInstance::SelectNextDungeonPortalLocation(FVector& OutLocation) const
 {
-    if (RemainingDungeonPortalLocations.IsEmpty())
+    if (DungeonPortalLocations.IsEmpty())
     {
         return false;
     }
 
-    const int32 RandomIndex = FMath::RandRange(0, RemainingDungeonPortalLocations.Num() - 1);
-    OutLocation = RemainingDungeonPortalLocations[RandomIndex];
-    RemainingDungeonPortalLocations.RemoveAtSwap(RandomIndex);
+    const int32 RandomIndex = FMath::RandRange(0, DungeonPortalLocations.Num() - 1);
+    OutLocation = DungeonPortalLocations[RandomIndex];
     return true;
 }
 

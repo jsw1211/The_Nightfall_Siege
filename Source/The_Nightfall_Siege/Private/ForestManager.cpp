@@ -63,7 +63,7 @@ void AForestManager::SpawnDungeonPortal()
 	FVector SpawnLocation;
 	if (!GI->SelectNextDungeonPortalLocation(SpawnLocation))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("No unused dungeon portal locations remain."));
+		UE_LOG(LogTemp, Warning, TEXT("No dungeon portal locations are configured."));
 		return;
 	}
 

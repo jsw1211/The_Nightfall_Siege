@@ -26,13 +26,8 @@ public:
 	UPROPERTY(BlueprintReadWrite)
 	TArray<FName> RemainingDungeons;
 
-	// Each village portal consumes one of these locations for the current raid.
-	// A location is never selected twice until StartRaid resets the raid.
-	UPROPERTY(BlueprintReadWrite)
-	TArray<FVector> RemainingDungeonPortalLocations;
-
-	// All valid village portal positions.  Unlike the remaining list, this is
-	// retained so the boss portal can use any of the six dungeon positions.
+	// All valid village portal positions. Every dungeon and boss portal selection
+	// samples this full list without consuming entries.
 	UPROPERTY(BlueprintReadWrite)
 	TArray<FVector> DungeonPortalLocations;
 
@@ -55,7 +50,7 @@ public:
 
 	FName SelectNextDungeon();
 
-	bool SelectNextDungeonPortalLocation(FVector& OutLocation);
+	bool SelectNextDungeonPortalLocation(FVector& OutLocation) const;
 
 	bool SelectBossPortalLocation(FVector& OutLocation) const;
 
