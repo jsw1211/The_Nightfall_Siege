@@ -13,6 +13,44 @@ ABasePlayerState::ABasePlayerState()
     bReplicates = true;
 }
 
+void ABasePlayerState::ResetForNewRun()
+{
+    SelectedCharacter = ECharacterType::Archer;
+    bReady = false;
+
+    bHasLantern = false;
+    bLanternEquipped = false;
+    bHasPrism = false;
+    bPrismEquipped = false;
+    bPrismCleansePressed = false;
+
+    Coin = 0;
+    DungeonEntryCoin = 0;
+    bHasDungeonCoinCheckpoint = false;
+    PotionCount = 0;
+    PurchasedItems.Reset();
+    Slot4PurchasedItemIndex = INDEX_NONE;
+
+    SkillPoints = 0;
+    QSkillLevel = 1;
+    WSkillLevel = 1;
+    ESkillLevel = 1;
+    RSkillLevel = 1;
+
+    QuestStage = EQuestStage::NotAccepted;
+    ClearedDungeonCount = 0;
+    DungeonMonsterKillCount = 0;
+    DungeonMonsterTotalCount = 0;
+
+    bHasShopStatBonuses = false;
+    SavedMaxHP = 0.f;
+    SavedCurrentHP = -1.f;
+    SavedAttackPower = 0.f;
+    SetScore(0.f);
+
+    ForceNetUpdate();
+}
+
 void ABasePlayerState::GetLifetimeReplicatedProps(
     TArray<FLifetimeProperty>& OutLifetimeProps) const
 {

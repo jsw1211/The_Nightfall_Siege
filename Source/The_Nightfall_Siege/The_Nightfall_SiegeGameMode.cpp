@@ -371,6 +371,17 @@ void AThe_Nightfall_SiegeGameMode::HandleBossDefeated()
     }
 }
 
+bool AThe_Nightfall_SiegeGameMode::TryBeginReturnToTitle()
+{
+    if (bReturningToTitle)
+    {
+        return false;
+    }
+
+    bReturningToTitle = true;
+    return true;
+}
+
 void AThe_Nightfall_SiegeGameMode::ResetGameStateForNewRun()
 {
     bPartyRetryAvailable = false;

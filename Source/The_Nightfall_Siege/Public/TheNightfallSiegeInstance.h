@@ -37,6 +37,9 @@ public:
 	UPROPERTY(BlueprintReadWrite)
 	int32 ClearedDungeonCount;
 
+	/** Restores every run-scoped value to the same state as a fresh process. */
+	void ResetForNewRun();
+
 	void StartRaid();
 
 	/**

@@ -904,7 +904,7 @@ void ABaseController::ServerBackToTitle_Implementation()
     AThe_Nightfall_SiegeGameMode* GameMode =
         GetWorld()->GetAuthGameMode<AThe_Nightfall_SiegeGameMode>();
 
-    if (!GameMode)
+    if (!GameMode || !GameMode->TryBeginReturnToTitle())
     {
         return;
     }
@@ -922,55 +922,35 @@ void ABaseController::ServerBackToTitle_Implementation()
                 continue;
             }
 
-            PS->SelectedCharacter = ECharacterType::Archer;
-            PS->SetReady(false);
-
-            PS->bHasLantern = false;
-            PS->bLanternEquipped = false;
-
-            PS->bHasPrism = false;
-            PS->bPrismEquipped = false;
-
-            PS->Coin = 0;
-            PS->PotionCount = 0;
-            PS->SkillPoints = 0;
-
-            PS->PurchasedItems.Empty();
-            PS->Slot4PurchasedItemIndex = INDEX_NONE;
-
-            PS->SavedCurrentHP = -1.f;
-
-            PS->bHasDungeonCoinCheckpoint = false;
-            PS->DungeonEntryCoin = 0;
-
-            PS->ForceNetUpdate();
+            PS->ResetForNewRun();
         }
     }
 
-    // GameInstance에 저장된 진행 상태도 초기화
+    // Reset the listen-server process immediately. Every remote process also
+    // runs the same reset from GameInstance::HandlePostLoadMap on the title map.
     if (UTheNightfallSiegeInstance* GI =
         GetGameInstance<UTheNightfallSiegeInstance>())
     {
-        GI->bHasLantern = false;
-        GI->bWorldLanternDestroyed = false;
-        GI->bHasPrism = false;
-
-        // 프로젝트에 존재하는 진행/여행 상태 초기화 함수가 있다면
-        // 여기서 같이 초기화
+        GI->ResetForNewRun();
     }
 
     // GameMode 자체의 게임 종료 상태 초기화
     GameMode->ResetGameStateForNewRun();
 
     // 타이틀 화면으로 이동
-    for (APlayerState* PS : GameMode->GameState->PlayerArray)
+    TArray<ABaseController*> ControllersToTravel;
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
     {
-        if (ABaseController* Controller =
-            PS ? Cast<ABaseController>(PS->GetOwner()) : nullptr)
+        if (ABaseController* Controller = Cast<ABaseController>(*It))
         {
-            Controller->ClientTravel(
-                TEXT("/Game/Level/Lvl_MainMenu"),
-                ETravelType::TRAVEL_Absolute);
+            ControllersToTravel.Add(Controller);
         }
+    }
+
+    for (ABaseController* Controller : ControllersToTravel)
+    {
+        Controller->ClientTravel(
+            TEXT("/Game/Level/Lvl_MainMenu"),
+            ETravelType::TRAVEL_Absolute);
     }
 }

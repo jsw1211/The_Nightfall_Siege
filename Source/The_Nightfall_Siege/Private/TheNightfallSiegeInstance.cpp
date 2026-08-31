@@ -30,12 +30,7 @@ void UTheNightfallSiegeInstance::Init()
         GEngine->OnNetworkFailure().AddUObject(this, &UTheNightfallSiegeInstance::HandleNetworkFailure);
     }
 
-    SkillLevels.Add(ESkillType::Q, 1);
-    SkillLevels.Add(ESkillType::W, 1);
-    SkillLevels.Add(ESkillType::E, 1);
-    SkillLevels.Add(ESkillType::R, 1);
-
-    StartRaid();
+    ResetForNewRun();
 }
 
 void UTheNightfallSiegeInstance::Shutdown()
@@ -55,6 +50,11 @@ void UTheNightfallSiegeInstance::HandlePostLoadMap(UWorld* LoadedWorld)
     {
         return;
     }
+
+    // GameInstance survives map travel. Reset on the title map in every
+    // process so the listen host and all remote clients start the next run
+    // from the same clean state.
+    ResetForNewRun();
 
     // The game mode creates WBP_Title after the map callback, so bind on the
     // next tick after its Blueprint Construct event has installed its handlers.
@@ -146,6 +146,35 @@ void UTheNightfallSiegeInstance::HandleNetworkFailure(UWorld*, UNetDriver*, ENet
     {
         IPJoinWidget->ShowConnectionError();
     }
+}
+
+void UTheNightfallSiegeInstance::ResetForNewRun()
+{
+    SelectedCharacter = ECharacterType::Archer;
+
+    bHasLantern = false;
+    bLanternEquipped = false;
+    bHasPrism = false;
+    bPrismEquipped = false;
+    bWorldLanternDestroyed = false;
+
+    SkillPoints = 0;
+    SkillLevels.Reset();
+    SkillLevels.Add(ESkillType::Q, 1);
+    SkillLevels.Add(ESkillType::W, 1);
+    SkillLevels.Add(ESkillType::E, 1);
+    SkillLevels.Add(ESkillType::R, 1);
+
+    bIsHost = false;
+    PlayerNickname.Empty();
+
+    if (IsValid(IPJoinWidget))
+    {
+        IPJoinWidget->RemoveFromParent();
+    }
+    IPJoinWidget = nullptr;
+
+    StartRaid();
 }
 
 void UTheNightfallSiegeInstance::StartRaid()

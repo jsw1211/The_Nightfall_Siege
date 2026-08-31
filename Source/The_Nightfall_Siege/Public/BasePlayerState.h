@@ -25,6 +25,7 @@ class THE_NIGHTFALL_SIEGE_API ABasePlayerState : public APlayerState
 public:
 
 	ABasePlayerState();
+	void ResetForNewRun();
 
 	UPROPERTY(ReplicatedUsing = OnRep_SelectedCharacter, BlueprintReadOnly)
 	ECharacterType SelectedCharacter = ECharacterType::Archer;

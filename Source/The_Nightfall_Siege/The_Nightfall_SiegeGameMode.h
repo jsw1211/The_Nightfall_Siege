@@ -46,11 +46,14 @@ public:
 	void RequestPartyRetry(class ABaseController* RequestingController);
 	void HandleBossDefeated();
 
+	/** Returns false after another party member has already started title travel. */
+	bool TryBeginReturnToTitle();
 	void ResetGameStateForNewRun();
 
 private:
 	bool bPartyRetryAvailable = false;
 	bool bGameClearAnnounced = false;
+	bool bReturningToTitle = false;
 };
 
 
